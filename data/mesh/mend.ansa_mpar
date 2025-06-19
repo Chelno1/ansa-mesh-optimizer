@@ -1,0 +1,264 @@
+ ANSA_Version                        = 15.2.3
+  
+ mesh_parameters_name                = AI-Mesh
+  
+# Mesh Options 
+# 
+ mesh_type                           = general
+ element_type                        = mixed 
+ element_order                       = first
+ existing_mesh_treatment             = keep  
+ target_element_length               = 5.
+ perimeter_length                    = 5.
+ distortion-distance                 = 20.%
+ distortion-angle                    = 0.
+ general_min_target_len              = 2.
+ general_max_target_len              = 10.
+# 
+  
+# CFD Options
+# 
+ cfd_interior_growth_rate            = 1.2 
+ cfd_distortion_angle                = 20. 
+ cfd_min_length                      = 0.05 
+ cfd_max_length                      = 0. 
+ cfd_auto_length_calculation         = off
+ cfd_enhanced_curvature_sampling_flag = off
+ cfd_sharpen_edges_angle_limit       = 0. 
+ cfd_convex_sharp_edges_length_flag  = off
+ cfd_convex_sharp_edges_length       = 10. 
+ cfd_convex_sharp_edges_length_mode  = absolute
+ cfd_concave_sharp_edges_length_flag = on
+ cfd_concave_sharp_edges_length      = 10. 
+ cfd_concave_sharp_edges_length_mode = absolute
+ cfd_refine_trailing_edges_ratio_flag = off
+ cfd_refine_trailing_edges_ratio     = 1. 
+ cfd_free_edges_length_flag          = off
+ cfd_refine_trailing_edges_angle   = 60. 
+ cfd_free_edges_length               = 10. 
+ cfd_free_edges_length_mode          = absolute
+ cfd_pid_proximity                   = off
+ cfd_self_proximity                  = off
+ cfd_max_angle_between_normals       = 40. 
+ cfd_length_to_gap_refinement_factor = 0.3 
+ cfd_convex_curvature_treatment      = off
+ cfd_reduce_max_length               = on
+ cfd_reduce_local_length             = off
+ cfd_orientation_based_refinement    = off
+ cfd_reduction_factor                = 0.5 
+ cfd_max_radius_of_curvature         = 1000. 
+ cfd_orientation_vector_dx           = 0. 
+ cfd_orientation_vector_dy           = 0. 
+ cfd_orientation_vector_dz           = -1. 
+ cfd_max_angle_deviation             = 60. 
+# 
+  
+# STL Options
+# 
+ stl_chordal_deviation               = 0.2 
+ stl_chordal_deviation_param         = off
+ stl_max_length                      = 0. 
+ stl_distortion_angle_value          = 20. 
+ stl_distortion_angle_flag           = off
+# 
+  
+# General Options
+# 
+ freeze_single_bounds                = False
+ freeze_triple_bounds                = False
+ freeze_perimeters                   = False
+ freeze_line_elements                = False
+ freeze_named_grids                  = True
+ freeze_hole_zones                   = False
+ remove_triangle_from_spots          = False
+ remove_triangle_from_int_perim      = False
+ remove_triangle_from_ext_perim      = False
+# 
+  
+# Defeaturing Options
+# 
+ defeaturing_length                  = 3
+ paste_triple_bounds_distance        = 0
+ flat_perimeters_defeaturing_level   = fine
+ maintain_sharp_edge_ribs            = off 
+ freeze_segments_that_belong_to_sets = on  
+ set_perimeters_treatment            = allow_join
+ recognize_perimeters_between_parts  = on  
+ part_perimeters_treatment           = allow_join
+ allow_feat_lines_PIDS               = on
+ pid_perimeters_treatment            = allow_join
+ dont_release_already_joined_perims  = off 
+ create_perims_on_symmetry_plane     = off 
+ cut_mesh_on_symmetry_plane          = off 
+ freeze_segments_in_symmetry         = on  
+ remove_logos                        = off 
+ remove_logos_height                 = 0.
+ remove_logos_size                   = 0.
+ remove_emboss                       = off 
+ remove_emboss_height                = 0.
+ remove_emboss_size                  = 0.
+ feature_line_angle_limit            = 20.
+ feature_line_corner_angle_limit     = 40.
+ user_defined_feature_lines          = on
+ auto_close_perimeters               = on
+# 
+  
+# Fillets/Chamfers Treatment Options
+# 
+ dont_join_perimeters_from_split     = off 
+  
+# Fillets Treatment Options
+# 
+ enable_fillets_treatment            = off 
+ separate_internal_external_fillets  = off 
+ create_mapped_mesh_in_fillets       = on  
+#    Fillet Parameters 
+#
+#                   Radius Range | Width Range | Treatment | Length 
+ fillet_parameter = empty
+ default_fillet_parameter = auto, off
+#    External Fillet Parameters 
+#
+#                   Radius Range | Width Range | Treatment | Length 
+ external_fillet_parameter = empty
+ default_external_fillet_parameter = auto, off
+  
+# Chamfers Treatment Options
+# 
+ enable_chamfers_treatment           = off 
+#    Chamfer Parameters 
+#
+#                   Angle Range | Width Range | Treatment  
+ chamfer_parameter = empty
+  
+# Flanges Treatment Options
+# 
+ enable_flanges_treatment            = on  
+ recognize_flanges_that_match        = any  
+ flanges_by_faces_proximity          = off 
+ flanges_by_faces_shape              = on  
+ flanges_by_faces_shape_max_width    = 30. 
+ flanges_using_connections           = off 
+ faces_prox_recog_by                 = factor
+ faces_prox_factor                   = 1.2 
+ faces_prox_distance                 = 2.5 
+ faces_prox_angle                    = 10. 
+ using_conn_points_distance          = 2.5 
+ recognize_flanges_by_SETs           = off
+ recognize_flanges_by_SET_Ids        = 
+ flanges_treatment_type              = ranges
+ flanges_element_length              = 0.5*L
+#    Flange Parameters 
+#
+#                   Max.Width | Element Rows  
+ flange_parameter = empty
+# 
+# Solid Flanges Treatment Options (structural tria mesh)
+# 
+ enable_solid_flanges_treatment         = off 
+ recognize_solid_flanges_that_match     = any  
+ solid_flanges_recognition_by_shape     = on  
+ solid_flanges_recognition_by_proximity = off 
+ solid_flanges_recognition_distance     = 0.5 
+ solid_flanges_recognition_angle        = 5. 
+ recognize_solid_flanges_by_SETs        = off
+ solid_flanges_refine_perimeters        = on  
+ solid_flanges_orientation_handling     = use_existing
+  
+# Holes/Tubes Treatment Options
+# 
+ create_perims_on_zones              = off 
+ create_ortho_trias_on_tubes         = on  
+ create_ortho_trias_on_zones         = off 
+ create_zones_only_on_flat_areas     = on  
+ create_corner_quads_at_zones     = off 
+ attach_zones_on_perimeters          = 0.667*Lmin
+  
+# Bolt Holes
+ enable_bolt_holes                   = on  
+ recognize_bolt_holes_that_match     = any  
+ recognize_bolt_holes_by_proximity   = off 
+ recognize_bolt_holes_by_connections = on  
+ recognize_bolt_holes_by_shape       = off 
+ bolt_holes_by_proximity_distance    = 10. 
+ bolt_holes_by_proximity_angle       = 10. 
+#    Connection Bolt Hole Parameters 
+#
+#                                Target Diameter | Node Number | Zones (zone1, zone2, ...) 
+ connection_bolt_hole_parameter = off, L1=0.8*L, Dz=Washer
+# 
+#    Bolt Hole Parameters 
+#
+#                 Max.Diameter | Target Diameter | Node Number | Zones (zone1, zone2, ...) 
+ bolt_hole_parameter = empty
+ default_bolt_hole_parameter = off, auto, off
+# 
+  
+# General Holes
+ enable_gen_holes                    = on  
+#    General Hole Parameters 
+#
+#                 Max.Diameter | Target Diameter | Node Number | Zones (zone1, zone2, ...) 
+ general_hole_parameter = 6, off, N=4, off
+ general_hole_parameter = 8, off, N=8, W=3.5
+ general_hole_parameter = 10, off, N=8, W=3.5
+ general_hole_parameter = 11.4, off, N=8, W=3.5
+ general_hole_parameter = 15, off, N=10, W=3.5
+ general_hole_parameter = 18, off, N=12, W=4
+ general_hole_parameter = 21, off, N=14, W=4.5
+ default_general_hole_parameter = off, auto, off
+# 
+  
+# Tubes
+# 
+ enable_tubes                        = off 
+#    Tube Parameters 
+#
+#                 Max.Diameter | Target Diameter | Node Number | Zones (zone1, zone2, ...) 
+ tube_parameter = empty
+ default_tube_parameter = off, auto, off
+# 
+  
+# Fix Quality Options
+# 
+ fix_elements_general_flag           = on  
+ split_remain_viol_quads_flag        = off 
+ fix_minimum_length_in_fillets       = off 
+ fix_minimum_length_in_flanges       = on  
+ allow_hole_zones_deformation        = off 
+ create_perfect_hole_zone            = off 
+ zones_around_violating              = 3 
+ maximum_distance_from_surface       = 0.1*L
+ maximum_distance_from_perimeter     = 0.2*L
+ maximum_distance_from_triple_bounds = 0
+# 
+  
+# Volume Mesh Options
+# 
+ create_volume_mesh                  = on
+ tetras_algorithm                    = Structural
+ tetras_criterion_type               = NASTRAN_Aspect_Ratio
+ tetras_criterion_value              = 4.
+ tetras_max_growth_rate              = 1.2
+ tetras_max_elem_length              = 0
+ refine_shell_mesh_proximities       = off
+ hexa_coordinate_system              = 0
+ hexa_buffer_zones                   = 3
+ create_pyramids                     = 1
+ force2rows                          = 0
+ frozen_entities_set_id              = 0
+ trans_pnt_offs                      = 1
+ auto_detected_volume_property_name  = 
+# 
+  
+# Volume Fix Quality Options
+# 
+ fix_solid_elements_general_flag        = off
+ freeze_non_visible_shells              = off
+ number_of_affected_solid_zones         = 3
+ fix_volume_external_bounds             = constrained
+ maximum_distance_from_external_bounds  = 0.1*local
+ fix_volume_pid_bounds                  = unconstrained
+ maximum_distance_from_pid_bounds       = 0.1*local
+# 
+  
