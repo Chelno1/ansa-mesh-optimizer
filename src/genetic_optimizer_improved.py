@@ -1,26 +1,37 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-改进的遗传算法优化器
+改进的遗传算法优化器 - 增强版本
 
 作者: Chel
 创建日期: 2025-06-19
-版本: 1.1.0
+版本: 1.2.0
+更新日期: 2025-06-20
+修复: 内存优化，收敛检测，多样性保持
 """
 
 import numpy as np
 import random
 import logging
+import time
 from typing import Dict, List, Tuple, Optional, Any, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
-import matplotlib.pyplot as plt
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# 安全导入matplotlib
+try:
+    import matplotlib.pyplot as plt
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
+    logger.warning("matplotlib不可用，无法生成图表")
+
 @dataclass
 class GeneticConfig:
-    """遗传算法配置"""
+    """遗传算法配置 - 增强版本"""
     population_size: int = 50
     elite_size: int = 5
     mutation_rate: float = 0.1
@@ -29,9 +40,43 @@ class GeneticConfig:
     max_generations: int = 100
     convergence_threshold: float = 1e-6
     convergence_patience: int = 10
+    
+    # 新增配置选项
+    adaptive_mutation: bool = True
+    diversity_preservation: bool = True
+    niching_enabled: bool = False
+    restart_enabled: bool = True
+    restart_generations: int = 20
+    
+    # 内存管理
+    max_history_size: int = 50
+    save_full_history: bool = False
+    
+    def validate(self) -> Tuple[bool, List[str]]:
+        """验证配置"""
+        errors = []
+        
+        if self.population_size < 4:
+            errors.append("population_size must be at least 4")
+        if self.elite_size >= self.population_size:
+            errors.append("elite_size must be less than population_size")
+        if not 0 <= self.mutation_rate <= 1:
+            errors.append("mutation_rate must be between 0 and 1")
+        if not 0 <= self.crossover_rate <= 1:
+            errors.append("crossover_rate must be between 0 and 1")
+        if self.tournament_size > self.population_size:
+            errors.append("tournament_size must not exceed population_size")
+        if self.convergence_threshold < 0:
+            errors.append("convergence_threshold must be non-negative")
+        if self.convergence_patience <= 0:
+            errors.append("convergence_patience must be positive")
+        
+        return len(errors) == 0, errors
 
 class Individual:
-    """个体类"""
+    """个体类 - 优化版本"""
+    
+    __slots__ = ['genes', 'bounds', 'param_types', 'fitness', 'age', 'generation']
     
     def __init__(self, genes: List[float], bounds: List[Tuple[float, float]], param_types: List[type]):
         """
@@ -47,6 +92,7 @@ class Individual:
         self.param_types = param_types
         self.fitness: Optional[float] = None
         self.age: int = 0
+        self.generation: int = 0
         
         # 确保基因在合法范围内
         self._constrain_genes()
@@ -69,45 +115,111 @@ class Individual:
                 params[name] = self.genes[i]
         return params
     
-    def mutate(self, mutation_rate: float) -> None:
-        """变异操作"""
+    def mutate(self, mutation_rate: float, generation: int = 0, max_generations: int = 100) -> None:
+        """
+        变异操作 - 自适应版本
+        
+        Args:
+            mutation_rate: 基础变异率
+            generation: 当前代数
+            max_generations: 最大代数
+        """
+        # 自适应变异率：随代数增加而减少
+        adaptive_rate = mutation_rate * (1 - generation / max_generations) ** 0.5
+        
         for i in range(len(self.genes)):
-            if random.random() < mutation_rate:
+            if random.random() < adaptive_rate:
                 low, high = self.bounds[i]
                 
                 if self.param_types[i] == int:
                     # 整数变异
-                    self.genes[i] += random.randint(-1, 1)
+                    range_size = max(1, int((high - low) * 0.1))
+                    delta = random.randint(-range_size, range_size)
+                    self.genes[i] += delta
                 else:
-                    # 实数变异（高斯变异）
-                    mutation_strength = (high - low) * 0.1
+                    # 实数变异（自适应高斯变异）
+                    mutation_strength = (high - low) * 0.1 * (1 - generation / max_generations)
                     self.genes[i] += random.gauss(0, mutation_strength)
         
         self._constrain_genes()
         self.fitness = None  # 重置适应度
+        self.age += 1
     
     def crossover(self, other: 'Individual', crossover_rate: float) -> Tuple['Individual', 'Individual']:
-        """交叉操作"""
+        """
+        交叉操作 - 增强版本
+        
+        Args:
+            other: 另一个个体
+            crossover_rate: 交叉率
+            
+        Returns:
+            两个子代个体
+        """
         if random.random() > crossover_rate:
             return Individual(self.genes, self.bounds, self.param_types), \
                    Individual(other.genes, self.bounds, self.param_types)
         
-        # 均匀交叉
+        # 模拟二进制交叉（SBX）用于实数参数
         child1_genes = []
         child2_genes = []
         
         for i in range(len(self.genes)):
-            if random.random() < 0.5:
-                child1_genes.append(self.genes[i])
-                child2_genes.append(other.genes[i])
+            if self.param_types[i] == int:
+                # 整数参数使用均匀交叉
+                if random.random() < 0.5:
+                    child1_genes.append(self.genes[i])
+                    child2_genes.append(other.genes[i])
+                else:
+                    child1_genes.append(other.genes[i])
+                    child2_genes.append(self.genes[i])
             else:
-                child1_genes.append(other.genes[i])
-                child2_genes.append(self.genes[i])
+                # 实数参数使用SBX交叉
+                p1, p2 = self.genes[i], other.genes[i]
+                low, high = self.bounds[i]
+                
+                if abs(p1 - p2) > 1e-14:
+                    # SBX交叉
+                    if p1 > p2:
+                        p1, p2 = p2, p1
+                    
+                    # 分布指数
+                    eta = 2.0
+                    u = random.random()
+                    
+                    if u <= 0.5:
+                        beta = (2 * u) ** (1 / (eta + 1))
+                    else:
+                        beta = (1 / (2 * (1 - u))) ** (1 / (eta + 1))
+                    
+                    c1 = 0.5 * ((1 + beta) * p1 + (1 - beta) * p2)
+                    c2 = 0.5 * ((1 - beta) * p1 + (1 + beta) * p2)
+                    
+                    # 确保在边界内
+                    c1 = max(low, min(high, c1))
+                    c2 = max(low, min(high, c2))
+                    
+                    child1_genes.append(c1)
+                    child2_genes.append(c2)
+                else:
+                    child1_genes.append(p1)
+                    child2_genes.append(p2)
         
         child1 = Individual(child1_genes, self.bounds, self.param_types)
         child2 = Individual(child2_genes, self.bounds, self.param_types)
         
         return child1, child2
+    
+    def distance_to(self, other: 'Individual') -> float:
+        """计算与另一个个体的距离"""
+        total_distance = 0.0
+        for i, ((gene1, gene2), (low, high)) in enumerate(zip(
+            zip(self.genes, other.genes), self.bounds)):
+            # 标准化距离
+            normalized_distance = abs(gene1 - gene2) / (high - low) if high > low else 0
+            total_distance += normalized_distance ** 2
+        
+        return total_distance ** 0.5
     
     def __lt__(self, other: 'Individual') -> bool:
         """比较操作（用于排序）"""
@@ -116,9 +228,17 @@ class Individual:
         if other.fitness is None:
             return True
         return self.fitness < other.fitness
+    
+    def copy(self) -> 'Individual':
+        """创建个体的深拷贝"""
+        new_individual = Individual(self.genes, self.bounds, self.param_types)
+        new_individual.fitness = self.fitness
+        new_individual.age = self.age
+        new_individual.generation = self.generation
+        return new_individual
 
 class GeneticOptimizer:
-    """遗传算法优化器"""
+    """遗传算法优化器 - 增强版本"""
     
     def __init__(self, param_space, evaluator, config=None, genetic_config=None):
         """
@@ -135,20 +255,36 @@ class GeneticOptimizer:
         self.config = config
         self.genetic_config = genetic_config or GeneticConfig()
         
+        # 验证遗传算法配置
+        is_valid, errors = self.genetic_config.validate()
+        if not is_valid:
+            raise ValueError(f"遗传算法配置无效: {errors}")
+        
         self.bounds = param_space.get_bounds()
         self.param_types = param_space.get_param_types()
         self.param_names = param_space.get_param_names()
         
-        # 优化历史
-        self.population_history: List[List[Individual]] = []
-        self.fitness_history: List[List[float]] = []
+        # 优化历史（内存优化）
+        self.generation_stats: List[Dict[str, Any]] = []
         self.best_fitness_history: List[float] = []
+        self.diversity_history: List[float] = []
         self.best_individual: Optional[Individual] = None
+        
+        # 收敛检测
+        self.convergence_counter = 0
+        self.stagnation_counter = 0
+        
+        # 重启机制
+        self.restart_count = 0
+        self.best_ever_fitness = float('inf')
+        self.best_ever_individual: Optional[Individual] = None
         
         # 设置随机种子
         if config and hasattr(config, 'random_state'):
             random.seed(config.random_state)
             np.random.seed(config.random_state)
+        
+        logger.info(f"遗传算法优化器初始化完成 - 种群大小: {self.genetic_config.population_size}")
     
     def optimize(self, n_calls: int, **kwargs) -> Dict[str, Any]:
         """
@@ -162,10 +298,12 @@ class GeneticOptimizer:
             优化结果字典
         """
         # 根据评估次数调整种群大小和代数
-        population_size = min(self.genetic_config.population_size, n_calls // 5)
+        population_size = min(self.genetic_config.population_size, max(10, n_calls // 5))
         max_generations = min(self.genetic_config.max_generations, n_calls // population_size)
         
         logger.info(f"遗传算法优化开始: 种群大小={population_size}, 最大代数={max_generations}")
+        
+        start_time = time.time()
         
         # 初始化种群
         population = self._initialize_population(population_size)
@@ -173,47 +311,87 @@ class GeneticOptimizer:
         # 评估初始种群
         self._evaluate_population(population)
         
-        convergence_counter = 0
         generation = 0
+        total_evaluations = population_size
         
         for generation in range(max_generations):
             # 记录当前代信息
-            self._record_generation(population, generation)
+            self._record_generation_stats(population, generation)
             
             # 检查收敛
             if self._check_convergence():
-                convergence_counter += 1
-                if convergence_counter >= self.genetic_config.convergence_patience:
-                    logger.info(f"在第{generation}代检测到收敛，提前停止")
-                    break
+                logger.info(f"在第{generation}代检测到收敛，提前停止")
+                break
+            
+            # 检查是否需要重启
+            if self._should_restart(generation):
+                logger.info(f"在第{generation}代执行种群重启")
+                population = self._restart_population(population, population_size)
+                self._evaluate_population(population)
+                total_evaluations += population_size
+                self.restart_count += 1
             else:
-                convergence_counter = 0
-            
-            # 进化操作
-            population = self._evolve_population(population)
-            
-            # 评估新种群
-            self._evaluate_population(population)
+                # 进化操作
+                new_population = self._evolve_population(population, generation, max_generations)
+                
+                # 评估新种群中的新个体
+                new_evaluations = self._evaluate_new_individuals(new_population)
+                total_evaluations += new_evaluations
+                
+                population = new_population
             
             # 更新最佳个体
             self._update_best_individual(population)
             
+            # 检查评估次数限制
+            if total_evaluations >= n_calls:
+                logger.info(f"达到评估次数限制 ({n_calls})，停止优化")
+                break
+            
             if self.config and self.config.verbose and generation % 10 == 0:
                 best_fitness = self.best_individual.fitness
-                logger.info(f"第{generation}代: 最佳适应度={best_fitness:.6f}")
+                diversity = self._calculate_population_diversity(population)
+                logger.info(f"第{generation}代: 最佳适应度={best_fitness:.6f}, "
+                          f"多样性={diversity:.4f}, 评估次数={total_evaluations}")
+        
+        execution_time = time.time() - start_time
         
         # 生成结果
-        result = self._generate_result(generation + 1)
+        result = self._generate_result(generation + 1, total_evaluations, execution_time)
         
-        logger.info(f"遗传算法优化完成: 最佳适应度={result['best_value']:.6f}")
+        logger.info(f"遗传算法优化完成: 最佳适应度={result['best_value']:.6f}, "
+                   f"总代数={generation + 1}, 总评估次数={total_evaluations}")
         
         return result
     
     def _initialize_population(self, population_size: int) -> List[Individual]:
-        """初始化种群"""
+        """初始化种群 - 增强版本"""
         population = []
         
-        for _ in range(population_size):
+        # 使用拉丁超立方抽样初始化一部分个体
+        try:
+            from scipy.stats import qmc
+            sampler = qmc.LatinHypercube(d=len(self.bounds), seed=42)
+            lhs_samples = sampler.random(population_size // 2)
+            
+            # 缩放到参数边界
+            for sample in lhs_samples:
+                genes = []
+                for i, (s, (low, high), param_type) in enumerate(zip(sample, self.bounds, self.param_types)):
+                    if param_type == int:
+                        gene = int(low + s * (high - low))
+                    else:
+                        gene = low + s * (high - low)
+                    genes.append(gene)
+                
+                individual = Individual(genes, self.bounds, self.param_types)
+                population.append(individual)
+        
+        except ImportError:
+            logger.warning("scipy不可用，使用随机初始化")
+        
+        # 剩余个体使用随机初始化
+        while len(population) < population_size:
             genes = []
             for (low, high), param_type in zip(self.bounds, self.param_types):
                 if param_type == int:
@@ -232,112 +410,316 @@ class GeneticOptimizer:
         for individual in population:
             if individual.fitness is None:
                 params = individual.to_params(self.param_names)
-                individual.fitness = self.evaluator.evaluate_mesh(params)
+                try:
+                    individual.fitness = self.evaluator.evaluate_mesh(params)
+                except Exception as e:
+                    logger.warning(f"个体评估失败: {e}")
+                    individual.fitness = float('inf')
     
-    def _evolve_population(self, population: List[Individual]) -> List[Individual]:
-        """进化种群"""
+    def _evaluate_new_individuals(self, population: List[Individual]) -> int:
+        """评估种群中新的个体，返回评估次数"""
+        evaluation_count = 0
+        for individual in population:
+            if individual.fitness is None:
+                params = individual.to_params(self.param_names)
+                try:
+                    individual.fitness = self.evaluator.evaluate_mesh(params)
+                    evaluation_count += 1
+                except Exception as e:
+                    logger.warning(f"个体评估失败: {e}")
+                    individual.fitness = float('inf')
+                    evaluation_count += 1
+        
+        return evaluation_count
+    
+    def _evolve_population(self, population: List[Individual], generation: int, max_generations: int) -> List[Individual]:
+        """进化种群 - 增强版本"""
         # 排序种群
         population.sort()
         
+        # 计算种群多样性
+        diversity = self._calculate_population_diversity(population)
+        
         # 保留精英
-        elite = population[:self.genetic_config.elite_size]
-        new_population = [Individual(ind.genes, self.bounds, self.param_types) for ind in elite]
+        elite_size = self.genetic_config.elite_size
+        new_population = [individual.copy() for individual in population[:elite_size]]
+        
+        # 多样性保持机制
+        if self.genetic_config.diversity_preservation and diversity < 0.1:
+            # 如果多样性太低，增加变异率
+            mutation_rate = min(0.5, self.genetic_config.mutation_rate * 2)
+            logger.debug(f"低多样性检测，增加变异率至 {mutation_rate:.3f}")
+        else:
+            mutation_rate = self.genetic_config.mutation_rate
         
         # 生成后代
         while len(new_population) < len(population):
             # 选择父母
-            parent1 = self._tournament_selection(population)
-            parent2 = self._tournament_selection(population)
+            parent1 = self._selection(population)
+            parent2 = self._selection(population)
+            
+            # 确保父母不同（如果可能）
+            attempts = 0
+            while parent1 is parent2 and attempts < 10:
+                parent2 = self._selection(population)
+                attempts += 1
             
             # 交叉
             child1, child2 = parent1.crossover(parent2, self.genetic_config.crossover_rate)
             
             # 变异
-            child1.mutate(self.genetic_config.mutation_rate)
-            child2.mutate(self.genetic_config.mutation_rate)
+            child1.mutate(mutation_rate, generation, max_generations)
+            child2.mutate(mutation_rate, generation, max_generations)
+            
+            # 设置代数
+            child1.generation = generation + 1
+            child2.generation = generation + 1
             
             new_population.extend([child1, child2])
         
         # 确保种群大小
         return new_population[:len(population)]
     
-    def _tournament_selection(self, population: List[Individual]) -> Individual:
-        """锦标赛选择"""
-        tournament = random.sample(population, 
-                                  min(self.genetic_config.tournament_size, len(population)))
+    def _selection(self, population: List[Individual]) -> Individual:
+        """选择操作 - 锦标赛选择"""
+        tournament_size = min(self.genetic_config.tournament_size, len(population))
+        tournament = random.sample(population, tournament_size)
         return min(tournament)  # 返回适应度最好的个体
     
     def _update_best_individual(self, population: List[Individual]) -> None:
         """更新最佳个体"""
         current_best = min(population)
         
+        # 更新当前代最佳
         if self.best_individual is None or current_best.fitness < self.best_individual.fitness:
-            self.best_individual = Individual(current_best.genes, self.bounds, self.param_types)
-            self.best_individual.fitness = current_best.fitness
+            self.best_individual = current_best.copy()
+        
+        # 更新历史最佳
+        if current_best.fitness < self.best_ever_fitness:
+            self.best_ever_fitness = current_best.fitness
+            self.best_ever_individual = current_best.copy()
     
-    def _record_generation(self, population: List[Individual], generation: int) -> None:
-        """记录当前代信息"""
-        # 复制种群（避免引用问题）
-        population_copy = [Individual(ind.genes, self.bounds, self.param_types) for ind in population]
-        for i, ind in enumerate(population):
-            population_copy[i].fitness = ind.fitness
-        
-        self.population_history.append(population_copy)
-        
-        # 记录适应度
+    def _record_generation_stats(self, population: List[Individual], generation: int) -> None:
+        """记录当前代统计信息 - 内存优化版本"""
         fitness_values = [ind.fitness for ind in population if ind.fitness is not None]
-        self.fitness_history.append(fitness_values)
         
         if fitness_values:
-            self.best_fitness_history.append(min(fitness_values))
+            diversity = self._calculate_population_diversity(population)
+            
+            stats = {
+                'generation': generation,
+                'best_fitness': min(fitness_values),
+                'worst_fitness': max(fitness_values),
+                'mean_fitness': np.mean(fitness_values),
+                'std_fitness': np.std(fitness_values),
+                'diversity': diversity,
+                'population_size': len(population),
+                'convergence_counter': self.convergence_counter
+            }
+            
+            # 限制历史记录长度
+            if len(self.generation_stats) >= self.genetic_config.max_history_size:
+                self.generation_stats.pop(0)
+            
+            self.generation_stats.append(stats)
+            self.best_fitness_history.append(stats['best_fitness'])
+            self.diversity_history.append(diversity)
+            
+            # 限制历史列表长度
+            if len(self.best_fitness_history) > self.genetic_config.max_history_size:
+                self.best_fitness_history.pop(0)
+                self.diversity_history.pop(0)
+    
+    def _calculate_population_diversity(self, population: List[Individual]) -> float:
+        """计算种群多样性"""
+        if len(population) < 2:
+            return 0.0
+        
+        total_distance = 0.0
+        count = 0
+        
+        # 计算种群中个体间的平均距离
+        for i in range(len(population)):
+            for j in range(i + 1, len(population)):
+                total_distance += population[i].distance_to(population[j])
+                count += 1
+        
+        return total_distance / count if count > 0 else 0.0
     
     def _check_convergence(self) -> bool:
-        """检查收敛性"""
-        if len(self.best_fitness_history) < 5:
+        """检查收敛性 - 增强版本"""
+        if len(self.best_fitness_history) < self.genetic_config.convergence_patience:
             return False
         
-        recent_best = self.best_fitness_history[-5:]
+        # 检查最近几代的改进
+        recent_best = self.best_fitness_history[-self.genetic_config.convergence_patience:]
         variance = np.var(recent_best)
         
-        return variance < self.genetic_config.convergence_threshold
+        if variance < self.genetic_config.convergence_threshold:
+            self.convergence_counter += 1
+        else:
+            self.convergence_counter = 0
+        
+        # 检查停滞
+        if len(self.best_fitness_history) >= 2:
+            if abs(self.best_fitness_history[-1] - self.best_fitness_history[-2]) < self.genetic_config.convergence_threshold:
+                self.stagnation_counter += 1
+            else:
+                self.stagnation_counter = 0
+        
+        # 收敛条件
+        return (self.convergence_counter >= self.genetic_config.convergence_patience or 
+                self.stagnation_counter >= self.genetic_config.convergence_patience * 2)
     
-    def _generate_result(self, total_generations: int) -> Dict[str, Any]:
+    def _should_restart(self, generation: int) -> bool:
+        """检查是否应该重启种群"""
+        if not self.genetic_config.restart_enabled:
+            return False
+        
+        # 在特定代数间隔重启
+        if generation > 0 and generation % self.genetic_config.restart_generations == 0:
+            # 检查是否停滞
+            if self.stagnation_counter >= self.genetic_config.restart_generations // 2:
+                return True
+        
+        return False
+    
+    def _restart_population(self, population: List[Individual], population_size: int) -> List[Individual]:
+        """重启种群"""
+        # 保留最佳个体
+        elite_count = max(1, self.genetic_config.elite_size // 2)
+        population.sort()
+        new_population = [individual.copy() for individual in population[:elite_count]]
+        
+        # 重新初始化剩余个体
+        while len(new_population) < population_size:
+            genes = []
+            for (low, high), param_type in zip(self.bounds, self.param_types):
+                if param_type == int:
+                    gene = random.randint(low, high)
+                else:
+                    gene = random.uniform(low, high)
+                genes.append(gene)
+            
+            individual = Individual(genes, self.bounds, self.param_types)
+            new_population.append(individual)
+        
+        # 重置计数器
+        self.convergence_counter = 0
+        self.stagnation_counter = 0
+        
+        logger.info(f"种群重启完成，保留 {elite_count} 个精英个体")
+        
+        return new_population
+    
+    def _generate_result(self, total_generations: int, total_evaluations: int, execution_time: float) -> Dict[str, Any]:
         """生成优化结果"""
         best_params = self.best_individual.to_params(self.param_names)
+        
+        # 计算改进统计
+        if len(self.best_fitness_history) > 1:
+            initial_fitness = self.best_fitness_history[0]
+            final_fitness = self.best_fitness_history[-1]
+            improvement = (initial_fitness - final_fitness) / initial_fitness if initial_fitness != 0 else 0
+        else:
+            improvement = 0
         
         return {
             'best_params': best_params,
             'best_value': self.best_individual.fitness,
             'optimizer_name': 'Genetic Algorithm',
             'total_generations': total_generations,
-            'population_size': len(self.population_history[0]) if self.population_history else 0,
-            'convergence_detected': len(self.best_fitness_history) < total_generations,
+            'total_evaluations': total_evaluations,
+            'execution_time': execution_time,
+            'population_size': self.genetic_config.population_size,
+            'convergence_detected': self.convergence_counter >= self.genetic_config.convergence_patience,
+            'restart_count': self.restart_count,
+            'improvement_ratio': improvement,
+            'final_diversity': self.diversity_history[-1] if self.diversity_history else 0,
             'genetic_result': self  # 返回完整的遗传算法结果对象
         }
     
-    def plot_evolution(self, save_path: Optional[str] = None) -> None:
-        """绘制进化过程"""
+    def plot_evolution(self, save_path: Optional[str] = None, show_diversity: bool = True) -> None:
+        """绘制进化过程 - 增强版本"""
+        if not MATPLOTLIB_AVAILABLE:
+            logger.warning("matplotlib不可用，无法绘制进化图表")
+            return
+        
         try:
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+            fig_size = (15, 10) if show_diversity else (12, 8)
+            fig, axes = plt.subplots(2, 2, figsize=fig_size)
             
             # 最佳适应度变化
-            ax1.plot(self.best_fitness_history, 'b-', linewidth=2, label='最佳适应度')
-            ax1.set_xlabel('代数')
-            ax1.set_ylabel('适应度')
-            ax1.set_title('最佳适应度进化曲线')
-            ax1.grid(True, alpha=0.3)
-            ax1.legend()
+            axes[0, 0].plot(self.best_fitness_history, 'b-', linewidth=2, label='最佳适应度')
+            axes[0, 0].set_xlabel('代数')
+            axes[0, 0].set_ylabel('适应度')
+            axes[0, 0].set_title('最佳适应度进化曲线')
+            axes[0, 0].grid(True, alpha=0.3)
+            axes[0, 0].legend()
             
-            # 种群适应度分布（最后一代）
-            if self.fitness_history:
-                final_fitness = self.fitness_history[-1]
-                ax2.hist(final_fitness, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
-                ax2.axvline(x=self.best_individual.fitness, color='red', linestyle='--', 
-                           linewidth=2, label=f'最佳值: {self.best_individual.fitness:.4f}')
-                ax2.set_xlabel('适应度')
-                ax2.set_ylabel('个体数量')
-                ax2.set_title('最终种群适应度分布')
-                ax2.legend()
+            # 添加重启点标记
+            if self.restart_count > 0:
+                restart_points = []
+                for i, gen_stat in enumerate(self.generation_stats):
+                    if i > 0 and gen_stat['generation'] % self.genetic_config.restart_generations == 0:
+                        restart_points.append(i)
+                
+                for point in restart_points:
+                    if point < len(self.best_fitness_history):
+                        axes[0, 0].axvline(x=point, color='red', linestyle='--', alpha=0.7, label='重启点')
+            
+            # 种群多样性变化
+            if show_diversity and self.diversity_history:
+                axes[0, 1].plot(self.diversity_history, 'g-', linewidth=2, label='种群多样性')
+                axes[0, 1].set_xlabel('代数')
+                axes[0, 1].set_ylabel('多样性')
+                axes[0, 1].set_title('种群多样性变化')
+                axes[0, 1].grid(True, alpha=0.3)
+                axes[0, 1].legend()
+            
+            # 适应度统计（最后一代）
+            if self.generation_stats:
+                final_stats = self.generation_stats[-1]
+                
+                # 模拟最终种群的适应度分布
+                mean_fitness = final_stats['mean_fitness']
+                std_fitness = final_stats['std_fitness']
+                
+                # 生成模拟分布数据
+                simulated_fitness = np.random.normal(mean_fitness, std_fitness, 100)
+                simulated_fitness = np.clip(simulated_fitness, final_stats['best_fitness'], final_stats['worst_fitness'])
+                
+                axes[1, 0].hist(simulated_fitness, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
+                axes[1, 0].axvline(x=final_stats['best_fitness'], color='red', linestyle='--', 
+                                 linewidth=2, label=f'最佳值: {final_stats["best_fitness"]:.4f}')
+                axes[1, 0].axvline(x=mean_fitness, color='orange', linestyle='--', 
+                                 linewidth=2, label=f'平均值: {mean_fitness:.4f}')
+                axes[1, 0].set_xlabel('适应度')
+                axes[1, 0].set_ylabel('频次')
+                axes[1, 0].set_title('最终种群适应度分布（模拟）')
+                axes[1, 0].legend()
+            
+            # 收敛性分析
+            if len(self.best_fitness_history) > 10:
+                # 计算滚动改进率
+                window_size = min(10, len(self.best_fitness_history) // 4)
+                improvement_rates = []
+                
+                for i in range(window_size, len(self.best_fitness_history)):
+                    old_best = self.best_fitness_history[i - window_size]
+                    new_best = self.best_fitness_history[i]
+                    if old_best != 0:
+                        improvement = (old_best - new_best) / old_best
+                        improvement_rates.append(improvement)
+                    else:
+                        improvement_rates.append(0)
+                
+                axes[1, 1].plot(improvement_rates, 'purple', linewidth=2, label='改进率')
+                axes[1, 1].set_xlabel('代数')
+                axes[1, 1].set_ylabel('改进率')
+                axes[1, 1].set_title(f'滚动改进率 (窗口大小: {window_size})')
+                axes[1, 1].grid(True, alpha=0.3)
+                axes[1, 1].legend()
             
             plt.tight_layout()
             
@@ -352,33 +734,13 @@ class GeneticOptimizer:
     
     def get_diversity_metrics(self) -> Dict[str, List[float]]:
         """计算种群多样性指标"""
-        diversity_metrics = {
-            'genetic_diversity': [],
-            'fitness_diversity': [],
-            'phenotypic_diversity': []
+        return {
+            'diversity_history': self.diversity_history.copy(),
+            'generation_stats': [stat['diversity'] for stat in self.generation_stats if 'diversity' in stat]
         }
-        
-        for population in self.population_history:
-            # 遗传多样性（基因差异）
-            genes_matrix = np.array([ind.genes for ind in population])
-            genetic_diversity = np.mean(np.std(genes_matrix, axis=0))
-            diversity_metrics['genetic_diversity'].append(genetic_diversity)
-            
-            # 适应度多样性
-            fitness_values = [ind.fitness for ind in population if ind.fitness is not None]
-            if fitness_values:
-                fitness_diversity = np.std(fitness_values)
-                diversity_metrics['fitness_diversity'].append(fitness_diversity)
-            
-            # 表型多样性（参数空间中的分布）
-            param_matrix = np.array([list(ind.to_params(self.param_names).values()) for ind in population])
-            phenotypic_diversity = np.mean(np.std(param_matrix, axis=0))
-            diversity_metrics['phenotypic_diversity'].append(phenotypic_diversity)
-        
-        return diversity_metrics
     
     def export_evolution_data(self, filename: str) -> None:
-        """导出进化数据"""
+        """导出进化数据 - 增强版本"""
         try:
             import json
             
@@ -387,16 +749,33 @@ class GeneticOptimizer:
                     'population_size': self.genetic_config.population_size,
                     'mutation_rate': self.genetic_config.mutation_rate,
                     'crossover_rate': self.genetic_config.crossover_rate,
-                    'tournament_size': self.genetic_config.tournament_size
+                    'tournament_size': self.genetic_config.tournament_size,
+                    'max_generations': self.genetic_config.max_generations,
+                    'adaptive_mutation': self.genetic_config.adaptive_mutation,
+                    'diversity_preservation': self.genetic_config.diversity_preservation,
+                    'restart_enabled': self.genetic_config.restart_enabled
                 },
-                'best_fitness_history': self.best_fitness_history,
+                'results': {
+                    'best_fitness_history': self.best_fitness_history,
+                    'diversity_history': self.diversity_history,
+                    'generation_stats': self.generation_stats,
+                    'restart_count': self.restart_count,
+                    'convergence_counter': self.convergence_counter,
+                    'stagnation_counter': self.stagnation_counter
+                },
                 'best_individual': {
-                    'genes': self.best_individual.genes,
-                    'fitness': self.best_individual.fitness,
-                    'params': self.best_individual.to_params(self.param_names)
+                    'genes': self.best_individual.genes if self.best_individual else None,
+                    'fitness': self.best_individual.fitness if self.best_individual else None,
+                    'params': self.best_individual.to_params(self.param_names) if self.best_individual else None,
+                    'generation': self.best_individual.generation if self.best_individual else None
                 },
-                'diversity_metrics': self.get_diversity_metrics(),
-                'total_generations': len(self.population_history)
+                'metadata': {
+                    'total_generations': len(self.generation_stats),
+                    'parameter_names': self.param_names,
+                    'parameter_bounds': self.bounds,
+                    'parameter_types': [t.__name__ for t in self.param_types],
+                    'export_timestamp': datetime.now().isoformat()
+                }
             }
             
             with open(filename, 'w', encoding='utf-8') as f:
@@ -407,290 +786,72 @@ class GeneticOptimizer:
         except Exception as e:
             logger.error(f"导出进化数据失败: {e}")
 
-# 多目标遗传算法优化器
-class MultiObjectiveGeneticOptimizer(GeneticOptimizer):
-    """多目标遗传算法优化器（NSGA-II）"""
-    
-    def __init__(self, param_space, evaluators: List, config=None, genetic_config=None):
-        """
-        初始化多目标遗传算法优化器
-        
-        Args:
-            param_space: 参数空间
-            evaluators: 评估器列表（每个目标一个）
-            config: 优化配置
-            genetic_config: 遗传算法配置
-        """
-        # 使用第一个评估器初始化基类
-        super().__init__(param_space, evaluators[0], config, genetic_config)
-        self.evaluators = evaluators
-        self.n_objectives = len(evaluators)
-    
-    def _evaluate_population(self, population: List[Individual]) -> None:
-        """多目标评估种群"""
-        for individual in population:
-            if individual.fitness is None:
-                params = individual.to_params(self.param_names)
-                
-                # 评估所有目标
-                fitness_values = []
-                for evaluator in self.evaluators:
-                    fitness = evaluator.evaluate_mesh(params)
-                    fitness_values.append(fitness)
-                
-                individual.fitness = fitness_values  # 多目标适应度
-    
-    def _non_dominated_sort(self, population: List[Individual]) -> List[List[Individual]]:
-        """非支配排序"""
-        fronts = []
-        
-        # 计算支配关系
-        domination_count = [0] * len(population)
-        dominated_solutions = [[] for _ in range(len(population))]
-        
-        for i, ind1 in enumerate(population):
-            for j, ind2 in enumerate(population):
-                if i != j:
-                    if self._dominates(ind1.fitness, ind2.fitness):
-                        dominated_solutions[i].append(j)
-                    elif self._dominates(ind2.fitness, ind1.fitness):
-                        domination_count[i] += 1
-        
-        # 构建第一前沿
-        current_front = []
-        for i, count in enumerate(domination_count):
-            if count == 0:
-                current_front.append(i)
-        
-        # 构建后续前沿
-        while current_front:
-            fronts.append([population[i] for i in current_front])
-            next_front = []
-            
-            for i in current_front:
-                for j in dominated_solutions[i]:
-                    domination_count[j] -= 1
-                    if domination_count[j] == 0:
-                        next_front.append(j)
-            
-            current_front = next_front
-        
-        return fronts
-    
-    def _dominates(self, fitness1: List[float], fitness2: List[float]) -> bool:
-        """检查fitness1是否支配fitness2"""
-        at_least_one_better = False
-        
-        for f1, f2 in zip(fitness1, fitness2):
-            if f1 > f2:  # 假设最小化问题
-                return False
-            elif f1 < f2:
-                at_least_one_better = True
-        
-        return at_least_one_better
-    
-    def _crowding_distance(self, front: List[Individual]) -> List[float]:
-        """计算拥挤距离"""
-        n = len(front)
-        distances = [0.0] * n
-        
-        for obj_idx in range(self.n_objectives):
-            # 按目标函数值排序
-            front_sorted = sorted(enumerate(front), 
-                                key=lambda x: x[1].fitness[obj_idx])
-            
-            # 边界点设置为无穷大
-            distances[front_sorted[0][0]] = float('inf')
-            distances[front_sorted[-1][0]] = float('inf')
-            
-            # 计算中间点的拥挤距离
-            obj_range = (front_sorted[-1][1].fitness[obj_idx] - 
-                        front_sorted[0][1].fitness[obj_idx])
-            
-            if obj_range > 0:
-                for i in range(1, n - 1):
-                    distance = (front_sorted[i + 1][1].fitness[obj_idx] - 
-                              front_sorted[i - 1][1].fitness[obj_idx]) / obj_range
-                    distances[front_sorted[i][0]] += distance
-        
-        return distances
-    
-    def optimize(self, n_calls: int, **kwargs) -> Dict[str, Any]:
-        """
-        执行多目标遗传算法优化
-        
-        Args:
-            n_calls: 总评估次数
-            **kwargs: 其他参数
-            
-        Returns:
-            优化结果字典
-        """
-        # 调整种群大小和代数
-        population_size = min(self.genetic_config.population_size, n_calls // 5)
-        max_generations = min(self.genetic_config.max_generations, n_calls // population_size)
-        
-        logger.info(f"多目标遗传算法优化开始: 种群大小={population_size}, 目标数={self.n_objectives}")
-        
-        # 初始化种群
-        population = self._initialize_population(population_size)
-        
-        # 评估初始种群
-        self._evaluate_population(population)
-        
-        for generation in range(max_generations):
-            # 非支配排序
-            fronts = self._non_dominated_sort(population)
-            
-            # 记录当前代信息
-            self._record_generation(population, generation)
-            
-            # 生成下一代种群
-            new_population = []
-            
-            for front in fronts:
-                if len(new_population) + len(front) <= population_size:
-                    new_population.extend(front)
-                else:
-                    # 需要选择部分个体
-                    remaining = population_size - len(new_population)
-                    distances = self._crowding_distance(front)
-                    
-                    # 按拥挤距离排序并选择
-                    front_with_distances = list(zip(front, distances))
-                    front_with_distances.sort(key=lambda x: x[1], reverse=True)
-                    
-                    new_population.extend([ind for ind, _ in front_with_distances[:remaining]])
-                    break
-            
-            # 进化操作
-            population = self._evolve_population(new_population)
-            
-            # 评估新种群
-            self._evaluate_population(population)
-            
-            if self.config and self.config.verbose and generation % 10 == 0:
-                logger.info(f"第{generation}代完成")
-        
-        # 获取帕累托前沿
-        final_fronts = self._non_dominated_sort(population)
-        pareto_front = final_fronts[0] if final_fronts else []
-        
-        # 生成结果
-        result = {
-            'pareto_front': [ind.to_params(self.param_names) for ind in pareto_front],
-            'pareto_fitness': [ind.fitness for ind in pareto_front],
-            'optimizer_name': 'Multi-Objective Genetic Algorithm (NSGA-II)',
-            'total_generations': max_generations,
-            'n_objectives': self.n_objectives,
-            'population_size': population_size
-        }
-        
-        logger.info(f"多目标优化完成: 帕累托前沿包含{len(pareto_front)}个解")
-        
-        return result
-
-def optimize_with_genetic_algorithm(objective_func, param_space, bounds, param_types, 
-                                   n_calls=20, random_state=42, verbose=True):
+# 工厂函数
+def create_genetic_optimizer(param_space, evaluator, config=None, **genetic_kwargs) -> GeneticOptimizer:
     """
-    向后兼容的遗传算法优化函数
+    创建遗传算法优化器的工厂函数
     
     Args:
-        objective_func: 目标函数
         param_space: 参数空间
-        bounds: 参数边界
-        param_types: 参数类型
-        n_calls: 评估次数
-        random_state: 随机种子
-        verbose: 是否显示详细信息
+        evaluator: 评估器
+        config: 优化配置
+        **genetic_kwargs: 遗传算法特定参数
         
     Returns:
-        优化结果字典
+        配置好的遗传算法优化器
     """
-    # 创建模拟评估器
-    class LegacyEvaluator:
-        def __init__(self, objective_func, param_names):
-            self.objective_func = objective_func
-            self.param_names = param_names
-        
-        def evaluate_mesh(self, params):
-            return self.objective_func(params)
-        
-        def validate_params(self, params):
-            return True
+    genetic_config = GeneticConfig(**genetic_kwargs)
+    return GeneticOptimizer(param_space, evaluator, config, genetic_config)
+
+if __name__ == "__main__":
+    # 测试遗传算法优化器
+    logger.info("遗传算法优化器测试")
     
-    # 创建模拟参数空间
-    class LegacyParamSpace:
-        def __init__(self, bounds, param_types, param_names):
-            self._bounds = bounds
-            self._param_types = param_types
-            self._param_names = param_names
-        
+    # 创建简单的测试问题
+    class TestEvaluator:
+        def evaluate_mesh(self, params):
+            # Rosenbrock函数
+            x = params.get('x', 0)
+            y = params.get('y', 0)
+            return 100 * (y - x**2)**2 + (1 - x)**2
+    
+    class TestParamSpace:
         def get_bounds(self):
-            return self._bounds
+            return [(-2, 2), (-2, 2)]
         
         def get_param_types(self):
-            return self._param_types
+            return [float, float]
         
         def get_param_names(self):
-            return self._param_names
+            return ['x', 'y']
     
-    # 创建参数名称
-    param_names = [dim.name for dim in param_space]
+    # 创建测试优化器
+    param_space = TestParamSpace()
+    evaluator = TestEvaluator()
     
-    # 创建评估器和参数空间
-    evaluator = LegacyEvaluator(objective_func, param_names)
-    legacy_param_space = LegacyParamSpace(bounds, param_types, param_names)
-    
-    # 创建配置
-    class LegacyConfig:
-        def __init__(self):
-            self.random_state = random_state
-            self.verbose = verbose
-    
-    config = LegacyConfig()
-    
-    # 执行优化
-    optimizer = GeneticOptimizer(legacy_param_space, evaluator, config)
-    result = optimizer.optimize(n_calls)
-    
-    # 转换结果格式以保持向后兼容
-    class LegacyResult:
-        def __init__(self, x, fun, x_iters, func_vals):
-            self.x = x
-            self.fun = fun
-            self.x_iters = x_iters
-            self.func_vals = func_vals
-    
-    # 构造历史数据
-    x_iters = []
-    func_vals = []
-    
-    for generation_fitness in optimizer.fitness_history:
-        if generation_fitness:
-            best_fitness = min(generation_fitness)
-            func_vals.append(best_fitness)
-            
-            # 找到对应的个体
-            for population in optimizer.population_history:
-                for ind in population:
-                    if ind.fitness == best_fitness:
-                        x_iters.append(ind.genes)
-                        break
-                break
-    
-    legacy_result = LegacyResult(
-        x=optimizer.best_individual.genes,
-        fun=optimizer.best_individual.fitness,
-        x_iters=x_iters,
-        func_vals=func_vals
+    genetic_config = GeneticConfig(
+        population_size=20,
+        max_generations=50,
+        mutation_rate=0.1,
+        crossover_rate=0.8,
+        adaptive_mutation=True,
+        diversity_preservation=True
     )
     
-    return {
-        'best_params': result['best_params'],
-        'best_value': result['best_value'],
-        'optimizer': result['optimizer_name'],
-        'execution_time': 0,  # 估算值
-        'n_calls': n_calls,
-        'result': legacy_result
-    }
+    optimizer = GeneticOptimizer(param_space, evaluator, genetic_config=genetic_config)
+    
+    # 运行优化
+    result = optimizer.optimize(n_calls=100)
+    
+    print(f"最佳参数: {result['best_params']}")
+    print(f"最佳值: {result['best_value']:.6f}")
+    print(f"总代数: {result['total_generations']}")
+    print(f"重启次数: {result['restart_count']}")
+    
+    # 绘制进化过程
+    optimizer.plot_evolution("test_evolution.png")
+    
+    # 导出数据
+    optimizer.export_evolution_data("test_evolution_data.json")
+    
+    print("遗传算法测试完成!")

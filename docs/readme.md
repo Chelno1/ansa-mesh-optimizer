@@ -1,376 +1,596 @@
-# Ansa网格优化器
+# ANSA Mesh Optimizer (增强版本)
 
-一个用于优化有限元网格参数的Python工具，支持多种优化算法并与Ansa软件集成。
+一个用于ANSA有限元网格参数优化的高级工具集，支持多种优化算法和智能化参数调优。
 
-## 主要特性
+![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
+![Python](https://img.shields.io/badge/python-3.7+-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-- 🚀 **多种优化算法**: 支持贝叶斯优化、随机搜索、森林优化、遗传算法等
-- 🎯 **智能缓存**: 避免重复计算，提高优化效率
-- ⏰ **早停机制**: 自动检测收敛，节省计算时间
-- 📊 **可视化分析**: 丰富的图表和统计分析
-- 🔧 **灵活配置**: 支持配置文件和命令行参数
-- 📈 **敏感性分析**: 分析参数对结果的影响
-- 🏆 **性能比较**: 自动比较不同优化器的性能
+## 🚀 项目简介
 
-## 安装
+ANSA Mesh Optimizer 是一个专门为ANSA有限元分析软件设计的网格参数优化工具。通过集成多种先进的优化算法，自动搜索最优的网格参数组合，以最小化不合格网格单元数量，提高网格质量和分析精度。
 
-### 基础安装
+### 🎯 主要目标
 
+- **自动化优化**: 自动搜索最优网格参数，减少手动调参时间
+- **多算法支持**: 提供贝叶斯优化、遗传算法、随机搜索等多种优化策略
+- **智能缓存**: 避免重复计算，提高优化效率
+- **可视化分析**: 生成详细的优化报告和可视化图表
+- **易于集成**: 支持命令行和Python API两种使用方式
+
+## ✨ 核心特性
+
+### 🔧 优化算法
+- **贝叶斯优化** - 基于高斯过程的智能搜索
+- **遗传算法** - 具有自适应变异和多样性保持
+- **随机森林优化** - 基于决策树的优化策略
+- **随机搜索** - 简单快速的基线方法
+- **并行优化** - 多进程并行参数搜索
+
+### 🛠️ 智能功能
+- **早停机制** - 自动检测收敛，避免过度优化
+- **参数验证** - 确保参数在合理范围内
+- **结果缓存** - 智能缓存避免重复计算
+- **敏感性分析** - 分析参数对结果的影响程度
+- **内存优化** - 高效的内存管理和垃圾回收
+
+### 📊 分析工具
+- **优化器比较** - 多算法性能对比分析
+- **收敛性分析** - 优化过程可视化
+- **统计分析** - 详细的统计指标和报告
+- **参数重要性** - 识别关键参数
+
+## 📋 安装要求
+
+### 必需依赖
+```bash
+python >= 3.7
+numpy >= 1.19.0
+```
+
+### 可选依赖（推荐安装）
+```bash
+# 贝叶斯优化支持
+pip install scikit-optimize
+
+# 数据分析和可视化
+pip install pandas matplotlib seaborn
+
+# 科学计算
+pip install scipy
+
+# 性能监控
+pip install psutil
+```
+
+### 快速安装
 ```bash
 # 克隆项目
-git clone <repository_url>
+git clone <repository-url>
 cd ansa-mesh-optimizer
 
 # 安装依赖
 pip install -r requirements.txt
+
+# 验证安装
+python main.py info --check-deps
 ```
 
-### 开发环境安装
-
-```bash
-# 创建虚拟环境
-python -m venv ansa_optimizer_env
-source ansa_optimizer_env/bin/activate  # Linux/Mac
-# 或
-ansa_optimizer_env\Scripts\activate     # Windows
-
-# 安装依赖
-pip install -r requirements.txt
-
-# 安装开发工具（可选）
-pip install pytest black flake8 mypy
-```
-
-## 快速开始
+## 🚀 快速开始
 
 ### 1. 基本优化
+```bash
+# 使用贝叶斯优化（推荐）
+python main.py optimize --optimizer bayesian --n-calls 30 --evaluator mock
+
+# 使用遗传算法
+python main.py optimize --optimizer genetic --n-calls 50 --evaluator mock
+```
+
+### 2. 优化器比较
+```bash
+# 比较多个优化器性能
+python main.py compare --optimizers bayesian random genetic --n-calls 20 --n-runs 3
+```
+
+### 3. 使用真实ANSA环境
+```bash
+# 确保ANSA环境可用
+python main.py info --check-ansa
+
+# 运行真实优化
+python main.py optimize --optimizer bayesian --evaluator ansa --config my_config.json
+```
+
+## 📖 详细使用指南
+
+### 命令行界面
+
+#### 主要命令
+
+| 命令 | 描述 | 示例 |
+|------|------|------|
+| `optimize` | 运行单个优化器 | `python main.py optimize --optimizer bayesian` |
+| `compare` | 比较多个优化器 | `python main.py compare --optimizers bayesian genetic` |
+| `config` | 配置管理 | `python main.py config generate` |
+| `info` | 系统信息 | `python main.py info --check-deps` |
+| `test` | 运行测试 | `python main.py test --quick` |
+
+#### optimize 命令参数
+
+```bash
+python main.py optimize [OPTIONS]
+
+选项:
+  --optimizer {bayesian,random,forest,genetic,parallel}
+                        优化器类型 (默认: bayesian)
+  --evaluator {ansa,mock,mock_ackley,mock_rastrigin}
+                        评估器类型 (默认: mock)
+  --n-calls INTEGER     优化迭代次数 (默认: 20)
+  --n-initial-points INTEGER
+                        初始随机点数量 (默认: 5)
+  --random-state INTEGER
+                        随机种子 (默认: 42)
+  --no-cache           禁用缓存
+  --no-early-stopping  禁用早停
+  --no-sensitivity     禁用敏感性分析
+  --output PATH        结果输出文件路径
+  --save-plots         保存优化图表
+```
+
+#### compare 命令参数
+
+```bash
+python main.py compare [OPTIONS]
+
+选项:
+  --optimizers {bayesian,random,forest,genetic,parallel} [...]
+                        要比较的优化器列表
+  --n-calls INTEGER    每个优化器的迭代次数 (默认: 20)
+  --n-runs INTEGER     每个优化器的运行次数 (默认: 3)
+  --parallel-runs      并行运行比较（实验性）
+  --no-report          禁用详细报告生成
+```
+
+### Python API
+
+#### 基本使用
 
 ```python
-from ansa_mesh_optimizer_improved import optimize_mesh_parameters
+from ansa_mesh_optimizer_improved import optimize_mesh_parameters, MeshOptimizer
+from compare_optimizers_improved import compare_optimizers
 
-# 使用模拟评估器进行快速测试
+# 单次优化
 result = optimize_mesh_parameters(
-    n_calls=20,
+    n_calls=30,
     optimizer='bayesian',
-    evaluator_type='mock'
+    evaluator_type='mock',
+    use_cache=True
 )
 
 print(f"最佳参数: {result['best_params']}")
-print(f"最佳值: {result['best_value']}")
-```
+print(f"最佳值: {result['best_value']:.6f}")
 
-### 2. 命令行使用
-
-```bash
-# 运行单个优化器
-python main.py optimize --optimizer bayesian --n-calls 30
-
-# 比较多个优化器
-python main.py compare --optimizers bayesian random genetic --n-calls 20
-
-# 使用配置文件
-python main.py optimize --config config.json
-
-# 查看帮助
-python main.py --help
-```
-
-### 3. 优化器比较
-
-```python
-from compare_optimizers_improved import compare_optimizers
-
-# 比较不同优化器的性能
-results = compare_optimizers(
-    optimizers=['bayesian', 'random', 'genetic'],
+# 优化器比较
+comparison = compare_optimizers(
+    optimizers=['bayesian', 'genetic', 'random'],
     n_calls=20,
     n_runs=3,
     evaluator_type='mock'
 )
 
-print(f"最佳优化器: {results['best_optimizer']}")
+print(f"推荐优化器: {comparison['best_optimizer']}")
 ```
 
-## 配置文件
+#### 高级使用
 
-创建配置文件来自定义优化参数：
+```python
+from config import config_manager
+from mesh_evaluator import create_mesh_evaluator
+
+# 自定义配置
+config_manager.optimization_config.n_calls = 50
+config_manager.optimization_config.early_stopping = True
+config_manager.optimization_config.patience = 10
+
+# 创建优化器实例
+optimizer = MeshOptimizer(
+    config=config_manager.optimization_config,
+    evaluator_type='ansa',
+    use_cache=True
+)
+
+# 执行优化
+result = optimizer.optimize(optimizer='bayesian')
+
+# 敏感性分析
+sensitivity = optimizer.sensitivity_analysis(
+    best_params=result['best_params'],
+    n_trials=5
+)
+
+# 保存结果
+optimizer.save_best_params('best_params.txt')
+```
+
+## ⚙️ 配置管理
+
+### 生成默认配置
 
 ```bash
 # 生成默认配置文件
-python main.py config generate
+python main.py config generate --output default_config.json
+
+# 生成示例配置文件
+python main.py config generate --output example_config.json --example
 ```
 
-配置文件示例：
+### 配置文件结构
 
 ```json
 {
   "optimization": {
-    "n_calls": 30,
+    "n_calls": 50,
+    "n_initial_points": 10,
     "optimizer": "bayesian",
     "early_stopping": true,
+    "patience": 8,
     "use_cache": true,
-    "patience": 5,
-    "min_delta": 0.01
+    "sensitivity_analysis": true
+  },
+  "ansa": {
+    "ansa_executable": "ansa",
+    "input_model": "input_model.ansa",
+    "min_element_length": 2.0,
+    "max_element_length": 8.0,
+    "execution_timeout": 300
   },
   "parameter_space": {
     "element_size": [0.5, 2.0],
-    "mesh_density": [1, 5],
-    "mesh_quality_threshold": [0.2, 1.0]
+    "mesh_density": [0.5, 8.0],
+    "mesh_quality_threshold": [0.2, 1.0],
+    "smoothing_iterations": [20, 80],
+    "mesh_growth_rate": [0.5, 1.5],
+    "mesh_topology": [1, 3]
   }
 }
 ```
 
-## 支持的优化器
-
-| 优化器 | 描述 | 适用场景 |
-|--------|------|----------|
-| `bayesian` | 贝叶斯优化（高斯过程） | 昂贵的目标函数，少量迭代 |
-| `random` | 随机搜索 | 基准比较，简单快速 |
-| `forest` | 森林优化（随机森林） | 中等复杂度的问题 |
-| `genetic` | 遗传算法 | 复杂的多模态问题 |
-| `parallel` | 并行随机搜索 | 多核处理器，快速评估 |
-
-## 参数空间
-
-默认优化的网格参数：
-
-- **element_size**: 单元尺寸 (0.5 - 2.0)
-- **mesh_density**: 网格密度 (1 - 5)
-- **mesh_quality_threshold**: 质量阈值 (0.2 - 1.0)
-- **smoothing_iterations**: 平滑迭代次数 (20 - 80)
-- **mesh_growth_rate**: 网格增长率 (0.5 - 1.5)
-- **mesh_topology**: 网格拓扑类型 (1 - 3)
-
-## 与Ansa集成
-
-### 前提条件
-
-1. 安装Ansa软件
-2. 确保Python可以导入ansa模块
-3. 准备好网格参数文件(.ansa_mpar)和质量标准文件(.ansa_qual)
-
-### 使用真实Ansa评估器
-
-```python
-# 使用真实Ansa评估器
-result = optimize_mesh_parameters(
-    n_calls=20,
-    optimizer='bayesian',
-    evaluator_type='ansa'  # 使用真实Ansa评估器
-)
-```
+### 配置验证
 
 ```bash
-# 命令行使用Ansa评估器
-python main.py optimize --evaluator ansa --optimizer genetic
+# 验证配置文件
+python main.py config validate my_config.json
+
+# 显示当前配置
+python main.py config show
+
+# 显示特定配置节
+python main.py config show --section optimization
 ```
 
-## 结果分析
-
-### 优化结果
-
-优化完成后会生成：
-
-- **最佳参数**: 找到的最优参数组合
-- **目标值**: 对应的不合格网格数量
-- **收敛图**: 优化过程的可视化
-- **参数相关性**: 参数之间的关系分析
-- **敏感性分析**: 参数对结果的影响程度
-
-### 结果文件
-
-```
-optimization_reports/
-├── 20250619_142030_Bayesian_Optimization/
-│   ├── optimization_report.txt
-│   ├── convergence.png
-│   ├── parameter_correlation.png
-│   └── early_stopping_history.png
-└── best_params_Bayesian_Optimization_20250619_142030.txt
-```
-
-## 高级功能
-
-### 1. 并行优化
-
-```python
-# 使用多进程并行优化
-result = optimize_mesh_parameters(
-    optimizer='parallel',
-    n_calls=100,
-    n_workers=4  # 使用4个进程
-)
-```
-
-### 2. 多目标优化
-
-```python
-from genetic_optimizer_improved import MultiObjectiveGeneticOptimizer
-
-# 多目标优化（例如：最小化不合格网格数量和计算时间）
-optimizer = MultiObjectiveGeneticOptimizer(
-    param_space=param_space,
-    evaluators=[mesh_evaluator, time_evaluator]
-)
-
-result = optimizer.optimize(n_calls=50)
-pareto_front = result['pareto_front']
-```
-
-### 3. 自定义评估器
-
-```python
-from mesh_evaluator import MeshEvaluator
-
-class CustomEvaluator(MeshEvaluator):
-    def evaluate_mesh(self, params):
-        # 自定义评估逻辑
-        return custom_evaluation_function(params)
-    
-    def validate_params(self, params):
-        # 参数验证逻辑
-        return True
-
-# 使用自定义评估器
-optimizer = MeshOptimizer(evaluator=CustomEvaluator())
-```
-
-## 性能优化建议
-
-### 1. 缓存配置
-
-```python
-# 启用缓存以避免重复计算
-config_manager.optimization_config.use_cache = True
-config_manager.optimization_config.cache_file = 'my_cache.pkl'
-```
-
-### 2. 早停配置
-
-```python
-# 配置早停以节省时间
-config_manager.optimization_config.early_stopping = True
-config_manager.optimization_config.patience = 10
-config_manager.optimization_config.min_delta = 0.001
-```
-
-### 3. 参数空间调整
-
-```python
-# 基于经验缩小搜索空间
-config_manager.parameter_space.element_size = (0.8, 1.2)  # 缩小范围
-config_manager.parameter_space.mesh_density = (2, 4)      # 排除极值
-```
-
-## 故障排除
-
-### 常见问题
-
-1. **Ansa模块导入失败**
-   ```
-   解决方案: 确保Ansa已正确安装并配置Python环境
-   ```
-
-2. **内存不足**
-   ```bash
-   # 减少并行进程数或缓存大小
-   python main.py optimize --optimizer bayesian --n-calls 10
-   ```
-
-3. **优化结果不理想**
-   ```python
-   # 增加迭代次数或尝试不同优化器
-   result = optimize_mesh_parameters(
-       n_calls=100,  # 增加迭代次数
-       optimizer='genetic'  # 尝试遗传算法
-   )
-   ```
-
-### 调试模式
-
-```bash
-# 启用详细日志
-python main.py optimize --verbose --log-file debug.log
-
-# 检查依赖库
-python main.py info --check-deps
-```
-
-## 开发指南
-
-### 代码结构
+## 📁 项目结构
 
 ```
 ansa-mesh-optimizer/
-├── config.py                          # 配置管理
-├── mesh_evaluator.py                  # 网格评估接口
-├── optimization_cache.py              # 缓存管理
-├── early_stopping.py                  # 早停机制
-├── ansa_mesh_optimizer_improved.py    # 主优化器
-├── genetic_optimizer_improved.py      # 遗传算法优化器
-├── compare_optimizers_improved.py     # 优化器比较工具
-├── batch_mesh_improved.py             # Ansa批处理脚本
-├── main.py                            # 主程序入口
-├── requirements.txt                   # 依赖库清单
-└── README.md                          # 项目说明
+├── main.py                              # 主程序入口
+├── ansa_mesh_optimizer_improved.py      # 主优化器模块
+├── batch_mesh_improved.py               # ANSA批处理脚本
+├── compare_optimizers_improved.py       # 优化器比较工具
+├── config.py                           # 配置管理模块
+├── early_stopping.py                   # 早停机制模块
+├── genetic_optimizer_improved.py        # 遗传算法优化器
+├── mesh_evaluator.py                   # 网格评估器接口
+├── optimization_cache.py               # 优化缓存管理
+├── utils.py                            # 工具函数模块
+├── requirements.txt                     # 依赖列表
+├── README.md                           # 项目文档
+└── examples/                           # 示例文件
+    ├── configs/                        # 配置文件示例
+    ├── models/                         # 模型文件示例
+    └── results/                        # 结果示例
 ```
 
-### 运行测试
+## 🔧 模块详解
+
+### MeshOptimizer (主优化器)
+- 支持多种优化算法
+- 集成缓存和早停机制
+- 自动生成优化报告
+- 参数敏感性分析
+
+### 优化算法模块
+- **贝叶斯优化**: 基于scikit-optimize的高效搜索
+- **遗传算法**: 自适应参数和多样性保持
+- **随机搜索**: 快速基线方法
+- **并行优化**: 多进程参数搜索
+
+### 评估器模块
+- **ANSA评估器**: 真实ANSA环境集成
+- **Mock评估器**: 测试和开发用模拟器
+- **多种测试函数**: Rosenbrock, Ackley, Rastrigin等
+
+### 缓存系统
+- **文件缓存**: pickle格式持久化存储
+- **数据库缓存**: SQLite数据库存储
+- **智能清理**: 自动清理过期缓存
+- **统计信息**: 命中率和性能监控
+
+## 📊 性能优化建议
+
+### 1. 缓存配置
+```python
+# 启用压缩缓存
+cache = OptimizationCache(
+    cache_file='cache.pkl.gz',
+    use_compression=True,
+    max_entries=10000
+)
+
+# 使用数据库缓存（大项目推荐）
+cache = OptimizationCache(
+    cache_file='cache.db',
+    use_database=True
+)
+```
+
+### 2. 并行优化
+```bash
+# 使用并行优化器
+python main.py optimize --optimizer parallel --n-calls 100
+
+# 并行比较
+python main.py compare --parallel-runs --optimizers bayesian genetic
+```
+
+### 3. 早停配置
+```python
+# 自适应早停
+config.adaptive_early_stopping = True
+config.patience = 10
+config.min_delta = 0.01
+```
+
+## 🧪 测试和验证
+
+### 运行测试套件
 
 ```bash
-# 运行单元测试
-pytest tests/
+# 快速测试
+python main.py test --quick
 
-# 测试覆盖率
-pytest --cov=. tests/
+# 完整测试
+python main.py test --evaluator mock --verbose-test
 
-# 代码格式检查
-flake8 .
-
-# 类型检查
-mypy .
+# 性能测试
+python main.py info --performance
 ```
 
-### 贡献指南
+### 系统检查
+
+```bash
+# 检查依赖库
+python main.py info --check-deps
+
+# 检查ANSA环境
+python main.py info --check-ansa
+
+# 完整系统信息
+python main.py info --check-deps --check-ansa --performance
+```
+
+## 📈 示例和用例
+
+### 示例1: 基本优化工作流程
+
+```python
+# 1. 设置配置
+from config import config_manager
+
+config_manager.optimization_config.n_calls = 30
+config_manager.optimization_config.use_cache = True
+
+# 2. 运行优化
+from ansa_mesh_optimizer_improved import optimize_mesh_parameters
+
+result = optimize_mesh_parameters(
+    optimizer='bayesian',
+    evaluator_type='mock'
+)
+
+# 3. 分析结果
+print(f"最优参数: {result['best_params']}")
+print(f"目标值: {result['best_value']:.6f}")
+print(f"执行时间: {result['execution_time']:.2f}秒")
+```
+
+### 示例2: 优化器性能比较
+
+```python
+from compare_optimizers_improved import compare_optimizers
+
+# 比较多种优化器
+results = compare_optimizers(
+    optimizers=['bayesian', 'genetic', 'random'],
+    n_calls=25,
+    n_runs=5,
+    evaluator_type='mock_ackley'
+)
+
+# 查看最佳优化器
+best_opt = results['best_optimizer']
+best_info = results['best_optimizer_info']
+
+print(f"推荐优化器: {best_opt}")
+print(f"平均性能: {best_info['mean_best_value']:.6f}")
+print(f"稳定性: {best_info['std_best_value']:.6f}")
+```
+
+### 示例3: 自定义遗传算法
+
+```python
+from genetic_optimizer_improved import GeneticOptimizer, GeneticConfig
+from mesh_evaluator import create_mesh_evaluator
+from config import config_manager
+
+# 自定义遗传算法配置
+genetic_config = GeneticConfig(
+    population_size=50,
+    max_generations=100,
+    mutation_rate=0.1,
+    crossover_rate=0.8,
+    adaptive_mutation=True,
+    diversity_preservation=True
+)
+
+# 创建优化器
+evaluator = create_mesh_evaluator('mock')
+optimizer = GeneticOptimizer(
+    param_space=config_manager.parameter_space,
+    evaluator=evaluator,
+    genetic_config=genetic_config
+)
+
+# 运行优化
+result = optimizer.optimize(n_calls=500)
+
+# 绘制进化过程
+optimizer.plot_evolution('evolution.png')
+```
+
+## 🔍 故障排除
+
+### 常见问题
+
+1. **ANSA不可用**
+   ```bash
+   # 检查ANSA环境
+   python main.py info --check-ansa
+   
+   # 使用模拟评估器
+   python main.py optimize --evaluator mock
+   ```
+
+2. **缺少依赖库**
+   ```bash
+   # 检查依赖
+   python main.py info --check-deps
+   
+   # 安装完整依赖
+   pip install scikit-optimize matplotlib pandas seaborn scipy
+   ```
+
+3. **内存不足**
+   ```python
+   # 减少缓存大小
+   cache = OptimizationCache(max_entries=1000)
+   
+   # 使用文件缓存而非内存
+   config.use_cache = True
+   ```
+
+4. **优化收敛慢**
+   ```python
+   # 启用早停
+   config.early_stopping = True
+   config.patience = 5
+   
+   # 使用自适应早停
+   config.adaptive_early_stopping = True
+   ```
+
+### 日志和调试
+
+```bash
+# 启用详细日志
+python main.py optimize --verbose --log-file optimization.log
+
+# 保存详细报告
+python main.py optimize --save-plots --output results.json
+```
+
+## 🤝 贡献指南
+
+### 开发环境搭建
 
 1. Fork项目
-2. 创建功能分支: `git checkout -b feature/amazing-feature`
-3. 提交更改: `git commit -m 'Add amazing feature'`
-4. 推送分支: `git push origin feature/amazing-feature`
-5. 创建Pull Request
+2. 创建开发分支: `git checkout -b feature/your-feature`
+3. 安装开发依赖: `pip install -r requirements-dev.txt`
+4. 运行测试: `python main.py test`
+5. 提交更改: `git commit -am 'Add some feature'`
+6. 推送分支: `git push origin feature/your-feature`
+7. 创建Pull Request
 
-## 版本历史
+### 代码规范
 
-- **v1.1.0** (2025-06-19)
-  - 完全重构代码架构
-  - 添加配置管理系统
-  - 实现缓存和早停机制
-  - 增强可视化和统计分析
-  - 改进错误处理和日志系统
+- 遵循PEP 8代码风格
+- 添加适当的类型提示
+- 编写完整的文档字符串
+- 包含单元测试
+- 保持向后兼容性
 
-- **v1.0.0** (2025-06-09)
-  - 初始版本
-  - 基本优化功能
+### 扩展指南
 
-## 许可证
+#### 添加新的优化算法
 
-本项目采用MIT许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
+```python
+# 在genetic_optimizer_improved.py中实现新算法
+class NewOptimizer:
+    def __init__(self, param_space, evaluator, config):
+        self.param_space = param_space
+        self.evaluator = evaluator
+        self.config = config
+    
+    def optimize(self, n_calls, **kwargs):
+        # 实现优化逻辑
+        return {
+            'best_params': best_params,
+            'best_value': best_value,
+            'optimizer_name': 'New Optimizer'
+        }
+```
 
-## 联系方式
+#### 添加新的评估器
 
-- 作者: Chel
-- 邮箱: [your-email@example.com]
-- 项目主页: [项目URL]
+```python
+# 在mesh_evaluator.py中添加新评估器
+class CustomEvaluator(MeshEvaluator):
+    def evaluate_mesh(self, params):
+        # 实现评估逻辑
+        return float(quality_score)
+    
+    def validate_params(self, params):
+        # 实现参数验证
+        return True
+```
 
-## 致谢
+## 📄 许可证
 
-感谢以下开源项目：
+本项目采用 MIT 许可证 - 详情请见 [LICENSE](LICENSE) 文件。
 
-- [scikit-optimize](https://scikit-optimize.github.io/) - 贝叶斯优化算法
-- [DEAP](https://deap.readthedocs.io/) - 遗传算法框架
-- [matplotlib](https://matplotlib.org/) - 数据可视化
-- [pandas](https://pandas.pydata.org/) - 数据分析
+## 👥 作者和贡献者
+
+- **Chel** - 主要开发者
+
+## 📧 联系方式
+
+- GitHub Issues: [项目Issues页面]
+- Email: [联系邮箱]
+
+## 🙏 致谢
+
+感谢以下开源项目的支持：
+- [scikit-optimize] - 贝叶斯优化库
+- [numpy] - 数值计算库
+- [matplotlib] - 绘图库
+- [pandas] - 数据分析库
+
+## 📚 参考资料
+
+- [ANSA官方文档](https://www.beta-cae.com/ansa.htm)
+- [贝叶斯优化原理](https://arxiv.org/abs/1807.02811)
+- [遗传算法实现指南](https://en.wikipedia.org/wiki/Genetic_algorithm)
 
 ---
 
-如果这个项目对您有帮助，请考虑给个⭐️！
+**注意**: 本工具仅用于学术研究和工程应用，使用前请确保遵守相关软件许可协议。

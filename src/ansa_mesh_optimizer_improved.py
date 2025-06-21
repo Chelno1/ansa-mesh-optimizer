@@ -1,44 +1,26 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Ansa Batch Mesh Optimizer (改进版)
+Ansa Batch Mesh Optimizer (改进版本)
 
 优化有限元网格参数，最小化不合格网格数量
 
 作者: Chel
 创建日期: 2025-06-09
-版本: 1.1.0
-更新日期: 2025-06-19
+版本: 1.2.0
+更新日期: 2025-06-20
+修复: 导入处理，参数验证，错误处理，内存优化
 """
 
 import numpy as np
 import logging
 import time
+import warnings
 from datetime import datetime
 from typing import Dict, List, Optional, Union, Any, Callable
 from pathlib import Path
-import warnings
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing as mp
-
-# 第三方库导入（带错误处理）
-try:
-    from skopt import gp_minimize, forest_minimize, dummy_minimize
-    from skopt.space import Real, Integer
-    from skopt.utils import use_named_args
-    from skopt.plots import plot_convergence, plot_objective
-    import matplotlib.pyplot as plt
-    SKOPT_AVAILABLE = True
-except ImportError:
-    SKOPT_AVAILABLE = False
-    warnings.warn("scikit-optimize未安装，某些功能可能不可用")
-
-# 本地模块导入
-from config import config_manager, OptimizationConfig
-from mesh_evaluator import create_mesh_evaluator, MeshEvaluator
-from optimization_cache import OptimizationCache, CachedEvaluator
-from early_stopping import create_early_stopping, EarlyStopping
-from genetic_optimizer_improved import GeneticOptimizer
 
 # 配置日志
 logging.basicConfig(
@@ -47,8 +29,70 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# 安全导入可选依赖
+def safe_import_optional_modules():
+    """安全导入可选模块"""
+    modules = {'available': []}
+    
+    # scikit-optimize
+    try:
+        from skopt import gp_minimize, forest_minimize, dummy_minimize
+        from skopt.space import Real, Integer
+        from skopt.utils import use_named_args
+        from skopt.plots import plot_convergence, plot_objective
+        import matplotlib.pyplot as plt
+        
+        modules['skopt_available'] = True
+        modules['skopt'] = {
+            'gp_minimize': gp_minimize,
+            'forest_minimize': forest_minimize,
+            'dummy_minimize': dummy_minimize,
+            'Real': Real,
+            'Integer': Integer,
+            'use_named_args': use_named_args,
+            'plot_convergence': plot_convergence,
+            'plot_objective': plot_objective
+        }
+        modules['plt'] = plt
+        modules['available'].append('scikit-optimize')
+        logger.info("scikit-optimize 模块加载成功")
+        
+    except ImportError as e:
+        modules['skopt_available'] = False
+        modules['skopt_error'] = str(e)
+        logger.warning(f"scikit-optimize不可用: {e}")
+    
+    # pandas (用于报告生成)
+    try:
+        import pandas as pd
+        modules['pandas_available'] = True
+        modules['pd'] = pd
+        modules['available'].append('pandas')
+    except ImportError as e:
+        modules['pandas_available'] = False
+        modules['pandas_error'] = str(e)
+        logger.warning(f"pandas不可用: {e}")
+    
+    return modules
+
+# 全局模块状态
+OPTIONAL_MODULES = safe_import_optional_modules()
+
+# 本地模块导入
+try:
+    from config import config_manager, OptimizationConfig
+    from mesh_evaluator import create_mesh_evaluator, MeshEvaluator
+    from optimization_cache import OptimizationCache, CachedEvaluator
+    from early_stopping import create_early_stopping, EarlyStopping
+    from genetic_optimizer_improved import GeneticOptimizer
+    from utils import normalize_params, validate_param_types, performance_monitor
+except ImportError as e:
+    logger.error(f"本地模块导入失败: {e}")
+    logger.error("请确保所有必需的模块文件存在")
+    raise
+
 class MeshOptimizer:
-    """网格参数优化器主类"""
+    """网格参数优化器主类 - 改进版本"""
     
     def __init__(self, 
                  config: Optional[OptimizationConfig] = None,
@@ -64,6 +108,11 @@ class MeshOptimizer:
         """
         self.config = config or config_manager.optimization_config
         self.param_space = config_manager.parameter_space
+        
+        # 验证配置
+        is_valid, error_msg = self.config.validate()
+        if not is_valid:
+            raise ValueError(f"配置验证失败: {error_msg}")
         
         # 创建评估器
         self.base_evaluator = create_mesh_evaluator(evaluator_type)
@@ -85,6 +134,8 @@ class MeshOptimizer:
         # 优化历史
         self.optimization_history: List[Dict[str, Any]] = []
         self.best_result: Optional[Dict[str, Any]] = None
+        
+        logger.info(f"优化器初始化完成 - 评估器: {evaluator_type}, 缓存: {use_cache}")
     
     def optimize(self, 
                  optimizer: str = 'bayesian',
@@ -106,61 +157,78 @@ class MeshOptimizer:
         logger.info(f"开始使用 {optimizer} 优化器进行网格参数优化")
         logger.info(f"迭代次数: {n_calls}")
         
-        start_time = time.time()
+        # 验证优化器可用性
+        if not self._check_optimizer_availability(optimizer):
+            raise ValueError(f"优化器 {optimizer} 不可用或缺少依赖")
         
-        try:
-            if optimizer.lower() == 'bayesian':
-                result = self._optimize_bayesian(n_calls, **kwargs)
-            elif optimizer.lower() == 'random':
-                result = self._optimize_random(n_calls, **kwargs)
-            elif optimizer.lower() == 'forest':
-                result = self._optimize_forest(n_calls, **kwargs)
-            elif optimizer.lower() in ['genetic', 'ga']:
-                result = self._optimize_genetic(n_calls, **kwargs)
-            elif optimizer.lower() == 'parallel':
-                result = self._optimize_parallel(n_calls, **kwargs)
-            else:
-                raise ValueError(f"不支持的优化器: {optimizer}")
-            
-            execution_time = time.time() - start_time
-            
-            # 完善结果信息
-            result.update({
-                'optimizer': optimizer,
-                'execution_time': execution_time,
-                'n_calls': n_calls,
-                'config': self.config
-            })
-            
-            self.best_result = result
-            
-            # 生成报告
-            self._generate_optimization_report(result)
-            
-            logger.info(f"优化完成，执行时间: {execution_time:.2f}秒")
-            logger.info(f"最佳目标值: {result['best_value']:.6f}")
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"优化过程中发生错误: {e}")
-            raise
-        finally:
-            # 保存缓存
-            if self.cache:
-                self.cache._save_cache()
+        with performance_monitor(f"{optimizer} 优化"):
+            try:
+                if optimizer.lower() == 'bayesian':
+                    result = self._optimize_bayesian(n_calls, **kwargs)
+                elif optimizer.lower() == 'random':
+                    result = self._optimize_random(n_calls, **kwargs)
+                elif optimizer.lower() == 'forest':
+                    result = self._optimize_forest(n_calls, **kwargs)
+                elif optimizer.lower() in ['genetic', 'ga']:
+                    result = self._optimize_genetic(n_calls, **kwargs)
+                elif optimizer.lower() == 'parallel':
+                    result = self._optimize_parallel(n_calls, **kwargs)
+                else:
+                    raise ValueError(f"不支持的优化器: {optimizer}")
+                
+                # 完善结果信息
+                result.update({
+                    'optimizer': optimizer,
+                    'n_calls': n_calls,
+                    'config': self.config,
+                    'total_evaluations': len(self.optimization_history)
+                })
+                
+                self.best_result = result
+                
+                # 生成报告
+                try:
+                    report_dir = self._generate_optimization_report(result)
+                    result['report_dir'] = report_dir
+                except Exception as e:
+                    logger.warning(f"报告生成失败: {e}")
+                
+                logger.info(f"优化完成")
+                logger.info(f"最佳目标值: {result['best_value']:.6f}")
+                
+                return result
+                
+            except Exception as e:
+                logger.error(f"优化过程中发生错误: {e}")
+                raise
+            finally:
+                # 保存缓存
+                if self.cache:
+                    try:
+                        self.cache._save_cache()
+                    except Exception as e:
+                        logger.warning(f"缓存保存失败: {e}")
+    
+    def _check_optimizer_availability(self, optimizer: str) -> bool:
+        """检查优化器可用性"""
+        if optimizer.lower() in ['bayesian', 'random', 'forest']:
+            if not OPTIONAL_MODULES['skopt_available']:
+                logger.error(f"优化器 {optimizer} 需要 scikit-optimize 库")
+                return False
+        return True
     
     def _optimize_bayesian(self, n_calls: int, **kwargs) -> Dict[str, Any]:
         """贝叶斯优化"""
-        if not SKOPT_AVAILABLE:
+        if not OPTIONAL_MODULES['skopt_available']:
             raise RuntimeError("贝叶斯优化需要安装scikit-optimize")
         
-        @use_named_args(self.param_space.to_skopt_space())
-        def objective(**params):
-            result = self._evaluate_with_early_stopping(params)
-            return result
+        skopt = OPTIONAL_MODULES['skopt']
         
-        result = gp_minimize(
+        @skopt['use_named_args'](self.param_space.to_skopt_space())
+        def objective(**params):
+            return self._evaluate_with_early_stopping(params)
+        
+        result = skopt['gp_minimize'](
             objective,
             self.param_space.to_skopt_space(),
             n_calls=n_calls,
@@ -174,14 +242,16 @@ class MeshOptimizer:
     
     def _optimize_random(self, n_calls: int, **kwargs) -> Dict[str, Any]:
         """随机搜索优化"""
-        if not SKOPT_AVAILABLE:
+        if not OPTIONAL_MODULES['skopt_available']:
             raise RuntimeError("随机搜索需要安装scikit-optimize")
         
-        @use_named_args(self.param_space.to_skopt_space())
+        skopt = OPTIONAL_MODULES['skopt']
+        
+        @skopt['use_named_args'](self.param_space.to_skopt_space())
         def objective(**params):
             return self._evaluate_with_early_stopping(params)
         
-        result = dummy_minimize(
+        result = skopt['dummy_minimize'](
             objective,
             self.param_space.to_skopt_space(),
             n_calls=n_calls,
@@ -194,14 +264,16 @@ class MeshOptimizer:
     
     def _optimize_forest(self, n_calls: int, **kwargs) -> Dict[str, Any]:
         """森林优化"""
-        if not SKOPT_AVAILABLE:
+        if not OPTIONAL_MODULES['skopt_available']:
             raise RuntimeError("森林优化需要安装scikit-optimize")
         
-        @use_named_args(self.param_space.to_skopt_space())
+        skopt = OPTIONAL_MODULES['skopt']
+        
+        @skopt['use_named_args'](self.param_space.to_skopt_space())
         def objective(**params):
             return self._evaluate_with_early_stopping(params)
         
-        result = forest_minimize(
+        result = skopt['forest_minimize'](
             objective,
             self.param_space.to_skopt_space(),
             n_calls=n_calls,
@@ -225,7 +297,7 @@ class MeshOptimizer:
     
     def _optimize_parallel(self, n_calls: int, **kwargs) -> Dict[str, Any]:
         """并行随机搜索"""
-        n_workers = kwargs.get('n_workers', mp.cpu_count())
+        n_workers = kwargs.get('n_workers', min(mp.cpu_count(), 4))
         
         logger.info(f"使用 {n_workers} 个进程进行并行优化")
         
@@ -244,6 +316,7 @@ class MeshOptimizer:
             }
             
             # 收集结果
+            completed = 0
             for future in as_completed(future_to_params):
                 params = future_to_params[future]
                 try:
@@ -253,8 +326,10 @@ class MeshOptimizer:
                     if result < best_value:
                         best_value = result
                         best_params = params
-                        
-                    logger.info(f"并行评估完成: {result:.6f}")
+                    
+                    completed += 1
+                    if completed % 5 == 0:
+                        logger.info(f"并行评估进度: {completed}/{n_calls}")
                     
                 except Exception as e:
                     logger.error(f"并行评估失败: {e}")
@@ -269,29 +344,56 @@ class MeshOptimizer:
     
     def _evaluate_with_early_stopping(self, params: Dict[str, float]) -> float:
         """带早停的评估"""
-        result = self.evaluator.evaluate_mesh(params)
-        
-        # 记录历史
-        self.optimization_history.append({
-            'params': params.copy(),
-            'result': result,
-            'timestamp': datetime.now().isoformat()
-        })
-        
-        # 检查早停
-        if self.early_stopping:
-            if self.early_stopping(result, params):
-                logger.info("早停触发，停止优化")
-                # 这里可以通过异常或其他方式通知优化器停止
-        
-        return result
+        try:
+            # 标准化参数
+            normalized_params = normalize_params(params)
+            
+            # 验证参数类型
+            validated_params = validate_param_types(normalized_params, self.param_space)
+            
+            result = self.evaluator.evaluate_mesh(validated_params)
+            
+            # 确保返回有效的浮点数
+            if not isinstance(result, (int, float)) or np.isnan(result) or np.isinf(result):
+                logger.warning(f"Invalid evaluation result: {result}")
+                return float('inf')
+            
+            result_float = float(result)
+            
+            # 记录历史
+            self.optimization_history.append({
+                'params': validated_params.copy(),
+                'result': result_float,
+                'timestamp': datetime.now().isoformat(),
+                'evaluation_count': len(self.optimization_history) + 1
+            })
+            
+            # 检查早停
+            if self.early_stopping:
+                if self.early_stopping(result_float, validated_params):
+                    logger.info("早停触发，停止优化")
+                    # 这里可以通过异常或其他方式通知优化器停止
+            
+            return result_float
+            
+        except Exception as e:
+            logger.error(f"评估过程中发生错误: {e}")
+            return float('inf')
     
     def _evaluate_params_safe(self, params: Dict[str, float]) -> float:
         """线程安全的参数评估"""
         try:
-            return self.base_evaluator.evaluate_mesh(params)
+            # 标准化参数
+            normalized_params = normalize_params(params)
+            
+            # 验证参数类型
+            validated_params = validate_param_types(normalized_params, self.param_space)
+            
+            result = self.base_evaluator.evaluate_mesh(validated_params)
+            return float(result) if result != float('inf') else float('inf')
+            
         except Exception as e:
-            logger.error(f"参数评估失败: {e}")
+            logger.error(f"并行参数评估失败: {e}")
             return float('inf')
     
     def _generate_random_params(self, n_samples: int) -> List[Dict[str, float]]:
@@ -301,6 +403,7 @@ class MeshOptimizer:
         param_names = self.param_space.get_param_names()
         param_types = self.param_space.get_param_types()
         
+        # 设置随机种子
         np.random.seed(self.config.random_state)
         
         for _ in range(n_samples):
@@ -320,14 +423,40 @@ class MeshOptimizer:
         
         best_params = {}
         for i, name in enumerate(param_names):
-            best_params[name] = result.x[i]
+            value = result.x[i]
+            # 标准化值
+            if hasattr(value, 'item'):
+                value = value.item()
+            best_params[name] = value
+        
+        # 标准化最佳参数
+        best_params = normalize_params(best_params)
         
         return {
             'best_params': best_params,
-            'best_value': result.fun,
+            'best_value': float(result.fun) if hasattr(result.fun, 'item') else result.fun,
             'optimizer_name': optimizer_name,
-            'skopt_result': result
+            'skopt_result': result,
+            'convergence_info': {
+                'n_calls': len(result.func_vals),
+                'best_iteration': int(np.argmin(result.func_vals)),
+                'improvement_ratio': self._calculate_improvement_ratio(result.func_vals)
+            }
         }
+    
+    def _calculate_improvement_ratio(self, func_vals: List[float]) -> float:
+        """计算改进比例"""
+        if len(func_vals) < 2:
+            return 0.0
+        
+        initial_value = func_vals[0]
+        final_value = min(func_vals)
+        
+        if initial_value == 0:
+            return 0.0
+        
+        improvement = (initial_value - final_value) / initial_value
+        return max(0.0, improvement)
     
     def _generate_optimization_report(self, result: Dict[str, Any]) -> str:
         """生成优化报告"""
@@ -338,18 +467,45 @@ class MeshOptimizer:
         
         # 生成文本报告
         report_file = report_dir / "optimization_report.txt"
+        self._write_text_report(report_file, result)
+        
+        # 生成可视化图表
+        if OPTIONAL_MODULES['skopt_available']:
+            try:
+                self._generate_plots(result, report_dir)
+            except Exception as e:
+                logger.warning(f"生成图表失败: {e}")
+        
+        # 生成数据文件
+        self._save_optimization_data(result, report_dir)
+        
+        logger.info(f"详细报告已保存到: {report_dir}")
+        return str(report_dir)
+    
+    def _write_text_report(self, report_file: Path, result: Dict[str, Any]) -> None:
+        """写入文本报告"""
         with open(report_file, 'w', encoding='utf-8') as f:
             f.write(f"优化报告 - {result['optimizer_name']}\n")
             f.write("=" * 50 + "\n\n")
-            f.write(f"执行时间: {result['execution_time']:.2f} 秒\n")
+            
+            f.write(f"生成时间: {datetime.now().isoformat()}\n")
+            f.write(f"优化器: {result['optimizer']}\n")
             f.write(f"迭代次数: {result['n_calls']}\n")
+            f.write(f"总评估次数: {result.get('total_evaluations', 'N/A')}\n")
             f.write(f"最佳目标值: {result['best_value']:.6f}\n\n")
             
             f.write("最佳参数:\n")
             for name, value in result['best_params'].items():
                 f.write(f"  {name}: {value}\n")
-            
             f.write("\n")
+            
+            # 收敛信息
+            if 'convergence_info' in result:
+                conv_info = result['convergence_info']
+                f.write("收敛信息:\n")
+                f.write(f"  最佳迭代: {conv_info.get('best_iteration', 'N/A')}\n")
+                f.write(f"  改进比例: {conv_info.get('improvement_ratio', 0.0):.2%}\n")
+                f.write("\n")
             
             # 缓存统计
             if self.cache:
@@ -360,43 +516,149 @@ class MeshOptimizer:
                 f.write("\n")
             
             # 早停信息
-            if self.early_stopping and self.early_stopping.should_stop:
-                early_stop_info = self.early_stopping.get_best_result()
-                f.write("早停信息:\n")
-                for key, value in early_stop_info.items():
-                    f.write(f"  {key}: {value}\n")
-        
-        # 生成可视化图表
-        self._generate_plots(result, report_dir)
-        
-        logger.info(f"详细报告已保存到: {report_dir}")
-        return str(report_dir)
+            if self.early_stopping and hasattr(self.early_stopping, 'should_stop'):
+                if self.early_stopping.should_stop:
+                    early_stop_info = self.early_stopping.get_best_result()
+                    f.write("早停信息:\n")
+                    for key, value in early_stop_info.items():
+                        f.write(f"  {key}: {value}\n")
     
     def _generate_plots(self, result: Dict[str, Any], report_dir: Path) -> None:
         """生成可视化图表"""
+        if not OPTIONAL_MODULES['skopt_available']:
+            return
+        
+        plt = OPTIONAL_MODULES['plt']
+        skopt_plots = OPTIONAL_MODULES['skopt']
+        
         try:
             # 收敛图
             if 'skopt_result' in result:
-                plot_convergence(result['skopt_result'])
+                plt.figure(figsize=(10, 6))
+                skopt_plots['plot_convergence'](result['skopt_result'])
                 plt.title(f"Convergence - {result['optimizer_name']}")
                 plt.savefig(report_dir / "convergence.png", dpi=300, bbox_inches='tight')
                 plt.close()
+                
+                # 参数重要性图（如果数据足够）
+                if result['n_calls'] >= 20:
+                    try:
+                        plt.figure(figsize=(12, 8))
+                        skopt_plots['plot_objective'](result['skopt_result'])
+                        plt.savefig(report_dir / "parameter_importance.png", dpi=300, bbox_inches='tight')
+                        plt.close()
+                    except Exception as e:
+                        logger.warning(f"无法生成参数重要性图: {e}")
+            
+            # 优化历史图
+            if self.optimization_history:
+                self._plot_optimization_history(report_dir)
             
             # 早停历史图
-            if self.early_stopping:
-                self.early_stopping.plot_history(report_dir / "early_stopping_history.png")
-            
-            # 参数相关性图（如果数据足够）
-            if 'skopt_result' in result and result['n_calls'] >= 20:
+            if self.early_stopping and hasattr(self.early_stopping, 'plot_history'):
                 try:
-                    plot_objective(result['skopt_result'])
-                    plt.savefig(report_dir / "parameter_correlation.png", dpi=300, bbox_inches='tight')
-                    plt.close()
+                    self.early_stopping.plot_history(report_dir / "early_stopping_history.png")
                 except Exception as e:
-                    logger.warning(f"无法生成参数相关性图: {e}")
+                    logger.warning(f"无法生成早停历史图: {e}")
             
         except Exception as e:
             logger.warning(f"生成图表失败: {e}")
+    
+    def _plot_optimization_history(self, report_dir: Path) -> None:
+        """绘制优化历史"""
+        if not OPTIONAL_MODULES['skopt_available']:
+            return
+        
+        plt = OPTIONAL_MODULES['plt']
+        
+        try:
+            results = [entry['result'] for entry in self.optimization_history]
+            iterations = list(range(1, len(results) + 1))
+            
+            plt.figure(figsize=(12, 6))
+            
+            # 子图1: 目标值变化
+            plt.subplot(1, 2, 1)
+            plt.plot(iterations, results, 'b-', alpha=0.7, label='Objective Value')
+            
+            # 计算最佳值序列
+            best_so_far = []
+            current_best = float('inf')
+            for result in results:
+                if result < current_best:
+                    current_best = result
+                best_so_far.append(current_best)
+            
+            plt.plot(iterations, best_so_far, 'r-', linewidth=2, label='Best So Far')
+            plt.xlabel('Iteration')
+            plt.ylabel('Objective Value')
+            plt.title('Optimization Progress')
+            plt.legend()
+            plt.grid(True, alpha=0.3)
+            
+            # 子图2: 改进分布
+            plt.subplot(1, 2, 2)
+            improvements = []
+            for i in range(1, len(best_so_far)):
+                if best_so_far[i] < best_so_far[i-1]:
+                    improvements.append(i)
+            
+            if improvements:
+                plt.scatter(improvements, [best_so_far[i] for i in improvements], 
+                           c='red', s=50, alpha=0.7, label='Improvements')
+                plt.plot(iterations, best_so_far, 'b-', alpha=0.5, label='Best Value')
+                plt.xlabel('Iteration')
+                plt.ylabel('Best Value')
+                plt.title('Improvement Points')
+                plt.legend()
+                plt.grid(True, alpha=0.3)
+            
+            plt.tight_layout()
+            plt.savefig(report_dir / "optimization_history.png", dpi=300, bbox_inches='tight')
+            plt.close()
+            
+        except Exception as e:
+            logger.warning(f"绘制优化历史失败: {e}")
+    
+    def _save_optimization_data(self, result: Dict[str, Any], report_dir: Path) -> None:
+        """保存优化数据"""
+        try:
+            import json
+            
+            # 保存参数历史
+            history_file = report_dir / "optimization_history.json"
+            with open(history_file, 'w', encoding='utf-8') as f:
+                json.dump(self.optimization_history, f, indent=2, ensure_ascii=False)
+            
+            # 保存最佳参数
+            best_params_file = report_dir / "best_parameters.json"
+            with open(best_params_file, 'w', encoding='utf-8') as f:
+                json.dump(result['best_params'], f, indent=2, ensure_ascii=False)
+            
+            # 保存配置信息
+            config_file = report_dir / "optimization_config.json"
+            config_data = {
+                'optimizer': result['optimizer'],
+                'n_calls': result['n_calls'],
+                'config': {
+                    'early_stopping': self.config.early_stopping,
+                    'use_cache': self.config.use_cache,
+                    'random_state': self.config.random_state,
+                    'patience': self.config.patience,
+                    'min_delta': self.config.min_delta
+                },
+                'parameter_space': {
+                    'param_names': self.param_space.get_param_names(),
+                    'bounds': self.param_space.get_bounds(),
+                    'param_types': [t.__name__ for t in self.param_space.get_param_types()]
+                }
+            }
+            
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, indent=2, ensure_ascii=False)
+            
+        except Exception as e:
+            logger.warning(f"保存优化数据失败: {e}")
     
     def sensitivity_analysis(self, 
                            best_params: Optional[Dict[str, float]] = None,
@@ -420,42 +682,51 @@ class MeshOptimizer:
         
         logger.info("开始参数敏感性分析...")
         
-        sensitivity_results = {}
-        bounds = self.param_space.get_bounds()
-        param_names = self.param_space.get_param_names()
-        param_types = self.param_space.get_param_types()
-        
-        for i, param_name in enumerate(param_names):
-            param_value = best_params[param_name]
-            param_type = param_types[i]
-            low, high = bounds[i]
+        with performance_monitor("敏感性分析"):
+            sensitivity_results = {}
+            bounds = self.param_space.get_bounds()
+            param_names = self.param_space.get_param_names()
+            param_types = self.param_space.get_param_types()
             
-            logger.info(f"分析参数: {param_name}")
-            
-            # 确定参数类型并设置合适的扰动范围
-            if param_type == float:
-                min_val = max(low, param_value * (1 - noise_level))
-                max_val = min(high, param_value * (1 + noise_level))
-                test_values = np.linspace(min_val, max_val, n_trials)
-            else:  # int
-                min_val = max(low, int(param_value - param_value * noise_level))
-                max_val = min(high, int(param_value + param_value * noise_level))
-                test_values = np.linspace(min_val, max_val, n_trials, dtype=int)
-            
-            # 测试不同参数值的影响
-            results = []
-            for test_val in test_values:
-                test_params = best_params.copy()
-                test_params[param_name] = test_val
+            for i, param_name in enumerate(param_names):
+                param_value = best_params[param_name]
+                param_type = param_types[i]
+                low, high = bounds[i]
                 
-                result = self.evaluator.evaluate_mesh(test_params)
-                results.append((test_val, result))
-                logger.debug(f"  {param_name}={test_val:.4f} -> {result:.4f}")
+                logger.info(f"分析参数: {param_name}")
+                
+                # 确定参数类型并设置合适的扰动范围
+                if param_type == float:
+                    min_val = max(low, param_value * (1 - noise_level))
+                    max_val = min(high, param_value * (1 + noise_level))
+                    test_values = np.linspace(min_val, max_val, n_trials)
+                else:  # int
+                    range_size = int(max(1, param_value * noise_level))
+                    min_val = max(low, int(param_value - range_size))
+                    max_val = min(high, int(param_value + range_size))
+                    test_values = np.linspace(min_val, max_val, n_trials, dtype=int)
+                
+                # 测试不同参数值的影响
+                results = []
+                for test_val in test_values:
+                    test_params = best_params.copy()
+                    test_params[param_name] = test_val
+                    
+                    try:
+                        result = self.evaluator.evaluate_mesh(test_params)
+                        results.append((test_val, result))
+                        logger.debug(f"  {param_name}={test_val:.4f} -> {result:.4f}")
+                    except Exception as e:
+                        logger.warning(f"敏感性分析评估失败: {e}")
+                        results.append((test_val, float('inf')))
+                
+                sensitivity_results[param_name] = results
             
-            sensitivity_results[param_name] = results
-        
-        # 生成敏感性分析图表
-        self._plot_sensitivity_analysis(sensitivity_results, best_params)
+            # 生成敏感性分析图表
+            try:
+                self._plot_sensitivity_analysis(sensitivity_results, best_params)
+            except Exception as e:
+                logger.warning(f"生成敏感性分析图表失败: {e}")
         
         logger.info("参数敏感性分析完成")
         return sensitivity_results
@@ -464,21 +735,45 @@ class MeshOptimizer:
                                   sensitivity_results: Dict[str, List],
                                   best_params: Dict[str, float]) -> None:
         """绘制敏感性分析图表"""
+        if not OPTIONAL_MODULES['skopt_available']:
+            logger.warning("matplotlib不可用，跳过敏感性分析图表生成")
+            return
+        
+        plt = OPTIONAL_MODULES['plt']
+        
         try:
             n_params = len(sensitivity_results)
-            fig, axes = plt.subplots(1, n_params, figsize=(5*n_params, 5))
+            n_cols = min(3, n_params)
+            n_rows = (n_params + n_cols - 1) // n_cols
             
-            if n_params == 1:
-                axes = [axes]
+            fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 4*n_rows))
+            if n_rows == 1:
+                axes = axes.reshape(1, -1) if n_cols > 1 else [axes]
+            elif n_cols == 1:
+                axes = axes.reshape(-1, 1)
             
             for i, (param_name, results) in enumerate(sensitivity_results.items()):
+                row = i // n_cols
+                col = i % n_cols
+                ax = axes[row, col] if n_rows > 1 else axes[col]
+                
                 test_values, objectives = zip(*results)
-                axes[i].plot(test_values, objectives, 'o-', linewidth=2, markersize=6)
-                axes[i].axvline(x=best_params[param_name], color='r', linestyle='--', linewidth=2)
-                axes[i].set_title(f'敏感性分析: {param_name}')
-                axes[i].set_xlabel(param_name)
-                axes[i].set_ylabel('目标值')
-                axes[i].grid(True, alpha=0.3)
+                ax.plot(test_values, objectives, 'o-', linewidth=2, markersize=6)
+                ax.axvline(x=best_params[param_name], color='r', linestyle='--', linewidth=2, label='Best Value')
+                ax.set_title(f'敏感性: {param_name}')
+                ax.set_xlabel(param_name)
+                ax.set_ylabel('目标值')
+                ax.grid(True, alpha=0.3)
+                ax.legend()
+            
+            # 隐藏多余的子图
+            for i in range(n_params, n_rows * n_cols):
+                row = i // n_cols
+                col = i % n_cols
+                if n_rows > 1:
+                    axes[row, col].set_visible(False)
+                else:
+                    axes[col].set_visible(False)
             
             plt.tight_layout()
             
@@ -502,15 +797,27 @@ class MeshOptimizer:
                 'optimizer': self.config.optimizer,
                 'n_calls': self.config.n_calls,
                 'early_stopping': self.config.early_stopping,
-                'use_cache': self.config.use_cache
+                'use_cache': self.config.use_cache,
+                'available_modules': OPTIONAL_MODULES['available']
             }
         }
         
         if self.cache:
             summary['cache_stats'] = self.cache.get_stats()
         
-        if self.early_stopping:
+        if self.early_stopping and hasattr(self.early_stopping, 'get_best_result'):
             summary['early_stopping_info'] = self.early_stopping.get_best_result()
+        
+        # 添加性能统计
+        if self.optimization_history:
+            results = [entry['result'] for entry in self.optimization_history]
+            summary['performance_stats'] = {
+                'best_value': min(results),
+                'worst_value': max(results),
+                'mean_value': np.mean(results),
+                'std_value': np.std(results),
+                'improvement_count': sum(1 for i in range(1, len(results)) if results[i] < results[i-1])
+            }
         
         return summary
     
@@ -532,16 +839,22 @@ class MeshOptimizer:
             optimizer_name = self.best_result['optimizer_name'].replace(' ', '_')
             filename = f"best_params_{optimizer_name}_{timestamp}.txt"
         
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(f"# 最佳网格参数 - {self.best_result['optimizer_name']}\n")
-            f.write(f"# 生成时间: {datetime.now().isoformat()}\n")
-            f.write(f"# 最佳目标值: {self.best_result['best_value']:.6f}\n\n")
+        try:
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(f"# 最佳网格参数 - {self.best_result['optimizer_name']}\n")
+                f.write(f"# 生成时间: {datetime.now().isoformat()}\n")
+                f.write(f"# 最佳目标值: {self.best_result['best_value']:.6f}\n")
+                f.write(f"# 总评估次数: {len(self.optimization_history)}\n\n")
+                
+                for key, value in self.best_result['best_params'].items():
+                    f.write(f"{key} = {value}\n")
             
-            for key, value in self.best_result['best_params'].items():
-                f.write(f"{key} = {value}\n")
-        
-        logger.info(f"最佳参数已保存到: {filename}")
-        return filename
+            logger.info(f"最佳参数已保存到: {filename}")
+            return filename
+            
+        except Exception as e:
+            logger.error(f"保存最佳参数失败: {e}")
+            raise
 
 def optimize_mesh_parameters(
     n_calls: int = 20,
@@ -567,7 +880,10 @@ def optimize_mesh_parameters(
     """
     # 加载配置
     if config_file:
-        config_manager.load_config(config_file)
+        try:
+            config_manager.load_config(config_file)
+        except Exception as e:
+            logger.warning(f"配置文件加载失败，使用默认配置: {e}")
     
     # 创建优化器
     mesh_optimizer = MeshOptimizer(
@@ -593,156 +909,53 @@ def optimize_mesh_parameters(
             logger.warning(f"敏感性分析失败: {e}")
     
     # 保存最佳参数
-    mesh_optimizer.save_best_params()
+    try:
+        mesh_optimizer.save_best_params()
+    except Exception as e:
+        logger.warning(f"保存最佳参数失败: {e}")
     
     return result
 
-def compare_optimizers(
-    optimizers: List[str] = ['bayesian', 'random', 'forest', 'genetic'],
-    n_calls: int = 30,
-    evaluator_type: str = 'mock',  # 默认使用模拟评估器以便快速比较
-    **kwargs
-) -> Dict[str, Any]:
-    """
-    比较不同优化器的性能
+def get_available_optimizers() -> List[str]:
+    """获取可用的优化器列表"""
+    available = ['genetic', 'parallel']  # 这些总是可用的
     
-    Args:
-        optimizers: 要比较的优化器列表
-        n_calls: 每个优化器的迭代次数
-        evaluator_type: 评估器类型
-        **kwargs: 其他参数
-        
-    Returns:
-        比较结果字典
-    """
-    logger.info(f"开始比较 {len(optimizers)} 个优化器")
+    if OPTIONAL_MODULES['skopt_available']:
+        available.extend(['bayesian', 'random', 'forest'])
     
-    results = {}
-    
-    for optimizer in optimizers:
-        logger.info(f"测试优化器: {optimizer}")
-        
-        try:
-            start_time = time.time()
-            
-            result = optimize_mesh_parameters(
-                n_calls=n_calls,
-                optimizer=optimizer,
-                evaluator_type=evaluator_type,
-                use_cache=False,  # 比较时不使用缓存
-                **kwargs
-            )
-            
-            execution_time = time.time() - start_time
-            
-            results[optimizer] = {
-                'best_value': result['best_value'],
-                'best_params': result['best_params'],
-                'execution_time': execution_time,
-                'optimizer_name': result['optimizer_name']
-            }
-            
-            logger.info(f"{optimizer}: 最佳值={result['best_value']:.6f}, 时间={execution_time:.2f}s")
-            
-        except Exception as e:
-            logger.error(f"优化器 {optimizer} 执行失败: {e}")
-            results[optimizer] = {
-                'error': str(e),
-                'best_value': float('inf'),
-                'execution_time': 0
-            }
-    
-    # 生成比较报告
-    _generate_comparison_report(results)
-    
-    return results
+    return sorted(available)
 
-def _generate_comparison_report(results: Dict[str, Dict]) -> None:
-    """生成优化器比较报告"""
-    try:
-        import pandas as pd
-        
-        # 创建DataFrame
-        data = []
-        for optimizer, result in results.items():
-            if 'error' not in result:
-                data.append({
-                    'optimizer': optimizer,
-                    'best_value': result['best_value'],
-                    'execution_time': result['execution_time']
-                })
-        
-        if not data:
-            logger.warning("没有成功的优化结果，无法生成比较报告")
-            return
-        
-        df = pd.DataFrame(data)
-        
-        # 保存CSV报告
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        csv_file = f"optimizer_comparison_{timestamp}.csv"
-        df.to_csv(csv_file, index=False)
-        
-        # 生成可视化图表
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-        
-        # 目标值比较
-        ax1.bar(df['optimizer'], df['best_value'])
-        ax1.set_title('最佳目标值比较')
-        ax1.set_xlabel('优化器')
-        ax1.set_ylabel('目标值')
-        ax1.tick_params(axis='x', rotation=45)
-        
-        # 执行时间比较
-        ax2.bar(df['optimizer'], df['execution_time'])
-        ax2.set_title('执行时间比较')
-        ax2.set_xlabel('优化器')
-        ax2.set_ylabel('时间 (秒)')
-        ax2.tick_params(axis='x', rotation=45)
-        
-        plt.tight_layout()
-        
-        # 保存图表
-        plot_file = f"optimizer_comparison_{timestamp}.png"
-        plt.savefig(plot_file, dpi=300, bbox_inches='tight')
-        plt.show()
-        
-        logger.info(f"比较报告已保存: {csv_file}, {plot_file}")
-        
-    except ImportError:
-        logger.warning("pandas未安装，无法生成详细比较报告")
-    except Exception as e:
-        logger.error(f"生成比较报告失败: {e}")
-
-# 向后兼容的函数别名
-def optimize_mesh_parameters_legacy(*args, **kwargs):
-    """向后兼容的优化函数"""
-    warnings.warn("optimize_mesh_parameters_legacy已弃用，请使用optimize_mesh_parameters", 
-                  DeprecationWarning, stacklevel=2)
-    return optimize_mesh_parameters(*args, **kwargs)
+def check_dependencies() -> Dict[str, Any]:
+    """检查依赖库状态"""
+    return {
+        'available_modules': OPTIONAL_MODULES['available'],
+        'available_optimizers': get_available_optimizers(),
+        'skopt_available': OPTIONAL_MODULES['skopt_available'],
+        'pandas_available': OPTIONAL_MODULES.get('pandas_available', False),
+        'matplotlib_available': 'plt' in OPTIONAL_MODULES
+    }
 
 if __name__ == "__main__":
     # 示例用法
     logger.info("Ansa网格优化器示例")
     
+    # 检查依赖
+    deps = check_dependencies()
+    print(f"可用优化器: {deps['available_optimizers']}")
+    print(f"可用模块: {deps['available_modules']}")
+    
     # 单个优化器测试
-    result = optimize_mesh_parameters(
-        n_calls=20,
-        optimizer='mock',  # 使用模拟评估器进行快速测试
-        evaluator_type='mock'
-    )
+    try:
+        result = optimize_mesh_parameters(
+            n_calls=10,  # 减少迭代次数以便快速测试
+            optimizer='genetic',  # 使用总是可用的遗传算法
+            evaluator_type='mock'
+        )
+        
+        print(f"\n最佳参数: {result['best_params']}")
+        print(f"最佳值: {result['best_value']:.6f}")
+        
+    except Exception as e:
+        logger.error(f"优化测试失败: {e}")
     
-    print(f"最佳参数: {result['best_params']}")
-    print(f"最佳值: {result['best_value']:.6f}")
-    
-    # 多优化器比较
-    comparison_results = compare_optimizers(
-        optimizers=['random', 'genetic'],
-        n_calls=10,
-        evaluator_type='mock'
-    )
-    
-    print("\n优化器比较结果:")
-    for optimizer, result in comparison_results.items():
-        if 'error' not in result:
-            print(f"{optimizer}: {result['best_value']:.6f}")
+    print("\n示例运行完成!")
