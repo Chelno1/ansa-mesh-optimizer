@@ -241,12 +241,36 @@ class AnsaMeshEvaluator(MeshEvaluator):
                 locals().get('final_config_file')
             ])
     
+    def _format_parameter_value(self, param_name: str, value: Any) -> str:
+        """
+        格式化参数值
+        
+        Args:
+            param_name: 参数名
+            value: 参数值
+            
+        Returns:
+            格式化后的参数值字符串
+        """
+        # 定义需要特殊格式化的参数
+        special_formatting = {
+            'distortion_distance': lambda v: f"{v}.%",
+            # 可以添加更多特殊格式化规则
+            # 'another_param': lambda v: f"{v}mm",
+        }
+        
+        if param_name in special_formatting:
+            return special_formatting[param_name](value)
+        else:
+            return str(value)
+
     def _create_temp_config(self, params: Dict[str, float]) -> str:
         """创建临时配置文件"""
         try:
             with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
                 for key, value in params.items():
-                    f.write(f"{key} = {value}\n")
+                    formatted_value = self._format_parameter_value(key, value)
+                    f.write(f"{key} = {formatted_value}\n")
                 temp_file = f.name
             
             logger.debug(f"创建临时配置文件: {temp_file}")
