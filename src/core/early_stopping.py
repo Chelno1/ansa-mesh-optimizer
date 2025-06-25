@@ -28,6 +28,23 @@ except ImportError:
     MATPLOTLIB_AVAILABLE = False
     logger.warning("matplotlib不可用，无法生成早停图表")
 
+# 尝试导入字体装饰器
+try:
+    from utils.font_decorator import with_chinese_font, plotting_ready
+    DECORATOR_AVAILABLE = True
+except ImportError:
+    logger.warning("字体装饰器模块未找到")
+    DECORATOR_AVAILABLE = False
+    
+    # 创建空装饰器作为备用
+    def with_chinese_font(func):
+        return func
+    
+    def plotting_ready(**kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
 class EarlyStopping:
     """早停机制类 - 增强版本"""
     
@@ -236,9 +253,10 @@ class EarlyStopping:
         
         return 'fluctuating'
     
+    @with_chinese_font
     def plot_history(self, save_path: Optional[str] = None, show_improvements: bool = True):
         """
-        绘制优化历史
+        绘制优化历史 - 自动应用中文字体
         
         Args:
             save_path: 保存路径（可选）

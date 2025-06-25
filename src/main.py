@@ -117,9 +117,9 @@ def check_and_import_modules():
 def import_core_modules():
     """导入核心模块"""
     try:
-        from ansa_mesh_optimizer_improved import optimize_mesh_parameters, MeshOptimizer, check_dependencies
-        from compare_optimizers_improved import compare_optimizers
-        from config import config_manager
+        from core.ansa_mesh_optimizer_improved import optimize_mesh_parameters, MeshOptimizer, check_dependencies
+        from core.compare_optimizers_improved import compare_optimizers
+        from config.config import config_manager
         return True, (optimize_mesh_parameters, MeshOptimizer, compare_optimizers, config_manager, check_dependencies)
     except ImportError as e:
         print(f"❌ 核心模块导入失败: {e}")

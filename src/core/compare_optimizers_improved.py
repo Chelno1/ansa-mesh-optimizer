@@ -20,6 +20,23 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import multiprocessing as mp
 
+# 安全导入字体配置模块
+try:
+    from utils.font_decorator import with_chinese_font, plotting_ready
+    DECORATOR_AVAILABLE = True
+except ImportError:
+    logger.warning("字体装饰器模块未找到")
+    DECORATOR_AVAILABLE = False
+    
+    # 创建空装饰器作为备用
+    def with_chinese_font(func):
+        return func
+    
+    def plotting_ready(**kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
 # 配置日志
 logger = logging.getLogger(__name__)
 
@@ -50,9 +67,9 @@ except ImportError:
 
 # 本地模块导入
 try:
-    from ansa_mesh_optimizer_improved import MeshOptimizer, optimize_mesh_parameters
-    from config import config_manager
-    from utils import performance_monitor, format_execution_time, calculate_statistics
+    from core.ansa_mesh_optimizer_improved import MeshOptimizer, optimize_mesh_parameters
+    from config.config import config_manager
+    from utils.utils import performance_monitor, format_execution_time, calculate_statistics
 except ImportError as e:
     logger.error(f"本地模块导入失败: {e}")
     raise
@@ -182,7 +199,7 @@ class OptimizationComparison:
     def _check_optimizers_availability(self) -> List[str]:
         """检查优化器可用性"""
         try:
-            from ansa_mesh_optimizer_improved import check_dependencies
+            from core.ansa_mesh_optimizer_improved import check_dependencies
             deps = check_dependencies()
             
             available_optimizers = []
@@ -618,6 +635,7 @@ class OptimizationComparison:
             logger.error(f"生成可视化图表失败: {e}")
             logger.debug(traceback.format_exc())
     
+    @with_chinese_font
     def _plot_performance_comparison(self) -> None:
         """绘制性能比较图"""
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
@@ -679,6 +697,7 @@ class OptimizationComparison:
         plt.savefig(self.results_dir / 'performance_comparison.png', dpi=300, bbox_inches='tight')
         plt.close()
     
+    @with_chinese_font
     def _plot_execution_time_comparison(self) -> None:
         """绘制执行时间比较图"""
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -722,6 +741,7 @@ class OptimizationComparison:
         plt.savefig(self.results_dir / 'execution_time_comparison.png', dpi=300, bbox_inches='tight')
         plt.close()
     
+    @with_chinese_font
     def _plot_box_plots(self) -> None:
         """绘制箱线图"""
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
@@ -775,6 +795,7 @@ class OptimizationComparison:
         plt.savefig(self.results_dir / 'box_plots.png', dpi=300, bbox_inches='tight')
         plt.close()
     
+    @with_chinese_font
     def _plot_scatter_matrix(self) -> None:
         """绘制散点图矩阵"""
         if not isinstance(self.comparison_summary, type(pd.DataFrame())):
@@ -827,6 +848,7 @@ class OptimizationComparison:
         except Exception as e:
             logger.warning(f"生成散点图矩阵失败: {e}")
     
+    @with_chinese_font
     def _plot_convergence_analysis(self) -> None:
         """绘制收敛性分析图"""
         # 这是一个简化的收敛分析，基于最终结果

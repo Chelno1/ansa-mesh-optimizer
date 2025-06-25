@@ -29,6 +29,23 @@ except ImportError:
     MATPLOTLIB_AVAILABLE = False
     logger.warning("matplotlib不可用，无法生成图表")
 
+# 尝试导入字体装饰器模块
+try:
+    from utils.font_decorator import with_chinese_font, plotting_ready
+    DECORATOR_AVAILABLE = True
+except ImportError:
+    logger.warning("字体装饰器模块未找到")
+    DECORATOR_AVAILABLE = False
+    
+    # 创建空装饰器作为备用
+    def with_chinese_font(func):
+        return func
+    
+    def plotting_ready(**kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
 @dataclass
 class GeneticConfig:
     """遗传算法配置 - 增强版本"""
@@ -305,65 +322,81 @@ class GeneticOptimizer:
         
         start_time = time.time()
         
-        # 初始化种群
-        population = self._initialize_population(population_size)
-        
-        # 评估初始种群
-        self._evaluate_population(population)
-        
-        generation = 0
-        total_evaluations = population_size
-        
-        for generation in range(max_generations):
-            # 记录当前代信息
-            self._record_generation_stats(population, generation)
-            
-            # 检查收敛
-            if self._check_convergence():
-                logger.info(f"在第{generation}代检测到收敛，提前停止")
-                break
-            
-            # 检查是否需要重启
-            if self._should_restart(generation):
-                logger.info(f"在第{generation}代执行种群重启")
-                population = self._restart_population(population, population_size)
-                self._evaluate_population(population)
-                total_evaluations += population_size
-                self.restart_count += 1
-            else:
-                # 进化操作
-                new_population = self._evolve_population(population, generation, max_generations)
+        try:
+            # 初始化种群
+            population = self._initialize_population(population_size)
+
+            # 评估初始种群
+            self._evaluate_population(population)
+
+            # 检查初始种群是否有有效个体
+            valid_individuals = [ind for ind in population if ind.fitness != float('inf')]
+            if not valid_individuals:
+                logger.warning("初始种群中没有有效个体，使用默认结果")
+                return self._generate_result(0, population_size, time.time() - start_time)
+
+            generation = 0
+            total_evaluations = population_size
+
+            for generation in range(max_generations):
+                # 记录当前代信息
+                self._record_generation_stats(population, generation)
+
+                # 检查收敛
+                if self._check_convergence():
+                    logger.info(f"在第{generation}代检测到收敛，提前停止")
+                    break
                 
-                # 评估新种群中的新个体
-                new_evaluations = self._evaluate_new_individuals(new_population)
-                total_evaluations += new_evaluations
+                # 检查是否需要重启
+                if self._should_restart(generation):
+                    logger.info(f"在第{generation}代执行种群重启")
+                    population = self._restart_population(population, population_size)
+                    self._evaluate_population(population)
+                    total_evaluations += population_size
+                    self.restart_count += 1
+                else:
+                    # 进化操作
+                    new_population = self._evolve_population(population, generation, max_generations)
+
+                    # 评估新种群中的新个体
+                    new_evaluations = self._evaluate_new_individuals(new_population)
+                    total_evaluations += new_evaluations
+
+                    population = new_population
+
+                # 更新最佳个体
+                self._update_best_individual(population)
+
+                # 检查评估次数限制
+                if total_evaluations >= n_calls:
+                    logger.info(f"达到评估次数限制 ({n_calls})，停止优化")
+                    break
                 
-                population = new_population
-            
-            # 更新最佳个体
-            self._update_best_individual(population)
-            
-            # 检查评估次数限制
-            if total_evaluations >= n_calls:
-                logger.info(f"达到评估次数限制 ({n_calls})，停止优化")
-                break
-            
-            if self.config and self.config.verbose and generation % 10 == 0:
-                best_fitness = self.best_individual.fitness
-                diversity = self._calculate_population_diversity(population)
-                logger.info(f"第{generation}代: 最佳适应度={best_fitness:.6f}, "
-                          f"多样性={diversity:.4f}, 评估次数={total_evaluations}")
-        
-        execution_time = time.time() - start_time
-        
-        # 生成结果
-        result = self._generate_result(generation + 1, total_evaluations, execution_time)
-        
-        logger.info(f"遗传算法优化完成: 最佳适应度={result['best_value']:.6f}, "
-                   f"总代数={generation + 1}, 总评估次数={total_evaluations}")
-        
-        return result
-    
+                if self.config and self.config.verbose and generation % 10 == 0:
+                    best_fitness = self.best_individual.fitness if self.best_individual else float('inf')
+                    diversity = self._calculate_population_diversity(population)
+                    logger.info(f"第{generation}代: 最佳适应度={best_fitness:.6f}, "
+                              f"多样性={diversity:.4f}, 评估次数={total_evaluations}")
+
+            execution_time = time.time() - start_time
+
+            # 最终检查
+            if self.best_individual is None:
+                logger.warning("优化完成但未找到有效的最佳个体")
+
+            # 生成结果
+            result = self._generate_result(generation + 1, total_evaluations, execution_time)
+
+            logger.info(f"遗传算法优化完成: 最佳适应度={result['best_value']:.6f}, "
+                       f"总代数={generation + 1}, 总评估次数={total_evaluations}")
+
+            return result
+
+        except Exception as e:
+            logger.error(f"遗传算法优化过程异常: {e}")
+            execution_time = time.time() - start_time
+            return self._generate_result(0, 0, execution_time)
+                                                             
     def _initialize_population(self, population_size: int) -> List[Individual]:
         """初始化种群 - 增强版本"""
         population = []
@@ -614,6 +647,33 @@ class GeneticOptimizer:
     
     def _generate_result(self, total_generations: int, total_evaluations: int, execution_time: float) -> Dict[str, Any]:
         """生成优化结果"""
+        if self.best_individual is None:
+            logger.error("优化过程中未找到有效的最佳个体")
+            # 创建一个默认的最佳结果
+            default_params = {}
+            param_names = self.param_names
+            bounds = self.bounds
+
+            for i, name in enumerate(param_names):
+                low, high = bounds[i]
+                default_params[name] = (low + high) / 2  # 使用中点作为默认值
+
+            return {
+                'best_params': default_params,
+                'best_value': float('inf'),
+                'optimizer_name': 'Genetic Algorithm',
+                'total_generations': total_generations,
+                'total_evaluations': total_evaluations,
+                'execution_time': execution_time,
+                'population_size': self.genetic_config.population_size,
+                'convergence_detected': False,
+                'restart_count': self.restart_count,
+                'improvement_ratio': 0.0,
+                'final_diversity': 0.0,
+                'genetic_result': self,
+                'error': 'No valid individuals found during optimization'
+            }
+
         best_params = self.best_individual.to_params(self.param_names)
         
         # 计算改进统计
@@ -639,8 +699,9 @@ class GeneticOptimizer:
             'genetic_result': self  # 返回完整的遗传算法结果对象
         }
     
+    @plotting_ready(backend='TkAgg', save_original=True)
     def plot_evolution(self, save_path: Optional[str] = None, show_diversity: bool = True) -> None:
-        """绘制进化过程 - 增强版本"""
+        """绘制进化过程 - 使用增强装饰器"""
         if not MATPLOTLIB_AVAILABLE:
             logger.warning("matplotlib不可用，无法绘制进化图表")
             return
