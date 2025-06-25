@@ -1,0 +1,15 @@
+# 最佳网格参数 - Genetic Algorithm
+# 生成时间: 2025-06-25T18:33:41.263397
+# 最佳目标值: 8.888989
+# 总评估次数: 0
+
+element_size = 1.193082008546085
+perimeter_length = 4.29080108525112
+distortion_distance = 18
+general_min_target_len = 1.3345997278622665
+general_max_target_len = 8.122281864606126
+mesh_density = 3.2580663723092527
+mesh_quality_threshold = 0.6181393223445223
+smoothing_iterations = 31
+mesh_growth_rate = 0.7039106527479239
+mesh_topology = 1
