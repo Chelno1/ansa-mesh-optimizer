@@ -1,0 +1,97 @@
+graph TB
+    subgraph "用户接口层"
+        MAIN[main.py<br/>主程序入口<br/>参数解析]
+    end
+    
+    subgraph "配置管理层"
+        CONFIG[config.py<br/>ConfigManager<br/>参数空间定义]
+    end
+    
+    subgraph "核心优化层"
+        OPTIMIZER[ansa_mesh_optimizer_improved.py<br/>MeshOptimizer<br/>优化算法集成]
+        COMPARE[compare_optimizers_improved.py<br/>OptimizationComparison<br/>优化器性能比较]
+        GENETIC[genetic_optimizer_improved.py<br/>GeneticOptimizer<br/>遗传算法实现]
+    end
+    
+    subgraph "评估器层"
+        EVALUATOR[mesh_evaluator.py<br/>MeshEvaluator<br/>评估器接口]
+        ANSA_EVAL[AnsaMeshEvaluator<br/>真实Ansa评估]
+        MOCK_EVAL[MockMeshEvaluator<br/>模拟评估器]
+    end
+    
+    subgraph "Ansa集成层"
+        BATCH[batch_mesh_improved.py<br/>AnsaBatchMeshRunner<br/>Ansa批处理脚本]
+    end
+    
+    subgraph "优化策略层"
+        EARLY[early_stopping.py<br/>EarlyStopping<br/>早停机制]
+        CACHE[optimization_cache.py<br/>OptimizationCache<br/>结果缓存]
+    end
+    
+    subgraph "工具支持层"
+        UTILS[utils.py<br/>工具函数<br/>性能监控]
+        FONT[font_config.py<br/>font_decorator.py<br/>中文字体支持]
+    end
+    
+    subgraph "外部依赖"
+        SCIKIT[scikit-optimize<br/>贝叶斯优化]
+        ANSA[Ansa软件<br/>网格生成]
+        MATPLOTLIB[matplotlib<br/>可视化]
+        NUMPY[numpy<br/>数值计算]
+    end
+    
+    %% 主要数据流和依赖关系
+    MAIN --> CONFIG
+    MAIN --> OPTIMIZER
+    MAIN --> COMPARE
+    
+    OPTIMIZER --> EVALUATOR
+    OPTIMIZER --> GENETIC
+    OPTIMIZER --> EARLY
+    OPTIMIZER --> CACHE
+    OPTIMIZER --> SCIKIT
+    
+    COMPARE --> OPTIMIZER
+    COMPARE --> MATPLOTLIB
+    COMPARE --> FONT
+    
+    GENETIC --> EVALUATOR
+    GENETIC --> EARLY
+    GENETIC --> NUMPY
+    
+    EVALUATOR --> ANSA_EVAL
+    EVALUATOR --> MOCK_EVAL
+    EVALUATOR --> CONFIG
+    
+    ANSA_EVAL --> BATCH
+    ANSA_EVAL --> CONFIG
+    
+    BATCH --> ANSA
+    BATCH --> CONFIG
+    
+    CACHE --> UTILS
+    EARLY --> MATPLOTLIB
+    EARLY --> FONT
+    
+    OPTIMIZER --> UTILS
+    COMPARE --> UTILS
+    GENETIC --> UTILS
+    
+    %% 样式定义
+    classDef interface fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef config fill:#f1f8e9,stroke:#558b2f,stroke-width:2px
+    classDef core fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef evaluator fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef strategy fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef support fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
+    classDef external fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+    classDef ansa fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+    
+    class MAIN interface
+    class CONFIG config
+    class OPTIMIZER,COMPARE,GENETIC core
+    class EVALUATOR,ANSA_EVAL,MOCK_EVAL evaluator
+    class EARLY,CACHE strategy
+    class UTILS,FONT support
+    class SCIKIT,MATPLOTLIB,NUMPY external
+    class BATCH,ANSA ansa

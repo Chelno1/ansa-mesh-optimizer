@@ -1,0 +1,137 @@
+graph TD
+    A[程序启动: main.py] --> B[参数解析: create_parser]
+    B --> C{命令类型判断}
+    
+    C -->|optimize| D[优化命令: cmd_optimize]
+    C -->|compare| E[比较命令: cmd_compare]
+    C -->|config| F[配置命令: cmd_config]
+    C -->|info| G[信息命令: cmd_info]
+    C -->|test| H[测试命令: cmd_test]
+    
+    %% 优化流程
+    D --> D1[检查模块环境]
+    D1 --> D2{加载配置文件?}
+    D2 -->|是| D3[config_manager.load_config]
+    D2 -->|否| D4[使用默认配置]
+    D3 --> D5[创建MeshOptimizer实例]
+    D4 --> D5
+    D5 --> D6[选择优化器类型]
+    
+    D6 --> D7{优化器类型}
+    D7 -->|bayesian| D8[贝叶斯优化: gp_minimize]
+    D7 -->|random| D9[随机搜索: dummy_minimize]
+    D7 -->|forest| D10[森林优化: forest_minimize]
+    D7 -->|genetic| D11[遗传算法: GeneticOptimizer]
+    D7 -->|parallel| D12[并行优化]
+    
+    D8 --> D13[执行优化循环]
+    D9 --> D13
+    D10 --> D13
+    D11 --> D14[遗传算法进化过程]
+    D12 --> D15[并行评估]
+    
+    D14 --> D14a[初始化种群]
+    D14a --> D14b[评估种群适应度]
+    D14b --> D14c{收敛检查}
+    D14c -->|否| D14d[选择、交叉、变异]
+    D14d --> D14b
+    D14c -->|是| D13
+    
+    D13 --> D16[参数评估]
+    D15 --> D16
+    
+    %% 参数评估流程
+    D16 --> E1[创建评估器: create_mesh_evaluator]
+    E1 --> E2{评估器类型}
+    E2 -->|ansa| E3[AnsaMeshEvaluator]
+    E2 -->|mock| E4[MockMeshEvaluator]
+    
+    E3 --> E5[参数验证与标准化]
+    E4 --> E6[模拟评估函数]
+    E5 --> E7[创建临时配置文件]
+    E7 --> E8[运行Ansa批处理: batch_mesh_improved.py]
+    E8 --> E9[解析输出结果]
+    
+    E6 --> E10[返回评估结果]
+    E9 --> E10
+    E10 --> E11{使用缓存?}
+    E11 -->|是| E12[OptimizationCache]
+    E11 -->|否| D17[更新最佳结果]
+    E12 --> E13{缓存命中?}
+    E13 -->|是| E14[返回缓存结果]
+    E13 -->|否| E15[存储新结果到缓存]
+    E14 --> D17
+    E15 --> D17
+    
+    D17 --> D18{早停检查}
+    D18 -->|继续| D13
+    D18 -->|停止| D19[生成优化报告]
+    
+    %% 比较流程
+    E --> E20[OptimizationComparison]
+    E20 --> E21[检查优化器可用性]
+    E21 --> E22{并行执行?}
+    E22 -->|是| E23[并行比较多个优化器]
+    E22 -->|否| E24[顺序比较多个优化器]
+    E23 --> E25[收集结果]
+    E24 --> E25
+    E25 --> E26[生成比较摘要]
+    E26 --> E27[生成可视化报告]
+    
+    %% 配置管理流程
+    F --> F1{配置操作类型}
+    F1 -->|generate| F2[生成默认配置文件]
+    F1 -->|validate| F3[验证配置文件]
+    F1 -->|show| F4[显示当前配置]
+    F2 --> F5[ConfigManager操作]
+    F3 --> F5
+    F4 --> F5
+    
+    %% Ansa批处理流程
+    E8 --> A1[AnsaBatchMeshRunner]
+    A1 --> A2[应用网格参数]
+    A2 --> A3[加载mpar参数文件]
+    A3 --> A4[加载质量标准文件]
+    A4 --> A5{Ansa可用?}
+    A5 -->|是| A6[执行Ansa批处理]
+    A5 -->|否| A7[模拟批处理]
+    A6 --> A8[检查单元质量]
+    A7 --> A8
+    A8 --> A9[生成质量报告]
+    A9 --> A10[保存模型]
+    A10 --> A11[返回不合格单元数]
+    
+    %% 缓存管理
+    E12 --> C1[OptimizationCache]
+    C1 --> C2{存储类型}
+    C2 -->|文件| C3[Pickle文件存储]
+    C2 -->|数据库| C4[SQLite数据库存储]
+    C3 --> C5[计算参数哈希]
+    C4 --> C5
+    C5 --> C6[LRU缓存策略]
+    C6 --> C7[过期清理]
+    
+    %% 结果输出
+    D19 --> R1[保存最佳参数]
+    E27 --> R2[保存比较报告]
+    F5 --> R3[保存配置文件]
+    A11 --> R4[输出评估结果]
+    
+    R1 --> END[程序结束]
+    R2 --> END
+    R3 --> END
+    G --> END
+    H --> END
+    
+    %% 样式定义
+    classDef startEnd fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef process fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef decision fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef optimizer fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef evaluator fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class A,END startEnd
+    class D1,D5,E1,E20,A1,C1 process
+    class C,D2,D6,D7,E2,E11,E13,D18,E22,F1,A5,C2 decision
+    class D8,D9,D10,D11,D12 optimizer
+    class E3,E4,E8 evaluator

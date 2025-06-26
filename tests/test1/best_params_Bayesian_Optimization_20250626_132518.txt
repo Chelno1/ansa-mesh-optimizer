@@ -1,0 +1,15 @@
+# 最佳网格参数 - Bayesian Optimization
+# 生成时间: 2025-06-26T13:25:18.823017
+# 最佳目标值: 75.717470
+# 总评估次数: 20
+
+element_size = 2.0
+perimeter_length = 0.5
+distortion_distance = 30
+general_min_target_len = 1.0
+general_max_target_len = 8.0
+mesh_density = 0.5
+mesh_quality_threshold = 1.0
+smoothing_iterations = 80
+mesh_growth_rate = 1.5
+mesh_topology = 1
