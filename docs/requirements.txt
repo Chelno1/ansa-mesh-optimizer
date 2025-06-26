@@ -1,41 +1,106 @@
-# ANSA Mesh Optimizer Requirements
-# Core dependencies
+# Ansa网格优化器项目依赖
+# 版本: 1.2.0
+# 更新日期: 2025-06-25
 
-# Essential dependencies (required)
+# ===== 核心依赖 (必需) =====
 numpy>=1.19.0
+matplotlib>=3.3.0
+pathlib2>=2.3.0; python_version<"3.8"
 
-# Optimization algorithms (recommended)
+# ===== 优化算法依赖 =====
+# 贝叶斯优化、随机森林优化、随机搜索
 scikit-optimize>=0.9.0
 
-# Data analysis and visualization (recommended)
-matplotlib>=3.3.0
-pandas>=1.3.0
-seaborn>=0.11.0
-
-# Scientific computing (recommended)
+# 数值计算和科学计算
 scipy>=1.7.0
 
-# System monitoring (optional)
+# ===== 数据处理和分析 =====
+# 数据处理和报告生成
+pandas>=1.3.0
+
+# 统计图表和可视化增强
+seaborn>=0.11.0
+
+# ===== 系统和工具依赖 =====
+# 系统信息获取
 psutil>=5.8.0
 
-# Development and testing dependencies (optional)
-# Uncomment the following lines for development environment
+# HTTP请求（字体下载）
+requests>=2.25.0
 
-# pytest>=6.0.0
-# pytest-cov>=2.10.0
-# black>=21.0.0
-# flake8>=3.8.0
-# mypy>=0.910
+# JSON配置处理
+jsonschema>=3.2.0
 
-# Documentation (optional)
-# sphinx>=4.0.0
-# sphinx-rtd-theme>=0.5.0
+# ===== 开发和测试依赖 =====
+# 代码质量检查
+flake8>=3.9.0
+black>=21.0.0
 
-# Jupyter notebook support (optional)
-# jupyter>=1.0.0
-# ipywidgets>=7.6.0
+# 单元测试
+pytest>=6.2.0
+pytest-cov>=2.12.0
 
-# Additional scientific libraries (optional)
-# plotly>=5.0.0  # Alternative plotting library
-# bokeh>=2.3.0   # Interactive visualization
-# statsmodels>=0.12.0  # Advanced statistical modeling
+# 性能测试
+pytest-benchmark>=3.4.0
+
+# ===== 可选依赖 =====
+# Excel文件处理 (可选)
+openpyxl>=3.0.0
+
+# 进度条显示 (可选)
+tqdm>=4.60.0
+
+# 配置文件处理 (可选)
+pyyaml>=5.4.0
+
+# 并行处理增强 (可选)
+joblib>=1.0.0
+
+# ===== 系统特定依赖 =====
+# Windows字体检测
+pywin32>=227; sys_platform=="win32"
+
+# Linux字体配置
+fontconfig>=2.13.0; sys_platform=="linux"
+
+# ===== 版本兼容性说明 =====
+# Python 3.7+: 所有功能完全支持
+# Python 3.6: 基础功能支持，部分高级功能可能不可用
+# Python 3.8+: 推荐版本，性能最佳
+
+# ===== 安装说明 =====
+# 基础安装:
+#   pip install numpy matplotlib scikit-optimize scipy
+#
+# 完整安装:
+#   pip install -r requirements.txt
+#
+# 开发环境:
+#   pip install -r requirements.txt -r requirements-dev.txt
+#
+# 最小安装（仅核心功能）:
+#   pip install numpy matplotlib
+
+# ===== 依赖说明 =====
+# numpy: 数值计算基础库，所有数学运算的基础
+# matplotlib: 图表绘制，支持中文字体配置
+# scikit-optimize: 贝叶斯优化和相关算法
+# scipy: 科学计算库，统计分析和优化算法
+# pandas: 数据处理，结果分析和报告生成
+# seaborn: 统计图表库，增强可视化效果
+# psutil: 系统监控，内存和CPU使用情况
+# requests: HTTP请求，用于字体文件下载
+# jsonschema: JSON验证，配置文件验证
+
+# ===== 常见问题解决 =====
+# 如果安装scikit-optimize失败:
+#   pip install --upgrade pip setuptools wheel
+#   pip install scikit-optimize --no-cache-dir
+#
+# 如果matplotlib中文显示有问题:
+#   运行: python font_diagnosis.py
+#   然后: python install_chinese_fonts.py
+#
+# 如果在某些系统上安装失败:
+#   尝试: pip install --user -r requirements.txt
+#   或者: conda install --file requirements.txt

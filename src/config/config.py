@@ -315,6 +315,7 @@ class ConfigManager:
             'distortion_distance': 'distortion-distance',
             'general_min_target_len': 'general_min_target_len',
             'general_max_target_len': 'general_max_target_len',
+            'mesh_density': 'cfd_mesh_density',
             'mesh_growth_rate': 'cfd_interior_growth_rate',
             'mesh_topology': 'mesh_type',
             'cfd_quality_threshold': 'cfd_distortion_angle',

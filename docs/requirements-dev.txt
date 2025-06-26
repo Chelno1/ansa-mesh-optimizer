@@ -1,0 +1,35 @@
+# 开发环境专用依赖
+# 版本: 1.2.0
+
+# ===== 代码质量工具 =====
+flake8>=3.9.0
+black>=21.0.0
+isort>=5.9.0
+mypy>=0.910
+
+# ===== 测试工具 =====
+pytest>=6.2.0
+pytest-cov>=2.12.0
+pytest-xdist>=2.3.0
+pytest-benchmark>=3.4.0
+pytest-mock>=3.6.0
+
+# ===== 文档生成 =====
+sphinx>=4.0.0
+sphinx-rtd-theme>=0.5.0
+sphinx-autodoc-typehints>=1.12.0
+
+# ===== 开发工具 =====
+jupyter>=1.0.0
+ipython>=7.25.0
+pre-commit>=2.13.0
+
+# ===== 性能分析 =====
+memory-profiler>=0.58.0
+line-profiler>=3.3.0
+py-spy>=0.3.8
+
+# ===== 打包和分发 =====
+build>=0.6.0
+twine>=3.4.0
+wheel>=0.36.0

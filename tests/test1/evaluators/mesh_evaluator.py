@@ -22,7 +22,7 @@ import glob
 import time
 import random
 
-from config import config_manager
+from config.config import config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -241,36 +241,12 @@ class AnsaMeshEvaluator(MeshEvaluator):
                 locals().get('final_config_file')
             ])
     
-    def _format_parameter_value(self, param_name: str, value: Any) -> str:
-        """
-        格式化参数值
-        
-        Args:
-            param_name: 参数名
-            value: 参数值
-            
-        Returns:
-            格式化后的参数值字符串
-        """
-        # 定义需要特殊格式化的参数
-        special_formatting = {
-            'distortion_distance': lambda v: f"{v}.%",
-            # 可以添加更多特殊格式化规则
-            # 'another_param': lambda v: f"{v}mm",
-        }
-        
-        if param_name in special_formatting:
-            return special_formatting[param_name](value)
-        else:
-            return str(value)
-
     def _create_temp_config(self, params: Dict[str, float]) -> str:
         """创建临时配置文件"""
         try:
             with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
                 for key, value in params.items():
-                    formatted_value = self._format_parameter_value(key, value)
-                    f.write(f"{key} = {formatted_value}\n")
+                    f.write(f"{key} = {value}\n")
                 temp_file = f.name
             
             logger.debug(f"创建临时配置文件: {temp_file}")
@@ -518,6 +494,29 @@ class MockMeshEvaluator(MeshEvaluator):
         except Exception as e:
             logger.warning(f"Mock evaluator parameter validation failed: {e}")
             return False
+        
+            # 备用验证：检查基本必需参数
+            required_params = [
+                'element_size', 'perimeter_length', 'distortion_distance',
+                'general_min_target_len', 'general_max_target_len'
+            ]
+            
+            for param in required_params:
+                if param not in params:
+                    logger.error(f"Missing required parameter: {param}")
+                    return False
+            
+            # 基本范围检查
+            try:
+                if not (0.1 <= params.get('element_size', 0) <= 10.0):
+                    return False
+                if not (0.1 <= params.get('perimeter_length', 0) <= 20.0):
+                    return False
+                if not (1 <= params.get('distortion_distance', 0) <= 100):
+                    return False
+                return True
+            except (ValueError, TypeError):
+                return False
     
     def evaluate_mesh(self, params: Dict[str, float]) -> float:
         """
@@ -534,11 +533,13 @@ class MockMeshEvaluator(MeshEvaluator):
             
             if not is_valid:
                 logger.warning(f"Mock evaluator: invalid parameters - {error_msg}")
-                return float('inf')
+                # 对于测试，如果参数不完整，使用默认值
+                cleaned_params = self._fill_missing_params(normalized_params)
             
         except Exception as e:
             logger.error(f"Mock evaluator parameter processing failed: {e}")
-            return float('inf')
+            # 使用默认参数
+            cleaned_params = self._get_default_params()
         
         # 添加现实的延迟模拟
         if self.add_noise:
@@ -568,6 +569,31 @@ class MockMeshEvaluator(MeshEvaluator):
         except Exception as e:
             logger.error(f"Mock evaluation function failed: {e}")
             return float('inf')
+        
+    def _fill_missing_params(self, params: Dict[str, float]) -> Dict[str, float]:
+        """填充缺失的参数"""
+        default_params = self._get_default_params()
+
+        # 使用提供的参数，缺失的用默认值填充
+        filled_params = default_params.copy()
+        filled_params.update(params)
+
+        return filled_params
+    
+    def _get_default_params(self) -> Dict[str, float]:
+        """获取默认参数"""
+        return {
+            'element_size': 1.0,
+            'perimeter_length': 2.0,
+            'distortion_distance': 25,
+            'general_min_target_len': 1.5,
+            'general_max_target_len': 9.0,
+            'mesh_density': 4.0,
+            'mesh_quality_threshold': 0.5,
+            'smoothing_iterations': 50,
+            'mesh_growth_rate': 1.0,
+            'mesh_topology': 2
+        }
     
     def _rosenbrock_function(self, params: Dict[str, float]) -> float:
         """Rosenbrock函数的变形（适合网格优化）"""

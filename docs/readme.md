@@ -40,6 +40,11 @@ ANSA Mesh Optimizer 是一个专门为ANSA有限元分析软件设计的网格�
 - **统计分析** - 详细的统计指标和报告
 - **参数重要性** - 识别关键参数
 
+### 🌍 跨平台支持
+- **Windows** - 自动检测微软雅黑、黑体等字体
+- **macOS** - 支持冬青黑体、苹方等系统字体
+- **Linux** - 兼容文泉驿、思源黑体等开源字体
+
 ## 📋 安装要求
 
 ### 必需依赖
@@ -212,6 +217,29 @@ sensitivity = optimizer.sensitivity_analysis(
 # 保存结果
 optimizer.save_best_params('best_params.txt')
 ```
+## 🎨 中文字体配置
+本项目完美支持中文图表显示，自动检测系统字体：
+自动配置
+python# 字体会自动配置，无需手动设置
+from font_config import test_chinese_display
+
+### 测试中文显示效果
+test_chinese_display()
+使用装饰器
+pythonfrom font_decorator import with_chinese_font
+
+@with_chinese_font
+def my_plot_function():
+    plt.title("中文标题")
+    plt.xlabel("X轴标签")
+    plt.ylabel("Y轴标签")
+    plt.show()
+手动安装字体（如需要）
+bash# 运行字体诊断
+python font_diagnosis.py
+
+### 自动安装中文字体
+python install_chinese_fonts.py
 
 ## ⚙️ 配置管理
 
@@ -273,22 +301,30 @@ python main.py config show --section optimization
 
 ```
 ansa-mesh-optimizer/
-├── main.py                              # 主程序入口
-├── ansa_mesh_optimizer_improved.py      # 主优化器模块
-├── batch_mesh_improved.py               # ANSA批处理脚本
-├── compare_optimizers_improved.py       # 优化器比较工具
-├── config.py                           # 配置管理模块
-├── early_stopping.py                   # 早停机制模块
-├── genetic_optimizer_improved.py        # 遗传算法优化器
-├── mesh_evaluator.py                   # 网格评估器接口
-├── optimization_cache.py               # 优化缓存管理
-├── utils.py                            # 工具函数模块
-├── requirements.txt                     # 依赖列表
-├── README.md                           # 项目文档
-└── examples/                           # 示例文件
-    ├── configs/                        # 配置文件示例
-    ├── models/                         # 模型文件示例
-    └── results/                        # 结果示例
+├── 📁 core/                          # 核心模块
+│   ├── ansa_mesh_optimizer_improved.py    # 主优化器
+│   ├── genetic_optimizer_improved.py      # 遗传算法
+│   ├── compare_optimizers_improved.py     # 优化器比较
+│   └── early_stopping.py                  # 早停机制
+├── 📁 config/                         # 配置管理
+│   ├── config.py                          # 配置模块
+│   └── default_config.json               # 默认配置
+├── 📁 evaluators/                     # 评估器
+│   ├── mesh_evaluator.py                 # 网格评估器
+│   └── batch_mesh_improved.py            # 批处理脚本
+├── 📁 utils/                          # 工具模块
+│   ├── utils.py                          # 通用工具
+│   ├── optimization_cache.py             # 缓存管理
+│   ├── font_config.py                    # 字体配置
+│   └── font_decorator.py                 # 字体装饰器
+├── 📁 tests/                          # 测试脚本
+│   ├── test_decorator.py                 # 装饰器测试
+│   ├── font_diagnosis.py                 # 字体诊断
+│   └── fix_test.py                       # 修复验证
+├── 📄 main.py                         # 主程序入口
+├── 📄 requirements.txt                # 项目依赖
+├── 📄 README.md                       # 项目说明
+└── 📄 CHANGELOG.md                    # 更新日志
 ```
 
 ## 🔧 模块详解
@@ -356,8 +392,14 @@ config.min_delta = 0.01
 ### 运行测试套件
 
 ```bash
+# 运行完整测试套件
+python main.py test
+
 # 快速测试
 python main.py test --quick
+
+# 字体功能测试
+python test_decorator.py
 
 # 完整测试
 python main.py test --evaluator mock --verbose-test
@@ -498,6 +540,36 @@ optimizer.plot_evolution('evolution.png')
    # 使用自适应早停
    config.adaptive_early_stopping = True
    ```
+
+5. **中文显示为方框**
+
+    ```bash
+    # 运行字体诊断
+    python font_diagnosis.py
+
+    # 安装中文字体
+    python install_chinese_fonts.py
+    ```
+
+6. **优化器不可用**
+
+    ```bash
+    # 检查依赖
+    python main.py info --check-deps
+
+    # 安装缺失依赖
+    pip install scikit-optimize
+    ```
+
+7. **参数验证失败**
+
+    ```bash
+    # 检查参数配置
+    python main.py config validate config.json
+
+    # 生成默认配置
+    python main.py config generate
+    ```
 
 ### 日志和调试
 

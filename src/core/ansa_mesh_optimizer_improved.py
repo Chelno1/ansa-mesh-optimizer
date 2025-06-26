@@ -75,17 +75,26 @@ def safe_import_optional_modules():
     
     return modules
 
+# 尝试导入字体配置模块
+try:
+    from utils.font_decorator import with_chinese_font
+    DECORATOR_AVAILABLE = True
+except ImportError:
+    DECORATOR_AVAILABLE = False
+    def with_chinese_font(func):
+        return func
+
 # 全局模块状态
 OPTIONAL_MODULES = safe_import_optional_modules()
 
 # 本地模块导入
 try:
-    from config import config_manager, OptimizationConfig
-    from mesh_evaluator import create_mesh_evaluator, MeshEvaluator
-    from optimization_cache import OptimizationCache, CachedEvaluator
-    from early_stopping import create_early_stopping, EarlyStopping
-    from genetic_optimizer_improved import GeneticOptimizer
-    from utils import normalize_params, validate_param_types, performance_monitor
+    from config.config import config_manager, OptimizationConfig
+    from evaluators.mesh_evaluator import create_mesh_evaluator, MeshEvaluator
+    from utils.optimization_cache import OptimizationCache, CachedEvaluator
+    from core.early_stopping import create_early_stopping, EarlyStopping
+    from core.genetic_optimizer_improved import GeneticOptimizer
+    from utils.utils import normalize_params, validate_param_types, performance_monitor
 except ImportError as e:
     logger.error(f"本地模块导入失败: {e}")
     logger.error("请确保所有必需的模块文件存在")
@@ -564,6 +573,7 @@ class MeshOptimizer:
         except Exception as e:
             logger.warning(f"生成图表失败: {e}")
     
+    @with_chinese_font
     def _plot_optimization_history(self, report_dir: Path) -> None:
         """绘制优化历史"""
         if not OPTIONAL_MODULES['skopt_available']:
@@ -731,6 +741,7 @@ class MeshOptimizer:
         logger.info("参数敏感性分析完成")
         return sensitivity_results
     
+    @with_chinese_font
     def _plot_sensitivity_analysis(self, 
                                   sensitivity_results: Dict[str, List],
                                   best_params: Dict[str, float]) -> None:
