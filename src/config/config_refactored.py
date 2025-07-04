@@ -218,8 +218,26 @@ class AnsaConfig:
 class UnifiedParameterSpace:
     """统一参数空间定义 - 消除重复"""
     
-    def __init__(self):
+    def __init__(self, config_specified_params: Optional[List[str]] = None):
+        """
+        初始化参数空间
+        
+        Args:
+            config_specified_params: 配置文件中指定的参数列表，如果提供则只使用这些参数
+        """
+        self.config_specified_params = config_specified_params
         self.parameters = self._define_parameters()
+        
+        # 如果指定了配置文件参数，则只保留这些参数
+        if config_specified_params is not None:
+            filtered_params = {}
+            for param_name in config_specified_params:
+                if param_name in self.parameters:
+                    filtered_params[param_name] = self.parameters[param_name]
+                else:
+                    logger.warning(f"配置文件中指定的参数 '{param_name}' 不在默认参数空间中")
+            self.parameters = filtered_params
+            logger.info(f"使用配置文件指定的参数: {list(self.parameters.keys())}")
     
     def _define_parameters(self) -> Dict[str, ParameterDefinition]:
         """定义统一的参数空间"""
@@ -413,15 +431,50 @@ class UnifiedConfigManager:
     
     def __init__(self, config_file: Optional[str] = None):
         self.config_file = config_file
+        
+        # 如果提供了配置文件，先提取参数列表
+        config_specified_params = None
+        if config_file and Path(config_file).exists():
+            config_specified_params = self._extract_config_parameters(config_file)
+        
+        # 初始化配置对象
         self.optimization_config = OptimizationConfig()
         self.ansa_config = AnsaConfig()
-        self.parameter_space = UnifiedParameterSpace()
+        
+        # 初始化参数空间（如果有配置文件，只使用配置文件中指定的参数）
+        self.parameter_space = UnifiedParameterSpace(config_specified_params)
         
         if config_file and Path(config_file).exists():
             self.load_config(config_file)
         
         # 验证所有配置
         self.validate_all_configs()
+    
+    def _extract_config_parameters(self, config_file: str) -> Optional[List[str]]:
+        """
+        从配置文件中提取参数列表
+        
+        Args:
+            config_file: 配置文件路径
+            
+        Returns:
+            配置文件中指定的参数名称列表，如果没有parameters部分则返回None
+        """
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+            
+            if 'parameters' in config_data:
+                param_names = list(config_data['parameters'].keys())
+                logger.info(f"从配置文件提取到参数: {param_names}")
+                return param_names
+            else:
+                logger.info("配置文件中未找到parameters部分，将使用所有默认参数")
+                return None
+                
+        except Exception as e:
+            logger.warning(f"提取配置文件参数失败: {e}，将使用所有默认参数")
+            return None
     
     @handle_exceptions()
     def validate_all_configs(self) -> None:

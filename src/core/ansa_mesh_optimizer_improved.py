@@ -124,9 +124,10 @@ class MeshOptimizer:
         self.param_space = config_manager.parameter_space
         
         # 验证配置
-        is_valid, error_msg = self.config.validate()
-        if not is_valid:
-            raise ValueError(f"配置验证失败: {error_msg}")
+        try:
+            self.config.validate()
+        except Exception as e:
+            raise ValueError(f"配置验证失败: {e}")
         
         # 创建评估器
         self.base_evaluator = create_mesh_evaluator(evaluator_type)
