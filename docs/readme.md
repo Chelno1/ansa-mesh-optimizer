@@ -2,7 +2,7 @@
 
 一个用于ANSA有限元网格参数优化的高级工具集，支持多种优化算法和智能化参数调优。
 
-![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.3.4-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.7+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -28,11 +28,13 @@ ANSA Mesh Optimizer 是一个专门为ANSA有限元分析软件设计的网格�
 - **并行优化** - 多进程并行参数搜索
 
 ### 🛠️ 智能功能
+- **选择性参数优化** - 配置文件驱动的参数空间过滤 (v1.3.4新增)
 - **早停机制** - 自动检测收敛，避免过度优化
 - **参数验证** - 确保参数在合理范围内
 - **结果缓存** - 智能缓存避免重复计算
 - **敏感性分析** - 分析参数对结果的影响程度
 - **内存优化** - 高效的内存管理和垃圾回收
+- **统一配置管理** - 重构的配置系统，消除参数重复 (v1.3.0+)
 
 ### 📊 分析工具
 - **优化器比较** - 多算法性能对比分析
@@ -301,30 +303,40 @@ python main.py config show --section optimization
 
 ```
 ansa-mesh-optimizer/
-├── 📁 core/                          # 核心模块
-│   ├── ansa_mesh_optimizer_improved.py    # 主优化器
-│   ├── genetic_optimizer_improved.py      # 遗传算法
-│   ├── compare_optimizers_improved.py     # 优化器比较
-│   └── early_stopping.py                  # 早停机制
-├── 📁 config/                         # 配置管理
-│   ├── config.py                          # 配置模块
-│   └── default_config.json               # 默认配置
-├── 📁 evaluators/                     # 评估器
-│   ├── mesh_evaluator.py                 # 网格评估器
-│   └── batch_mesh_improved.py            # 批处理脚本
-├── 📁 utils/                          # 工具模块
-│   ├── utils.py                          # 通用工具
-│   ├── optimization_cache.py             # 缓存管理
-│   ├── font_config.py                    # 字体配置
-│   └── font_decorator.py                 # 字体装饰器
-├── 📁 tests/                          # 测试脚本
-│   ├── test_decorator.py                 # 装饰器测试
-│   ├── font_diagnosis.py                 # 字体诊断
-│   └── fix_test.py                       # 修复验证
+├── 📁 src/                            # 源代码目录
+│   ├── 📁 core/                       # 核心模块
+│   │   ├── ansa_mesh_optimizer_improved.py    # 主优化器
+│   │   ├── genetic_optimizer_improved.py      # 遗传算法
+│   │   ├── compare_optimizers_improved.py     # 优化器比较
+│   │   └── early_stopping.py                  # 早停机制
+│   ├── 📁 config/                     # 配置管理
+│   │   ├── config_refactored.py              # 统一配置系统 (v1.3.0+)
+│   │   └── default_config.json               # 默认配置
+│   ├── 📁 evaluators/                 # 评估器
+│   │   ├── mesh_evaluator.py                 # 网格评估器
+│   │   └── batch_mesh_improved.py            # 批处理脚本
+│   ├── 📁 utils/                      # 工具模块
+│   │   ├── utils.py                          # 通用工具
+│   │   ├── optimization_cache.py             # 缓存管理
+│   │   ├── dependency_manager.py             # 依赖管理 (v1.3.0+)
+│   │   ├── exceptions.py                     # 自定义异常 (v1.3.0+)
+│   │   ├── font_config.py                    # 字体配置
+│   │   └── font_decorator.py                 # 字体装饰器
+├── 📁 tests/                          # 测试框架
+│   ├── 📁 unit/                       # 单元测试
+│   │   ├── test_config.py                    # 配置测试
+│   │   └── test_optimizer.py                 # 优化器测试
+│   ├── 📁 integration/                # 集成测试
+│   └── test_decorator.py                     # 装饰器测试
+├── 📁 docs/                           # 文档目录
+│   ├── USER_GUIDE.md                         # 用户指南
+│   ├── API_DOCUMENTATION.md                  # API文档
+│   ├── IMPROVEMENT_SUMMARY.md                # 改进总结
+│   └── readme.md                             # 项目说明
 ├── 📄 main.py                         # 主程序入口
 ├── 📄 requirements.txt                # 项目依赖
-├── 📄 README.md                       # 项目说明
-└── 📄 CHANGELOG.md                    # 更新日志
+├── 📄 test_config.json                # 测试配置文件
+└── 📄 README.md                       # 根目录说明
 ```
 
 ## 🔧 模块详解
@@ -426,30 +438,65 @@ python main.py info --check-deps --check-ansa --performance
 ### 示例1: 基本优化工作流程
 
 ```python
-# 1. 设置配置
-from config import config_manager
-
-config_manager.optimization_config.n_calls = 30
-config_manager.optimization_config.use_cache = True
-
-# 2. 运行优化
-from ansa_mesh_optimizer_improved import optimize_mesh_parameters
+# 1. 使用默认配置（全参数优化）
+from src.core.ansa_mesh_optimizer_improved import optimize_mesh_parameters
 
 result = optimize_mesh_parameters(
+    n_calls=30,
     optimizer='bayesian',
-    evaluator_type='mock'
+    evaluator_type='mock',
+    use_cache=True
 )
 
-# 3. 分析结果
+# 2. 分析结果
 print(f"最优参数: {result['best_params']}")
 print(f"目标值: {result['best_value']:.6f}")
 print(f"执行时间: {result['execution_time']:.2f}秒")
 ```
 
-### 示例2: 优化器性能比较
+### 示例1.1: 选择性参数优化 (v1.3.4新增)
 
 ```python
-from compare_optimizers_improved import compare_optimizers
+# 使用配置文件进行选择性参数优化
+result = optimize_mesh_parameters(
+    n_calls=30,
+    optimizer='bayesian',
+    evaluator_type='mock',
+    config_file='test_config.json',  # 仅优化配置文件中指定的参数
+    use_cache=True
+)
+
+# 配置文件示例 (test_config.json):
+# {
+#   "element_size": [0.8, 1.5],
+#   "perimeter_length": [1.0, 6.0],
+#   "quality_threshold": [0.3, 0.8]
+# }
+# 结果：仅优化这3个参数，而非全部10个参数
+```
+
+### 示例2: 统一配置管理 (v1.3.0+)
+
+```python
+from src.config.config_refactored import UnifiedConfigManager
+
+# 创建配置管理器
+config_manager = UnifiedConfigManager()
+
+# 查看默认配置
+print(f"默认优化器: {config_manager.optimization_config.optimizer.value}")
+print(f"默认迭代次数: {config_manager.optimization_config.n_calls}")
+print(f"参数数量: {len(config_manager.parameter_space.get_parameter_names())}")
+
+# 使用配置文件
+config_manager_with_file = UnifiedConfigManager(config_file='test_config.json')
+print(f"配置文件参数数量: {len(config_manager_with_file.parameter_space.get_parameter_names())}")
+```
+
+### 示例3: 优化器性能比较
+
+```python
+from src.core.compare_optimizers_improved import compare_optimizers
 
 # 比较多种优化器
 results = compare_optimizers(
@@ -468,12 +515,15 @@ print(f"平均性能: {best_info['mean_best_value']:.6f}")
 print(f"稳定性: {best_info['std_best_value']:.6f}")
 ```
 
-### 示例3: 自定义遗传算法
+### 示例4: 自定义遗传算法
 
 ```python
-from genetic_optimizer_improved import GeneticOptimizer, GeneticConfig
-from mesh_evaluator import create_mesh_evaluator
-from config import config_manager
+from src.core.genetic_optimizer_improved import GeneticOptimizer, GeneticConfig
+from src.evaluators.mesh_evaluator import create_mesh_evaluator
+from src.config.config_refactored import UnifiedConfigManager
+
+# 创建配置管理器
+config_manager = UnifiedConfigManager()
 
 # 自定义遗传算法配置
 genetic_config = GeneticConfig(
@@ -636,7 +686,45 @@ class CustomEvaluator(MeshEvaluator):
         return True
 ```
 
-## 📄 许可证
+## 📋 版本历史
+
+### v1.3.4 (2025-07-04) - 选择性参数优化版
+- ✨ **新功能**: 配置文件驱动的选择性参数优化
+- 🔧 **技术实现**: 参数空间过滤机制，支持仅优化指定参数
+- 📊 **性能提升**: 参数空间维度减少70% (10维→3维)
+- 🎯 **用户价值**: 提高优化效率，降低计算成本
+
+### v1.3.3 (2025-07-04) - matplotlib弹窗修复版
+- 🔧 **修复**: 彻底解决敏感性分析matplotlib弹窗问题
+- 📁 **改进**: 统一输出文件路径和命名规范
+- 🧪 **验证**: 无头模式matplotlib运行稳定
+
+### v1.3.2 (2025-07-04) - 输出路径统一版
+- 📁 **改进**: 统一所有输出文件到optimization_reports目录
+- 🔧 **优化**: 智能路径解析和标准化文件命名
+- 📊 **增强**: 英文文件头格式统一
+
+### v1.3.1 (2025-07-04) - matplotlib显示修复版
+- 🔧 **修复**: matplotlib中文显示和无头模式配置
+- 📊 **改进**: 图表显示和保存机制优化
+
+### v1.3.0 (2025-07-04) - 全面架构重构版
+- 🚀 **重大更新**: 全面架构重构和功能增强
+- 🔧 **新增**: 统一依赖管理系统，自动检测和优雅降级
+- 🛠️ **新增**: 自定义异常处理，10+专用异常类
+- ⚙️ **重构**: 配置系统，消除参数重复，增强类型安全
+- 🧪 **新增**: 完整测试框架，单元测试覆盖核心功能
+- 📚 **完善**: 文档体系，API文档、用户指南、改进总结
+
+## 📚 文档参考
+
+本项目包含完整的文档体系，详细信息请参考：
+
+- **[用户指南](USER_GUIDE.md)** - 详细的安装、配置和使用说明
+- **[API文档](API_DOCUMENTATION.md)** - 完整的API参考和代码示例
+- **[改进总结](IMPROVEMENT_SUMMARY.md)** - 详细的版本历史和技术改进记录
+
+##  许可证
 
 本项目采用 MIT 许可证 - 详情请见 [LICENSE](LICENSE) 文件。
 
