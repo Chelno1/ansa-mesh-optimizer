@@ -128,8 +128,21 @@ class OptimizationConfig:
             errors.append("n_initial_points must be positive")
         if self.n_initial_points >= self.n_calls:
             errors.append("n_initial_points must be less than n_calls")
-        if self.optimizer.value not in self.get_available_optimizers():
-            errors.append(f"optimizer {self.optimizer.value} not available. Available: {self.get_available_optimizers()}")
+        available_optimizers = self.get_available_optimizers()
+        if self.optimizer.value not in available_optimizers:
+            # 自动调整到可用的优化器
+            if available_optimizers:
+                old_optimizer = self.optimizer.value
+                # 选择第一个可用的优化器
+                new_optimizer_value = available_optimizers[0]
+                # 找到对应的枚举值
+                for opt_type in OptimizerType:
+                    if opt_type.value == new_optimizer_value:
+                        self.optimizer = opt_type
+                        break
+                logger.warning(f"优化器 {old_optimizer} 不可用，自动切换到 {new_optimizer_value}")
+            else:
+                errors.append(f"no optimizers available")
         if self.patience <= 0:
             errors.append("patience must be positive")
         if self.min_delta < 0:
