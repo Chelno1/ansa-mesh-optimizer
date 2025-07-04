@@ -792,18 +792,25 @@ class MeshOptimizer:
             
             plt.tight_layout()
             
-            # 保存图表到output文件夹
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            output_dir = Path("../output/reports")
-            output_dir.mkdir(parents=True, exist_ok=True)
-            filename = output_dir / f"sensitivity_analysis_{timestamp}.png"
+            # 保存图表到统一的optimization_reports目录
+            if self.best_result and 'report_dir' in self.best_result:
+                # 使用当前优化的报告目录
+                report_dir = Path(self.best_result['report_dir'])
+                filename = report_dir / "sensitivity_analysis.png"
+            else:
+                # 创建新的报告目录
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                optimizer_name = "sensitivity_analysis"
+                report_dir = Path(f"optimization_reports/{timestamp}_{optimizer_name}")
+                report_dir.mkdir(parents=True, exist_ok=True)
+                filename = report_dir / "sensitivity_analysis.png"
             plt.savefig(filename, dpi=300, bbox_inches='tight')
             
-            # 使用安全的显示和关闭函数
-            if 'safe_show' in OPTIONAL_MODULES:
-                OPTIONAL_MODULES['safe_show']()
+            # 使用安全的关闭函数，不显示图片
             if 'safe_close' in OPTIONAL_MODULES:
                 OPTIONAL_MODULES['safe_close']()
+            else:
+                plt.close('all')
             
             logger.info(f"敏感性分析图表已保存: {filename}")
             
@@ -857,18 +864,24 @@ class MeshOptimizer:
             raise ValueError("没有可用的最佳参数，请先运行优化")
         
         if filename is None:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            optimizer_name = self.best_result['optimizer_name'].replace(' ', '_')
-            output_dir = Path("../output/reports")
-            output_dir.mkdir(parents=True, exist_ok=True)
-            filename = str(output_dir / f"best_params_{optimizer_name}_{timestamp}.txt")
+            if self.best_result and 'report_dir' in self.best_result:
+                # 使用当前优化的报告目录
+                report_dir = Path(self.best_result['report_dir'])
+                filename = str(report_dir / "best_parameters.txt")
+            else:
+                # 创建新的报告目录
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                optimizer_name = self.best_result['optimizer_name'].replace(' ', '_').lower()
+                report_dir = Path(f"optimization_reports/{timestamp}_{optimizer_name}")
+                report_dir.mkdir(parents=True, exist_ok=True)
+                filename = str(report_dir / "best_parameters.txt")
         
         try:
             with open(filename, 'w', encoding='utf-8') as f:
-                f.write(f"# 最佳网格参数 - {self.best_result['optimizer_name']}\n")
-                f.write(f"# 生成时间: {datetime.now().isoformat()}\n")
-                f.write(f"# 最佳目标值: {self.best_result['best_value']:.6f}\n")
-                f.write(f"# 总评估次数: {len(self.optimization_history)}\n\n")
+                f.write(f"# Best Mesh Parameters - {self.best_result['optimizer_name']}\n")
+                f.write(f"# Generated: {datetime.now().isoformat()}\n")
+                f.write(f"# Best Objective Value: {self.best_result['best_value']:.6f}\n")
+                f.write(f"# Total Evaluations: {len(self.optimization_history)}\n\n")
                 
                 for key, value in self.best_result['best_params'].items():
                     f.write(f"{key} = {value}\n")
