@@ -792,9 +792,11 @@ class MeshOptimizer:
             
             plt.tight_layout()
             
-            # 保存图表
+            # 保存图表到output文件夹
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f"sensitivity_analysis_{timestamp}.png"
+            output_dir = Path("../output/reports")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            filename = output_dir / f"sensitivity_analysis_{timestamp}.png"
             plt.savefig(filename, dpi=300, bbox_inches='tight')
             
             # 使用安全的显示和关闭函数
@@ -857,7 +859,9 @@ class MeshOptimizer:
         if filename is None:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             optimizer_name = self.best_result['optimizer_name'].replace(' ', '_')
-            filename = f"best_params_{optimizer_name}_{timestamp}.txt"
+            output_dir = Path("../output/reports")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            filename = str(output_dir / f"best_params_{optimizer_name}_{timestamp}.txt")
         
         try:
             with open(filename, 'w', encoding='utf-8') as f:
