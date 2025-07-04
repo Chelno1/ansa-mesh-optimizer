@@ -7,7 +7,7 @@
 ## 版本信息
 
 - **改进前版本**: 1.2.0
-- **当前版本**: 1.3.3
+- **当前版本**: 1.3.4
 - **改进日期**: 2025-07-04
 - **改进负责人**: Chel
 
@@ -16,6 +16,7 @@
 - **v1.3.1** (2025-07-04): matplotlib显示配置修复
 - **v1.3.2** (2025-07-04): 输出文件路径统一
 - **v1.3.3** (2025-07-04): matplotlib弹窗彻底修复
+- **v1.3.4** (2025-07-04): 选择性参数优化功能
 
 ## 改进内容详述
 
@@ -528,6 +529,103 @@ else:
 
 ---
 
+## v1.3.4 更新内容 (2025-07-04)
+
+### 10. 选择性参数优化功能
+
+#### 问题描述
+用户要求："提供参数配置文件时，仅对提供的参数进行优化"，需要实现配置文件驱动的选择性参数优化功能。
+
+#### 改进措施
+**修改的文件：**
+- `src/config/config_refactored.py` (第221-240行, 434-449行, 450+行)
+
+**核心实现：**
+```python
+# 1. 参数空间过滤机制
+class UnifiedParameterSpace:
+    def __init__(self, config_specified_params: Optional[List[str]] = None):
+        # 如果提供了配置文件参数列表，只保留这些参数
+        if config_specified_params:
+            filtered_params = {}
+            for param_name in config_specified_params:
+                if param_name in self.parameters:
+                    filtered_params[param_name] = self.parameters[param_name]
+                else:
+                    logger.warning(f"Unknown parameter '{param_name}' in config file")
+            self.parameters = filtered_params
+            logger.info(f"Filtered parameter space to {len(filtered_params)} parameters: {list(filtered_params.keys())}")
+
+# 2. 配置文件参数提取
+class UnifiedConfigManager:
+    def __init__(self, config_file: Optional[str] = None):
+        if config_file:
+            # 提取配置文件中指定的参数
+            config_specified_params = self._extract_config_parameters(config_file)
+            # 使用过滤后的参数空间
+            self.parameter_space = UnifiedParameterSpace(config_specified_params)
+        else:
+            # 使用默认全参数空间
+            self.parameter_space = UnifiedParameterSpace()
+
+    def _extract_config_parameters(self, config_file: str) -> List[str]:
+        """从配置文件中提取参数名称列表"""
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+            
+            # 提取parameters部分的参数名称
+            if 'parameters' in config_data:
+                param_names = list(config_data['parameters'].keys())
+                logger.info(f"Extracted {len(param_names)} parameters from config file: {param_names}")
+                return param_names
+            else:
+                logger.warning("No 'parameters' section found in config file")
+                return []
+        except Exception as e:
+            logger.error(f"Failed to extract parameters from config file: {e}")
+            return []
+```
+
+#### 改进效果
+- ✅ **选择性参数优化** - 配置文件驱动的参数空间过滤
+- ✅ **显著性能提升** - 参数空间从10维降至3维 (70%减少)
+- ✅ **精确控制** - 用户可精确控制优化范围
+- ✅ **计算成本降低** - 搜索空间指数级缩小
+- ✅ **完全向后兼容** - 不提供配置文件时使用全参数优化
+
+#### 测试验证
+```bash
+# 测试选择性参数优化功能
+✓ 默认配置: 优化全部10个参数
+✓ 配置文件模式: 仅优化指定的3个参数(element_size, perimeter_length, quality_threshold)
+✓ 参数边界正确应用配置文件中的自定义值
+✓ 优化结果参数值在指定边界范围内
+✓ 选择性优化与配置文件完全匹配
+
+# 性能对比
+默认配置参数数量: 10
+配置文件参数数量: 3
+参数数量减少: 10 → 3 (70%减少)
+仅优化指定参数: ['element_size', 'perimeter_length', 'quality_threshold']
+```
+
+#### 技术亮点
+- **智能参数提取**: 自动从JSON配置文件中提取参数名称列表
+- **动态参数空间过滤**: 根据配置文件动态创建过滤后的参数空间
+- **完整错误处理**: 优雅处理未知参数和配置文件错误
+- **性能优化**: 大幅减少优化搜索空间，提高计算效率
+- **用户友好**: 配置文件自动驱动选择性优化，无需额外配置
+
+#### 用户价值
+- **提高优化效率** - 专注于关键参数，减少不必要的参数搜索
+- **增强控制精度** - 用户可精确控制优化范围和参数组合
+- **降低计算成本** - 大幅减少计算时间和资源消耗
+- **保持灵活性** - 支持任意参数组合的选择性优化
+- **简化配置** - 配置文件自动驱动，无需复杂设置
+
+---
+
 **改进完成日期**: 2025-07-04
 **改进负责人**: Chel
-**版本**: ANSA 网格优化器 v1.3.3
+**版本**: ANSA 网格优化器 v1.3.4
