@@ -7,13 +7,15 @@
 ## 版本信息
 
 - **改进前版本**: 1.2.0
-- **当前版本**: 1.3.1
+- **当前版本**: 1.3.3
 - **改进日期**: 2025-07-04
 - **改进负责人**: Chel
 
 ### 版本历史
 - **v1.3.0** (2025-07-04): 全面架构重构和功能增强
 - **v1.3.1** (2025-07-04): matplotlib显示配置修复
+- **v1.3.2** (2025-07-04): 输出文件路径统一
+- **v1.3.3** (2025-07-04): matplotlib弹窗彻底修复
 
 ## 改进内容详述
 
@@ -413,6 +415,119 @@ python src/main.py optimize --no-display --optimizer random --evaluator mock --n
 
 ---
 
+## v1.3.2 更新内容 (2025-07-04)
+
+### 8. 统一输出文件路径和命名规范
+
+#### 问题描述
+用户要求："保证程序输出的所有文件的命名方式一致"，需要将所有输出文件统一到`optimization_reports/{timestamp}_{optimizer_name}`目录结构。
+
+#### 改进措施
+**修改的文件：**
+- `src/core/ansa_mesh_optimizer_improved.py` (第795-806行, 859-877行)
+
+**核心改进：**
+```python
+# 敏感性分析图表保存路径统一
+if self.best_result and 'report_dir' in self.best_result:
+    # 使用当前优化的报告目录
+    report_dir = Path(self.best_result['report_dir'])
+    filename = report_dir / "sensitivity_analysis.png"
+else:
+    # 创建新的报告目录
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    optimizer_name = "sensitivity_analysis"
+    report_dir = Path(f"optimization_reports/{timestamp}_{optimizer_name}")
+    report_dir.mkdir(parents=True, exist_ok=True)
+    filename = report_dir / "sensitivity_analysis.png"
+
+# 最佳参数文件保存路径统一
+if self.best_result and 'report_dir' in self.best_result:
+    # 使用当前优化的报告目录
+    report_dir = Path(self.best_result['report_dir'])
+    filename = str(report_dir / "best_parameters.txt")
+else:
+    # 创建新的报告目录
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    optimizer_name = self.best_result['optimizer_name'].replace(' ', '_').lower()
+    report_dir = Path(f"optimization_reports/{timestamp}_{optimizer_name}")
+    report_dir.mkdir(parents=True, exist_ok=True)
+    filename = str(report_dir / "best_parameters.txt")
+```
+
+#### 改进效果
+- ✅ **统一目录结构** - 所有输出文件保存到`optimization_reports/{timestamp}_{optimizer_name}`
+- ✅ **标准化文件命名** - 敏感性分析图表统一命名为"sensitivity_analysis.png"
+- ✅ **标准化参数文件** - 最佳参数文件统一命名为"best_parameters.txt"
+- ✅ **智能路径解析** - 优先使用现有优化报告目录，避免重复创建
+- ✅ **英文文件头格式** - 统一使用英文格式的文件头信息
+
+#### 测试验证
+```bash
+# 测试统一输出路径功能
+✓ 优化报告目录: optimization_reports/20250704_150109_genetic_algorithm
+✓ 敏感性分析图表: optimization_reports/20250704_150109_genetic_algorithm/sensitivity_analysis.png
+✓ 最佳参数文件: optimization_reports/20250704_150109_genetic_algorithm/best_parameters.txt
+✓ 文件命名规范一致性验证通过
+```
+
+---
+
+## v1.3.3 更新内容 (2025-07-04)
+
+### 9. matplotlib弹窗彻底修复
+
+#### 问题描述
+用户反馈："敏感性图片又弹窗了"，说明在敏感性分析函数中仍然存在matplotlib弹窗问题。
+
+#### 改进措施
+**修改的文件：**
+- `src/core/ansa_mesh_optimizer_improved.py` (第808-813行)
+
+**核心修复：**
+```python
+# 修复前：会导致弹窗
+plt.savefig(filename, dpi=300, bbox_inches='tight')
+
+# 使用安全的显示和关闭函数
+if 'safe_show' in OPTIONAL_MODULES:
+    OPTIONAL_MODULES['safe_show']()  # ❌ 这里会导致弹窗
+if 'safe_close' in OPTIONAL_MODULES:
+    OPTIONAL_MODULES['safe_close']()
+
+# 修复后：彻底无弹窗
+plt.savefig(filename, dpi=300, bbox_inches='tight')
+
+# 使用安全的关闭函数，不显示图片
+if 'safe_close' in OPTIONAL_MODULES:
+    OPTIONAL_MODULES['safe_close']()
+else:
+    plt.close('all')
+```
+
+#### 改进效果
+- ✅ **彻底解决弹窗问题** - 移除了`safe_show()`调用，确保无GUI弹窗
+- ✅ **保持图表保存功能** - 图表仍然正确保存到文件
+- ✅ **维持无头模式** - 确保matplotlib在Agg后端下稳定运行
+- ✅ **完整错误处理** - 提供fallback机制确保图表正确关闭
+
+#### 测试验证
+```bash
+# 测试修复后的敏感性分析
+✓ 敏感性分析功能完全正常，无弹窗干扰
+✓ 图表正确保存到optimization_reports目录
+✓ 无任何matplotlib GUI窗口出现
+✓ 程序运行流畅，用户体验良好
+```
+
+#### 技术亮点
+- **精确问题定位**: 准确识别`safe_show()`调用是弹窗根源
+- **最小化修改**: 只移除问题代码，保持其他功能不变
+- **完整测试验证**: 确保修复后功能完全正常
+- **向后兼容**: 不影响任何现有功能和API
+
+---
+
 **改进完成日期**: 2025-07-04
 **改进负责人**: Chel
-**版本**: ANSA 网格优化器 v1.3.1
+**版本**: ANSA 网格优化器 v1.3.3
