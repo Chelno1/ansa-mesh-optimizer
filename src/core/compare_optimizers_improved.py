@@ -20,6 +20,9 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import multiprocessing as mp
 
+# 配置日志
+logger = logging.getLogger(__name__)
+
 # 安全导入字体配置模块
 try:
     from utils.font_decorator import with_chinese_font, plotting_ready
@@ -32,22 +35,22 @@ except ImportError:
     def with_chinese_font(func):
         return func
     
-    def plotting_ready(**kwargs):
+    def plotting_ready(backend: str = 'Agg', save_original: bool = True):
         def decorator(func):
             return func
         return decorator
 
-# 配置日志
-logger = logging.getLogger(__name__)
-
-# 安全导入分析库
+# 安全导入分析库和显示配置
 ANALYSIS_LIBS_AVAILABLE = False
 try:
     import pandas as pd
     import numpy as np
     import matplotlib.pyplot as plt
     import seaborn as sns
+    from utils.display_config import safe_show, safe_close, configure_matplotlib_for_display
     ANALYSIS_LIBS_AVAILABLE = True
+    # 配置matplotlib显示设置
+    configure_matplotlib_for_display()
     logger.info("分析库加载成功")
 except ImportError as e:
     logger.warning(f"分析库未完全安装: {e}")
@@ -56,6 +59,13 @@ except ImportError as e:
         def DataFrame(self, *args, **kwargs):
             return None
     pd = MockPandas()
+    
+    # 创建安全显示函数的备用版本
+    def safe_show():
+        pass
+    
+    def safe_close():
+        pass
 
 # 尝试导入统计库
 SCIPY_AVAILABLE = False
@@ -77,14 +87,14 @@ except ImportError as e:
 class OptimizationComparison:
     """优化器比较分析类 - 增强版本"""
     
-    def __init__(self, 
-                 optimizers: List[str] = None,
+    def __init__(self,
+                 optimizers: Optional[List[str]] = None,
                  n_calls: int = 30,
                  evaluator_type: str = 'mock',
                  n_runs: int = 1,
                  use_cache: bool = False,
                  parallel_execution: bool = False,
-                 max_workers: int = None):
+                 max_workers: Optional[int] = None):
         """
         初始化优化器比较
         
@@ -412,7 +422,7 @@ class OptimizationComparison:
             try:
                 self.comparison_summary = pd.DataFrame(summary_data)
                 # 排序（按平均最佳值）
-                if not self.comparison_summary.empty:
+                if hasattr(self.comparison_summary, 'empty') and not self.comparison_summary.empty:
                     self.comparison_summary = self.comparison_summary.sort_values('mean_best_value')
             except Exception as e:
                 logger.warning(f"创建pandas DataFrame失败: {e}")
@@ -494,7 +504,10 @@ class OptimizationComparison:
             summary_data = self.comparison_summary
         else:
             try:
-                summary_data = self.comparison_summary.to_dict('records')
+                if self.comparison_summary is not None and hasattr(self.comparison_summary, 'to_dict'):
+                    summary_data = self.comparison_summary.to_dict('records')
+                else:
+                    summary_data = [{'error': 'Summary conversion failed'}]
             except:
                 summary_data = [{'error': 'Summary conversion failed'}]
         
@@ -657,7 +670,7 @@ class OptimizationComparison:
         
         if not optimizers:
             logger.warning("没有数据可用于性能比较图")
-            plt.close(fig)
+            safe_close()
             return
         
         # 柱状图（平均值 + 误差棒）
@@ -695,7 +708,7 @@ class OptimizationComparison:
         
         plt.tight_layout()
         plt.savefig(self.results_dir / 'performance_comparison.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        safe_close()
     
     @with_chinese_font
     def _plot_execution_time_comparison(self) -> None:
@@ -716,7 +729,7 @@ class OptimizationComparison:
         
         if not optimizers:
             logger.warning("没有数据可用于执行时间比较图")
-            plt.close(fig)
+            safe_close()
             return
         
         # 柱状图
@@ -739,7 +752,7 @@ class OptimizationComparison:
         
         plt.tight_layout()
         plt.savefig(self.results_dir / 'execution_time_comparison.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        safe_close()
     
     @with_chinese_font
     def _plot_box_plots(self) -> None:
@@ -765,7 +778,7 @@ class OptimizationComparison:
         
         if not performance_data:
             logger.warning("没有数据可用于箱线图")
-            plt.close(fig)
+            safe_close()
             return
         
         # 性能箱线图
@@ -793,7 +806,7 @@ class OptimizationComparison:
         
         plt.tight_layout()
         plt.savefig(self.results_dir / 'box_plots.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        safe_close()
     
     @with_chinese_font
     def _plot_scatter_matrix(self) -> None:
@@ -843,7 +856,7 @@ class OptimizationComparison:
             
             plt.tight_layout()
             plt.savefig(self.results_dir / 'scatter_matrix.png', dpi=300, bbox_inches='tight')
-            plt.close()
+            safe_close()
             
         except Exception as e:
             logger.warning(f"生成散点图矩阵失败: {e}")
@@ -875,7 +888,7 @@ class OptimizationComparison:
         
         plt.tight_layout()
         plt.savefig(self.results_dir / 'convergence_analysis.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        safe_close()
     
     def _generate_statistical_analysis(self) -> None:
         """生成统计分析报告"""

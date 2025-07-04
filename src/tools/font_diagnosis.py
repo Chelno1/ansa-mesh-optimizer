@@ -11,6 +11,19 @@ import platform
 import os
 from pathlib import Path
 
+# 导入显示配置
+try:
+    from utils.display_config import safe_show, safe_close, configure_matplotlib_for_display
+    # 配置matplotlib显示设置
+    configure_matplotlib_for_display()
+except ImportError:
+    # 创建安全显示函数的备用版本
+    def safe_show():
+        pass
+    
+    def safe_close():
+        pass
+
 def diagnose_font_issues():
     """诊断字体问题"""
     print("="*60)
@@ -105,7 +118,7 @@ def test_font_rendering():
             
             filename = f'font_test_{i+1}_{fonts[0].replace(" ", "_")}.png'
             plt.savefig(filename, dpi=150, bbox_inches='tight')
-            plt.close()
+            safe_close()
             
             print(f"   ✓ 配置 {i+1} ({fonts[0]}): 已生成 {filename}")
             

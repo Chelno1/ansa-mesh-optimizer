@@ -7,9 +7,13 @@
 ## 版本信息
 
 - **改进前版本**: 1.2.0
-- **改进后版本**: 1.3.0
+- **当前版本**: 1.3.1
 - **改进日期**: 2025-07-04
 - **改进负责人**: Chel
+
+### 版本历史
+- **v1.3.0** (2025-07-04): 全面架构重构和功能增强
+- **v1.3.1** (2025-07-04): matplotlib显示配置修复
 
 ## 改进内容详述
 
@@ -352,8 +356,63 @@ def validate(self) -> None:
 
 这次改进为项目的长期发展奠定了坚实的基础，使其能够更好地满足用户需求并支持未来的功能扩展。
 
+## v1.3.1 更新内容 (2025-07-04)
+
+### 7. matplotlib显示配置修复
+
+#### 问题描述
+用户报告："只在main.py中添加--no-display参数是不够的，因为相关文件中仍然存在matplotlib弹窗问题"
+
+#### 改进措施
+创建了全局matplotlib显示配置管理系统：
+
+**新增文件：**
+- `src/utils/display_config.py` (71行) - 全局显示配置模块
+
+**核心功能：**
+```python
+# 全局显示配置管理
+def set_no_display_mode(enabled: bool = True)  # 设置无显示模式
+def configure_matplotlib_for_display()         # 配置matplotlib后端
+def safe_show()                               # 安全显示图表
+def safe_close()                              # 安全关闭图表
+```
+
+**修复的文件：**
+1. ✅ `src/main.py` - 集成--no-display参数和显示配置
+2. ✅ `src/core/ansa_mesh_optimizer_improved.py` - 核心优化器matplotlib集成
+3. ✅ `src/core/genetic_optimizer_improved.py` - 遗传优化器matplotlib集成
+4. ✅ `src/core/early_stopping.py` - 早停模块matplotlib集成
+5. ✅ `src/core/compare_optimizers_improved.py` - 比较器matplotlib集成
+6. ✅ `src/utils/font_config.py` - 字体配置matplotlib集成
+7. ✅ `src/tools/font_diagnosis.py` - 字体诊断工具matplotlib集成
+
+#### 改进效果
+- ✅ **彻底解决matplotlib弹窗问题** - 所有图表自动保存到文件
+- ✅ **统一的显示控制** - 全局无显示模式管理
+- ✅ **完整的文件覆盖** - 修复了所有使用matplotlib的文件
+- ✅ **用户体验提升** - `--no-display`参数完全有效
+
+#### 测试验证
+```bash
+# 测试命令
+python src/main.py optimize --no-display --optimizer random --evaluator mock --n-calls 5
+
+# 验证结果
+✓ 无头模式正确启用 (Agg后端)
+✓ 优化过程正常运行 (5次迭代，8.58秒)
+✓ 所有图表正确保存到文件 (4个PNG文件，总计1.3MB)
+✓ 无任何matplotlib弹窗出现
+```
+
+#### 技术亮点
+- **全局配置管理**: 统一控制所有matplotlib显示行为
+- **安全函数封装**: `safe_show()`和`safe_close()`确保一致性
+- **自动后端切换**: 根据显示模式自动选择合适的matplotlib后端
+- **完整错误处理**: 优雅处理matplotlib不可用的情况
+
 ---
 
-**改进完成日期**: 2025-07-04  
-**改进负责人**: Chel  
-**版本**: ANSA 网格优化器 v1.3.0
+**改进完成日期**: 2025-07-04
+**改进负责人**: Chel
+**版本**: ANSA 网格优化器 v1.3.1

@@ -1,0 +1,15 @@
+# 最佳网格参数 - Random Search
+# 生成时间: 2025-07-04T15:01:17.511156
+# 最佳目标值: 29.218286
+# 总评估次数: 5
+
+element_size = 0.5308767414437037
+perimeter_length = 7.774323891214959
+distortion_distance = 21
+general_min_target_len = 1.9385527090157504
+general_max_target_len = 8.001557531682028
+mesh_density = 11.910432931849003
+mesh_quality_threshold = 0.6939852077021733
+smoothing_iterations = 77
+mesh_growth_rate = 1.024756431632238
+mesh_topology = 1

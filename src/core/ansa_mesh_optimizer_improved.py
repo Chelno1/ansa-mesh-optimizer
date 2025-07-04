@@ -9,7 +9,7 @@ Ansa Batch Mesh Optimizer (改进版本)
 创建日期: 2025-06-09
 版本: 1.2.0
 更新日期: 2025-06-20
-修复: 导入处理，参数验证，错误处理，内存优化
+修复: 导入处理，参数验证，错误处理，内存优化，matplotlib显示配置
 """
 
 import numpy as np
@@ -32,7 +32,8 @@ logger = logging.getLogger(__name__)
 # 安全导入可选依赖
 def safe_import_optional_modules():
     """安全导入可选模块"""
-    modules = {'available': []}
+    modules = {}
+    modules['available'] = []
     
     # scikit-optimize
     try:
@@ -40,20 +41,24 @@ def safe_import_optional_modules():
         from skopt.space import Real, Integer
         from skopt.utils import use_named_args
         from skopt.plots import plot_convergence, plot_objective
+        
+        # 导入显示配置
+        from utils.display_config import configure_matplotlib_for_display, safe_show, safe_close
+        configure_matplotlib_for_display()
         import matplotlib.pyplot as plt
         
         modules['skopt_available'] = True
-        modules['skopt'] = {
-            'gp_minimize': gp_minimize,
-            'forest_minimize': forest_minimize,
-            'dummy_minimize': dummy_minimize,
-            'Real': Real,
-            'Integer': Integer,
-            'use_named_args': use_named_args,
-            'plot_convergence': plot_convergence,
-            'plot_objective': plot_objective
-        }
+        modules['gp_minimize'] = gp_minimize
+        modules['forest_minimize'] = forest_minimize
+        modules['dummy_minimize'] = dummy_minimize
+        modules['Real'] = Real
+        modules['Integer'] = Integer
+        modules['use_named_args'] = use_named_args
+        modules['plot_convergence'] = plot_convergence
+        modules['plot_objective'] = plot_objective
         modules['plt'] = plt
+        modules['safe_show'] = safe_show
+        modules['safe_close'] = safe_close
         modules['available'].append('scikit-optimize')
         logger.info("scikit-optimize 模块加载成功")
         
@@ -221,23 +226,21 @@ class MeshOptimizer:
     def _check_optimizer_availability(self, optimizer: str) -> bool:
         """检查优化器可用性"""
         if optimizer.lower() in ['bayesian', 'random', 'forest']:
-            if not OPTIONAL_MODULES['skopt_available']:
+            if not OPTIONAL_MODULES.get('skopt_available', False):
                 logger.error(f"优化器 {optimizer} 需要 scikit-optimize 库")
                 return False
         return True
     
     def _optimize_bayesian(self, n_calls: int, **kwargs) -> Dict[str, Any]:
         """贝叶斯优化"""
-        if not OPTIONAL_MODULES['skopt_available']:
+        if not OPTIONAL_MODULES.get('skopt_available', False):
             raise RuntimeError("贝叶斯优化需要安装scikit-optimize")
         
-        skopt = OPTIONAL_MODULES['skopt']
-        
-        @skopt['use_named_args'](self.param_space.to_skopt_space())
+        @OPTIONAL_MODULES['use_named_args'](self.param_space.to_skopt_space())
         def objective(**params):
             return self._evaluate_with_early_stopping(params)
         
-        result = skopt['gp_minimize'](
+        result = OPTIONAL_MODULES['gp_minimize'](
             objective,
             self.param_space.to_skopt_space(),
             n_calls=n_calls,
@@ -251,16 +254,14 @@ class MeshOptimizer:
     
     def _optimize_random(self, n_calls: int, **kwargs) -> Dict[str, Any]:
         """随机搜索优化"""
-        if not OPTIONAL_MODULES['skopt_available']:
+        if not OPTIONAL_MODULES.get('skopt_available', False):
             raise RuntimeError("随机搜索需要安装scikit-optimize")
         
-        skopt = OPTIONAL_MODULES['skopt']
-        
-        @skopt['use_named_args'](self.param_space.to_skopt_space())
+        @OPTIONAL_MODULES['use_named_args'](self.param_space.to_skopt_space())
         def objective(**params):
             return self._evaluate_with_early_stopping(params)
         
-        result = skopt['dummy_minimize'](
+        result = OPTIONAL_MODULES['dummy_minimize'](
             objective,
             self.param_space.to_skopt_space(),
             n_calls=n_calls,
@@ -273,16 +274,14 @@ class MeshOptimizer:
     
     def _optimize_forest(self, n_calls: int, **kwargs) -> Dict[str, Any]:
         """森林优化"""
-        if not OPTIONAL_MODULES['skopt_available']:
+        if not OPTIONAL_MODULES.get('skopt_available', False):
             raise RuntimeError("森林优化需要安装scikit-optimize")
         
-        skopt = OPTIONAL_MODULES['skopt']
-        
-        @skopt['use_named_args'](self.param_space.to_skopt_space())
+        @OPTIONAL_MODULES['use_named_args'](self.param_space.to_skopt_space())
         def objective(**params):
             return self._evaluate_with_early_stopping(params)
         
-        result = skopt['forest_minimize'](
+        result = OPTIONAL_MODULES['forest_minimize'](
             objective,
             self.param_space.to_skopt_space(),
             n_calls=n_calls,
@@ -479,7 +478,7 @@ class MeshOptimizer:
         self._write_text_report(report_file, result)
         
         # 生成可视化图表
-        if OPTIONAL_MODULES['skopt_available']:
+        if OPTIONAL_MODULES.get('skopt_available', False):
             try:
                 self._generate_plots(result, report_dir)
             except Exception as e:
@@ -534,17 +533,16 @@ class MeshOptimizer:
     
     def _generate_plots(self, result: Dict[str, Any], report_dir: Path) -> None:
         """生成可视化图表"""
-        if not OPTIONAL_MODULES['skopt_available']:
+        if not OPTIONAL_MODULES.get('skopt_available', False):
             return
         
         plt = OPTIONAL_MODULES['plt']
-        skopt_plots = OPTIONAL_MODULES['skopt']
         
         try:
             # 收敛图
             if 'skopt_result' in result:
                 plt.figure(figsize=(10, 6))
-                skopt_plots['plot_convergence'](result['skopt_result'])
+                OPTIONAL_MODULES['plot_convergence'](result['skopt_result'])
                 plt.title(f"Convergence - {result['optimizer_name']}")
                 plt.savefig(report_dir / "convergence.png", dpi=300, bbox_inches='tight')
                 plt.close()
@@ -553,7 +551,7 @@ class MeshOptimizer:
                 if result['n_calls'] >= 20:
                     try:
                         plt.figure(figsize=(12, 8))
-                        skopt_plots['plot_objective'](result['skopt_result'])
+                        OPTIONAL_MODULES['plot_objective'](result['skopt_result'])
                         plt.savefig(report_dir / "parameter_importance.png", dpi=300, bbox_inches='tight')
                         plt.close()
                     except Exception as e:
@@ -566,7 +564,7 @@ class MeshOptimizer:
             # 早停历史图
             if self.early_stopping and hasattr(self.early_stopping, 'plot_history'):
                 try:
-                    self.early_stopping.plot_history(report_dir / "early_stopping_history.png")
+                    self.early_stopping.plot_history(str(report_dir / "early_stopping_history.png"))
                 except Exception as e:
                     logger.warning(f"无法生成早停历史图: {e}")
             
@@ -576,7 +574,7 @@ class MeshOptimizer:
     @with_chinese_font
     def _plot_optimization_history(self, report_dir: Path) -> None:
         """绘制优化历史"""
-        if not OPTIONAL_MODULES['skopt_available']:
+        if not OPTIONAL_MODULES.get('skopt_available', False):
             return
         
         plt = OPTIONAL_MODULES['plt']
@@ -673,7 +671,7 @@ class MeshOptimizer:
     def sensitivity_analysis(self, 
                            best_params: Optional[Dict[str, float]] = None,
                            n_trials: int = 5,
-                           noise_level: float = 0.1) -> Dict[str, List]:
+                           noise_level: float = 0.1) -> Dict[str, List[tuple]]:
         """
         参数敏感性分析
         
@@ -689,6 +687,10 @@ class MeshOptimizer:
             if self.best_result is None:
                 raise ValueError("没有可用的最佳参数，请先运行优化或提供参数")
             best_params = self.best_result['best_params']
+        
+        # 确保 best_params 不为 None
+        if best_params is None:
+            raise ValueError("最佳参数为空，无法进行敏感性分析")
         
         logger.info("开始参数敏感性分析...")
         
@@ -742,11 +744,11 @@ class MeshOptimizer:
         return sensitivity_results
     
     @with_chinese_font
-    def _plot_sensitivity_analysis(self, 
+    def _plot_sensitivity_analysis(self,
                                   sensitivity_results: Dict[str, List],
                                   best_params: Dict[str, float]) -> None:
         """绘制敏感性分析图表"""
-        if not OPTIONAL_MODULES['skopt_available']:
+        if not OPTIONAL_MODULES.get('skopt_available', False):
             logger.warning("matplotlib不可用，跳过敏感性分析图表生成")
             return
         
@@ -754,19 +756,26 @@ class MeshOptimizer:
         
         try:
             n_params = len(sensitivity_results)
+            if n_params == 0:
+                return
+                
             n_cols = min(3, n_params)
             n_rows = (n_params + n_cols - 1) // n_cols
             
             fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 4*n_rows))
-            if n_rows == 1:
-                axes = axes.reshape(1, -1) if n_cols > 1 else [axes]
+            
+            # 正确处理axes的类型
+            if n_params == 1:
+                axes_list = [axes]
+            elif n_rows == 1:
+                axes_list = list(axes) if n_cols > 1 else [axes]
             elif n_cols == 1:
-                axes = axes.reshape(-1, 1)
+                axes_list = list(axes) if n_rows > 1 else [axes]
+            else:
+                axes_list = axes.flatten()
             
             for i, (param_name, results) in enumerate(sensitivity_results.items()):
-                row = i // n_cols
-                col = i % n_cols
-                ax = axes[row, col] if n_rows > 1 else axes[col]
+                ax = axes_list[i]
                 
                 test_values, objectives = zip(*results)
                 ax.plot(test_values, objectives, 'o-', linewidth=2, markersize=6)
@@ -778,13 +787,8 @@ class MeshOptimizer:
                 ax.legend()
             
             # 隐藏多余的子图
-            for i in range(n_params, n_rows * n_cols):
-                row = i // n_cols
-                col = i % n_cols
-                if n_rows > 1:
-                    axes[row, col].set_visible(False)
-                else:
-                    axes[col].set_visible(False)
+            for i in range(n_params, len(axes_list)):
+                axes_list[i].set_visible(False)
             
             plt.tight_layout()
             
@@ -792,7 +796,12 @@ class MeshOptimizer:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             filename = f"sensitivity_analysis_{timestamp}.png"
             plt.savefig(filename, dpi=300, bbox_inches='tight')
-            plt.show()
+            
+            # 使用安全的显示和关闭函数
+            if 'safe_show' in OPTIONAL_MODULES:
+                OPTIONAL_MODULES['safe_show']()
+            if 'safe_close' in OPTIONAL_MODULES:
+                OPTIONAL_MODULES['safe_close']()
             
             logger.info(f"敏感性分析图表已保存: {filename}")
             
@@ -931,7 +940,7 @@ def get_available_optimizers() -> List[str]:
     """获取可用的优化器列表"""
     available = ['genetic', 'parallel']  # 这些总是可用的
     
-    if OPTIONAL_MODULES['skopt_available']:
+    if OPTIONAL_MODULES.get('skopt_available', False):
         available.extend(['bayesian', 'random', 'forest'])
     
     return sorted(available)
@@ -941,7 +950,7 @@ def check_dependencies() -> Dict[str, Any]:
     return {
         'available_modules': OPTIONAL_MODULES['available'],
         'available_optimizers': get_available_optimizers(),
-        'skopt_available': OPTIONAL_MODULES['skopt_available'],
+        'skopt_available': OPTIONAL_MODULES.get('skopt_available', False),
         'pandas_available': OPTIONAL_MODULES.get('pandas_available', False),
         'matplotlib_available': 'plt' in OPTIONAL_MODULES
     }

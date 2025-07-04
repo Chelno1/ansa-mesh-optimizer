@@ -12,6 +12,19 @@ import logging
 from pathlib import Path
 import subprocess
 
+# 导入显示配置
+try:
+    from utils.display_config import safe_show, safe_close, configure_matplotlib_for_display
+    # 配置matplotlib显示设置
+    configure_matplotlib_for_display()
+except ImportError:
+    # 创建安全显示函数的备用版本
+    def safe_show():
+        pass
+    
+    def safe_close():
+        pass
+
 logger = logging.getLogger(__name__)
 
 def get_all_available_fonts():
@@ -197,7 +210,7 @@ def test_chinese_display():
         
         plt.tight_layout()
         plt.savefig("chinese_font_test_enhanced.png", dpi=150, bbox_inches='tight')
-        plt.close()
+        safe_close()
         
         logger.info("中文字体测试完成，请检查 chinese_font_test_enhanced.png 文件")
         print("✓ 增强版中文字体测试图片已生成: chinese_font_test_enhanced.png")

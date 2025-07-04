@@ -20,13 +20,23 @@ from collections import deque
 
 logger = logging.getLogger(__name__)
 
-# 安全导入matplotlib
+# 安全导入matplotlib和显示配置
 try:
     import matplotlib.pyplot as plt
+    from utils.display_config import safe_show, safe_close, configure_matplotlib_for_display
     MATPLOTLIB_AVAILABLE = True
+    # 配置matplotlib显示设置
+    configure_matplotlib_for_display()
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
     logger.warning("matplotlib不可用，无法生成早停图表")
+    
+    # 创建安全显示函数的备用版本
+    def safe_show():
+        pass
+    
+    def safe_close():
+        pass
 
 # 尝试导入字体装饰器
 try:
@@ -40,7 +50,7 @@ except ImportError:
     def with_chinese_font(func):
         return func
     
-    def plotting_ready(**kwargs):
+    def plotting_ready(backend: str = 'Agg', save_original: bool = True):
         def decorator(func):
             return func
         return decorator
@@ -342,7 +352,7 @@ class EarlyStopping:
                 plt.savefig(save_path, dpi=300, bbox_inches='tight')
                 logger.info(f"早停历史图已保存: {save_path}")
             
-            plt.show()
+            safe_show()
             
         except Exception as e:
             logger.warning(f"绘制历史图失败: {e}")
@@ -594,13 +604,15 @@ class ConvergenceDetector:
             converged = variance_converged and change_converged and trend_converged
             convergence_info['converged'] = converged
             
-            self.convergence_history.append(converged)
+            # 确保converged是Python bool类型
+            converged_bool = bool(converged)
+            self.convergence_history.append(converged_bool)
             
-            if converged:
+            if converged_bool:
                 logger.debug(f"检测到收敛: 方差={variance:.2e}, "
                            f"相对变化={relative_change:.2e}, 趋势={trend_slope:.2e}")
         
-        return convergence_info['converged'], convergence_info
+        return bool(convergence_info['converged']), convergence_info
     
     def _calculate_trend(self) -> float:
         """计算趋势斜率"""
@@ -795,5 +807,6 @@ if __name__ == "__main__":
     # 绘制历史图（如果matplotlib可用）
     if MATPLOTLIB_AVAILABLE:
         early_stopping.plot_history("test_early_stopping.png")
+        safe_close()  # 确保图表窗口关闭
     
     print("\n早停机制测试完成!")

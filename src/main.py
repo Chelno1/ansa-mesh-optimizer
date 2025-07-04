@@ -194,6 +194,9 @@ def create_parser() -> argparse.ArgumentParser:
   # 使用贝叶斯优化，20次迭代
   python main.py optimize --optimizer bayesian --n-calls 20 --evaluator mock
 
+  # 无头模式运行（不显示图表窗口）
+  python main.py optimize --optimizer bayesian --n-calls 5 --evaluator mock --no-display
+
   # 比较多个优化器
   python main.py compare --optimizers bayesian random genetic --n-calls 15 --evaluator mock
 
@@ -248,6 +251,8 @@ def create_parser() -> argparse.ArgumentParser:
                                 help='结果输出文件路径')
     optimize_parser.add_argument('--save-plots', action='store_true',
                                 help='保存优化图表')
+    optimize_parser.add_argument('--no-display', action='store_true',
+                                help='禁用图表显示（无头模式）')
     
     # 比较命令
     compare_parser = subparsers.add_parser('compare', help='比较多个优化器')
@@ -316,6 +321,12 @@ def cmd_optimize(args, modules) -> int:
     optimize_mesh_parameters, MeshOptimizer, compare_optimizers, config_manager, check_dependencies = modules
     
     try:
+        # 设置无头模式（必须在任何matplotlib导入之前）
+        if hasattr(args, 'no_display') and args.no_display:
+            from utils.display_config import set_no_display_mode
+            set_no_display_mode(True)
+            print("🖼️  已启用无头模式 - 图表将保存但不显示")
+        
         print(f"🚀 开始网格参数优化")
         print(f"   优化器: {args.optimizer}")
         print(f"   评估器: {args.evaluator}")
