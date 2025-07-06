@@ -22,7 +22,10 @@ import glob
 import time
 import random
 
-from config.config import config_manager
+try:
+    from src.config.config_refactored import unified_config_manager as config_manager
+except ImportError:
+    from config.config_refactored import unified_config_manager as config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -86,8 +89,8 @@ class ParameterValidator:
     def __init__(self, param_space):
         self.param_space = param_space
         self.bounds = param_space.get_bounds()
-        self.param_names = param_space.get_param_names()
-        self.param_types = param_space.get_param_types()
+        self.param_names = param_space.get_parameter_names()
+        self.param_types = param_space.get_parameter_types()
     
     def validate_comprehensive(self, params: Dict[str, Any]) -> Tuple[bool, str, Dict[str, Any]]:
         """
@@ -155,9 +158,29 @@ class AnsaMeshEvaluator(MeshEvaluator):
     
     def __init__(self):
         self.config = config_manager.ansa_config
-        self.param_mapping = config_manager.get_parameter_mapping()
+        self.param_mapping = config_manager.parameter_space.get_ansa_mapping()
         self.validator = ParameterValidator(config_manager.parameter_space)
         self._validate_environment()
+    
+    def _has_rule_fillet_parameters(self, params: Dict[str, float]) -> bool:
+        """检查参数中是否包含 rule_fillet_width 参数"""
+        return any(key.startswith('rule_fillet_width_') for key in params.keys())
+    
+    def _has_recognize_chamfers_parameters(self, params: Dict[str, float]) -> bool:
+        """检查参数中是否包含 recognize_chamfers 参数"""
+        return any(key.startswith('recognize_chamfers_') for key in params.keys())
+    
+    def _has_rule_chamfer_parameters(self, params: Dict[str, float]) -> bool:
+        """检查参数中是否包含 rule_chamfer_width 参数"""
+        return any(key.startswith('rule_chamfer_width_') for key in params.keys())
+    
+    def _has_distortion_angle_parameter(self, params: Dict[str, float]) -> bool:
+        """检查参数中是否包含 distortion_angle 参数"""
+        return 'distortion_angle' in params
+    
+    def _has_perimeter_distance_parameter(self, params: Dict[str, float]) -> bool:
+        """检查参数中是否包含 perimeter_distance 参数"""
+        return 'perimeter_distance' in params
     
     def _validate_environment(self) -> None:
         """验证Ansa环境"""
@@ -293,6 +316,48 @@ class AnsaMeshEvaluator(MeshEvaluator):
         logger.info(f"使用mpar文件: {mpar_file}")
         
         try:
+            # 检查是否有特殊参数需要处理
+            has_fillet_params = self._has_rule_fillet_parameters(params)
+            has_chamfers_params = self._has_recognize_chamfers_parameters(params)
+            has_chamfer_params = self._has_rule_chamfer_parameters(params)
+            has_distortion_angle_param = self._has_distortion_angle_parameter(params)
+            has_perimeter_distance_param = self._has_perimeter_distance_parameter(params)
+            
+            if has_fillet_params:
+                logger.info("检测到 rule_fillet_width 参数，进行特殊处理")
+                # 先处理 rule_fillet 参数替换
+                updated_mpar_file = self._replace_rule_fillet_parameters(str(mpar_file), params)
+                # 使用更新后的 mpar 文件
+                mpar_file = Path(updated_mpar_file)
+            
+            if has_chamfers_params:
+                logger.info("检测到 recognize_chamfers 参数，进行特殊处理")
+                # 处理 recognize_chamfers 参数替换
+                updated_mpar_file = self._replace_recognize_chamfers_parameters(str(mpar_file), params)
+                # 使用更新后的 mpar 文件
+                mpar_file = Path(updated_mpar_file)
+            
+            if has_chamfer_params:
+                logger.info("检测到 rule_chamfer_width 参数，进行特殊处理")
+                # 处理 rule_chamfer 参数替换
+                updated_mpar_file = self._replace_rule_chamfer_parameters(str(mpar_file), params)
+                # 使用更新后的 mpar 文件
+                mpar_file = Path(updated_mpar_file)
+            
+            if has_distortion_angle_param:
+                logger.info("检测到 distortion_angle 参数，进行特殊处理")
+                # 处理 distortion_angle 参数替换
+                updated_mpar_file = self._replace_distortion_angle_parameter(str(mpar_file), params)
+                # 使用更新后的 mpar 文件
+                mpar_file = Path(updated_mpar_file)
+            
+            if has_perimeter_distance_param:
+                logger.info("检测到 perimeter_distance 参数，进行特殊处理")
+                # 处理 perimeter_distance 参数替换
+                updated_mpar_file = self._replace_perimeter_distance_parameter(str(mpar_file), params)
+                # 使用更新后的 mpar 文件
+                mpar_file = Path(updated_mpar_file)
+            
             # 解析mpar参数
             mpar_params = self._parse_mpar_file(mpar_file)
             
@@ -300,7 +365,7 @@ class AnsaMeshEvaluator(MeshEvaluator):
                 logger.warning("mpar文件解析为空，使用原始配置")
                 return config_file
             
-            # 替换参数
+            # 替换其他参数
             final_config_file = self._replace_parameters(config_file, mpar_params)
             
             return final_config_file
@@ -374,6 +439,318 @@ class AnsaMeshEvaluator(MeshEvaluator):
         except Exception as e:
             logger.error(f"参数替换失败: {e}")
             return temp_file
+    
+    def _replace_rule_fillet_parameters(self, mpar_file_path: str, params: Dict[str, float]) -> str:
+        """
+        专门处理 rule_fillet 参数替换
+        
+        Args:
+            mpar_file_path: mpar文件路径
+            params: 包含 rule_fillet_width 参数的字典
+            
+        Returns:
+            更新后的文件路径
+        """
+        output_file = mpar_file_path + "_fillet_updated"
+        
+        try:
+            # 提取 rule_fillet_width 参数
+            width_1 = params.get('rule_fillet_width_1', 3.0)
+            width_2 = params.get('rule_fillet_width_2', 10.0)
+            width_3 = params.get('rule_fillet_width_3', 20.0)
+            width_4 = params.get('rule_fillet_width_4', 30.0)
+            
+            logger.info(f"应用 rule_fillet width 参数: {width_1}, {width_2}, {width_3}, {width_4}")
+            
+            # 读取并替换文件内容
+            with open(mpar_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 替换 rule_fillet 行中的 width 值
+            import re
+            
+            # 替换第一个 rule_fillet (width = 0-3 -> width = 0-width_1)
+            pattern1 = r'(rule_fillet\s*=\s*default\s*=\s*false.*?width\s*=\s*0-)(\d+(?:\.\d+)?)(.*?treatment\s*=\s*7)'
+            replacement1 = f'\\g<1>{width_1}\\g<3>'
+            content = re.sub(pattern1, replacement1, content)
+            
+            # 替换第二个 rule_fillet (width = 3-10 -> width = width_1-width_2)
+            pattern2 = r'(rule_fillet\s*=\s*default\s*=\s*false.*?width\s*=\s*)(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)(.*?treatment\s*=\s*8)'
+            replacement2 = f'\\g<1>{width_1}-{width_2}\\g<4>'
+            content = re.sub(pattern2, replacement2, content)
+            
+            # 替换第三个 rule_fillet (width = 10-20 -> width = width_2-width_3)
+            pattern3 = r'(rule_fillet\s*=\s*default\s*=\s*false.*?width\s*=\s*)(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)(.*?treatment\s*=\s*9)'
+            replacement3 = f'\\g<1>{width_2}-{width_3}\\g<4>'
+            content = re.sub(pattern3, replacement3, content)
+            
+            # 替换第四个 rule_fillet (width = 20-30 -> width = width_3-width_4)
+            pattern4 = r'(rule_fillet\s*=\s*default\s*=\s*false.*?width\s*=\s*)(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)(.*?treatment\s*=\s*10)'
+            replacement4 = f'\\g<1>{width_3}-{width_4}\\g<4>'
+            content = re.sub(pattern4, replacement4, content)
+            
+            # 写入更新后的文件
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            logger.info(f"rule_fillet 参数替换完成，结果保存至: {output_file}")
+            return output_file
+            
+        except Exception as e:
+            logger.error(f"rule_fillet 参数替换失败: {e}")
+            return mpar_file_path
+    
+    def _replace_recognize_chamfers_parameters(self, mpar_file_path: str, params: Dict[str, float]) -> str:
+        """
+        专门处理 recognize_chamfers 参数替换
+        
+        Args:
+            mpar_file_path: mpar文件路径
+            params: 包含 recognize_chamfers 参数的字典
+            
+        Returns:
+            更新后的文件路径
+        """
+        output_file = mpar_file_path + "_chamfers_updated"
+        
+        try:
+            # 提取 recognize_chamfers 参数
+            min_angle = params.get('recognize_chamfers_min_angle', 20.0)
+            max_angle = params.get('recognize_chamfers_max_angle', 70.0)
+            max_width = params.get('recognize_chamfers_max_width', 20.0)
+            
+            logger.info(f"应用 recognize_chamfers 参数: min_angle={min_angle}, max_angle={max_angle}, max_width={max_width}")
+            
+            # 读取并替换文件内容
+            with open(mpar_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 替换 recognize_chamfers 行中的参数值
+            import re
+            
+            # 替换 recognize_chamfers_min_angle
+            pattern_min_angle = r'(recognize_chamfers_min_angle\s*=\s*)(\d+(?:\.\d+)?\.?)'
+            replacement_min_angle = f'\\g<1>{min_angle}.'
+            content = re.sub(pattern_min_angle, replacement_min_angle, content)
+            
+            # 替换 recognize_chamfers_max_angle
+            pattern_max_angle = r'(recognize_chamfers_max_angle\s*=\s*)(\d+(?:\.\d+)?\.?)'
+            replacement_max_angle = f'\\g<1>{max_angle}.'
+            content = re.sub(pattern_max_angle, replacement_max_angle, content)
+            
+            # 替换 recognize_chamfers_max_width
+            pattern_max_width = r'(recognize_chamfers_max_width\s*=\s*)(\d+(?:\.\d+)?\.?)'
+            replacement_max_width = f'\\g<1>{max_width}.'
+            content = re.sub(pattern_max_width, replacement_max_width, content)
+            
+            # 写入更新后的文件
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            logger.info(f"recognize_chamfers 参数替换完成，结果保存至: {output_file}")
+            return output_file
+            
+        except Exception as e:
+            logger.error(f"recognize_chamfers 参数替换失败: {e}")
+            return mpar_file_path
+    
+    def _replace_rule_chamfer_parameters(self, mpar_file_path: str, params: Dict[str, float]) -> str:
+        """
+        替换 .ansa_mpar 文件中的 rule_chamfer 参数
+        
+        处理复杂的 rule_chamfer 行格式：
+        rule_chamfer = default = false || active = true || name = none || width = 0-10 || angle = 40-50 || treatment = 12
+        
+        Args:
+            mpar_file_path: .ansa_mpar 文件路径
+            params: 包含 rule_chamfer_width_1 参数的字典
+            
+        Returns:
+            str: 更新后的文件路径
+        """
+        try:
+            # 读取原始文件
+            with open(mpar_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 提取 rule_chamfer_width_1 参数值
+            chamfer_width_1 = params.get('rule_chamfer_width_1')
+            if chamfer_width_1 is None:
+                logger.warning("未找到 rule_chamfer_width_1 参数")
+                return mpar_file_path
+            
+            # 转换为整数（根据原始格式，宽度值应该是整数）
+            chamfer_width_1_int = int(round(chamfer_width_1))
+            
+            # 定义正则表达式模式来匹配 rule_chamfer 行
+            # 匹配: rule_chamfer = ... || width = 0-数字 || ... || treatment = 12
+            pattern = r'(rule_chamfer\s*=.*?width\s*=\s*0-)(\d+)(.*?treatment\s*=\s*12)'
+            
+            # 查找匹配项
+            matches = re.findall(pattern, content, re.IGNORECASE | re.DOTALL)
+            if not matches:
+                logger.warning("未找到匹配的 rule_chamfer 行格式")
+                return mpar_file_path
+            
+            # 执行替换
+            def replace_width(match):
+                prefix = match.group(1)  # rule_chamfer = ... || width = 0-
+                old_width = match.group(2)  # 原始宽度值
+                suffix = match.group(3)   # ... || treatment = 12
+                
+                logger.info(f"替换 rule_chamfer 宽度值: {old_width} -> {chamfer_width_1_int}")
+                return f"{prefix}{chamfer_width_1_int}{suffix}"
+            
+            # 执行替换
+            updated_content = re.sub(pattern, replace_width, content, flags=re.IGNORECASE | re.DOTALL)
+            
+            # 生成新的文件名
+            base_name = os.path.splitext(os.path.basename(mpar_file_path))[0]
+            dir_name = os.path.dirname(mpar_file_path)
+            updated_file_path = os.path.join(dir_name, f"{base_name}_chamfer_updated.ansa_mpar")
+            
+            # 写入更新后的内容
+            with open(updated_file_path, 'w', encoding='utf-8') as f:
+                f.write(updated_content)
+            
+            logger.info(f"Rule chamfer 参数替换完成: {updated_file_path}")
+            logger.info(f"rule_chamfer_width_1: {chamfer_width_1} -> {chamfer_width_1_int}")
+            
+            return updated_file_path
+            
+        except Exception as e:
+            logger.error(f"Rule chamfer 参数替换失败: {e}")
+            return mpar_file_path
+    
+    def _replace_distortion_angle_parameter(self, mpar_file_path: str, params: Dict[str, float]) -> str:
+        """
+        替换 .ansa_mpar 文件中的 distortion-angle 参数
+        
+        处理 distortion-angle 行格式：
+        distortion-angle = 0.
+        
+        Args:
+            mpar_file_path: .ansa_mpar 文件路径
+            params: 包含 distortion_angle 参数的字典
+            
+        Returns:
+            str: 更新后的文件路径
+        """
+        try:
+            # 读取原始文件
+            with open(mpar_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 提取 distortion_angle 参数值
+            distortion_angle = params.get('distortion_angle')
+            if distortion_angle is None:
+                logger.warning("未找到 distortion_angle 参数")
+                return mpar_file_path
+            
+            # 定义正则表达式模式来匹配 distortion-angle 行
+            # 匹配: distortion-angle = 数字.
+            pattern = r'(distortion-angle\s*=\s*)(\d+(?:\.\d+)?)(\.?)'
+            
+            # 查找匹配项
+            matches = re.findall(pattern, content, re.IGNORECASE)
+            if not matches:
+                logger.warning("未找到匹配的 distortion-angle 行格式")
+                return mpar_file_path
+            
+            # 执行替换
+            def replace_angle(match):
+                prefix = match.group(1)  # distortion-angle =
+                old_angle = match.group(2)  # 原始角度值
+                suffix = match.group(3)   # 可能的小数点
+                
+                logger.info(f"替换 distortion-angle 值: {old_angle} -> {distortion_angle}")
+                return f"{prefix}{distortion_angle}."
+            
+            # 执行替换
+            updated_content = re.sub(pattern, replace_angle, content, flags=re.IGNORECASE)
+            
+            # 生成新的文件名
+            base_name = os.path.splitext(os.path.basename(mpar_file_path))[0]
+            dir_name = os.path.dirname(mpar_file_path)
+            updated_file_path = os.path.join(dir_name, f"{base_name}_distortion_angle_updated.ansa_mpar")
+            
+            # 写入更新后的内容
+            with open(updated_file_path, 'w', encoding='utf-8') as f:
+                f.write(updated_content)
+            
+            logger.info(f"Distortion angle 参数替换完成: {updated_file_path}")
+            logger.info(f"distortion_angle: {distortion_angle}")
+            
+            return updated_file_path
+            
+        except Exception as e:
+            logger.error(f"Distortion angle 参数替换失败: {e}")
+            return mpar_file_path
+    
+    def _replace_perimeter_distance_parameter(self, mpar_file_path: str, params: Dict[str, float]) -> str:
+        """
+        替换 .ansa_mpar 文件中的 perimeter_distance 参数
+        
+        处理 remove_perimeters_with_distance 行格式：
+        remove_perimeters_with_distance = 0.667*Lmin
+        
+        Args:
+            mpar_file_path: .ansa_mpar 文件路径
+            params: 包含 perimeter_distance 参数的字典
+            
+        Returns:
+            str: 更新后的文件路径
+        """
+        try:
+            # 读取原始文件
+            with open(mpar_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 提取 perimeter_distance 参数值
+            perimeter_distance = params.get('perimeter_distance')
+            if perimeter_distance is None:
+                logger.warning("未找到 perimeter_distance 参数")
+                return mpar_file_path
+            
+            # 定义正则表达式模式来匹配 remove_perimeters_with_distance 行
+            # 匹配: remove_perimeters_with_distance = 数字*Lmin
+            pattern = r'(remove_perimeters_with_distance\s*=\s*)(\d+(?:\.\d+)?)(\*Lmin)'
+            
+            # 查找匹配项
+            matches = re.findall(pattern, content, re.IGNORECASE)
+            if not matches:
+                logger.warning("未找到匹配的 remove_perimeters_with_distance 行格式")
+                return mpar_file_path
+            
+            # 执行替换
+            def replace_distance(match):
+                prefix = match.group(1)  # remove_perimeters_with_distance =
+                old_distance = match.group(2)  # 原始距离值
+                suffix = match.group(3)   # *Lmin
+                
+                logger.info(f"替换 perimeter_distance 值: {old_distance} -> {perimeter_distance}")
+                return f"{prefix}{perimeter_distance}{suffix}"
+            
+            # 执行替换
+            updated_content = re.sub(pattern, replace_distance, content, flags=re.IGNORECASE)
+            
+            # 生成新的文件名
+            base_name = os.path.splitext(os.path.basename(mpar_file_path))[0]
+            dir_name = os.path.dirname(mpar_file_path)
+            updated_file_path = os.path.join(dir_name, f"{base_name}_perimeter_distance_updated.ansa_mpar")
+            
+            # 写入更新后的内容
+            with open(updated_file_path, 'w', encoding='utf-8') as f:
+                f.write(updated_content)
+            
+            logger.info(f"Perimeter distance 参数替换完成: {updated_file_path}")
+            logger.info(f"perimeter_distance: {perimeter_distance}")
+            
+            return updated_file_path
+            
+        except Exception as e:
+            logger.error(f"Perimeter distance 参数替换失败: {e}")
+            return mpar_file_path
     
     def _run_ansa_batch(self, config_file: str) -> float:
         """运行Ansa批处理 - 改进的错误处理"""

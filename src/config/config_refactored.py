@@ -309,6 +309,106 @@ class UnifiedParameterSpace:
                 default_value=50
             ),
             
+            # 新增 rule_fillet width 参数 - 确保递增顺序
+            'rule_fillet_width_1': ParameterDefinition(
+                name='rule_fillet_width_1',
+                param_type=ParameterType.FLOAT,
+                bounds=(1.0, 5.0),
+                description='Fillet规则1的width上限值 (0-width_1)',
+                unit='mm',
+                ansa_mapping='rule_fillet_width_1',
+                default_value=3.0
+            ),
+            'rule_fillet_width_2': ParameterDefinition(
+                name='rule_fillet_width_2',
+                param_type=ParameterType.FLOAT,
+                bounds=(5.0, 12.0),
+                description='Fillet规则2的width上限值 (width_1-width_2)',
+                unit='mm',
+                ansa_mapping='rule_fillet_width_2',
+                default_value=10.0
+            ),
+            'rule_fillet_width_3': ParameterDefinition(
+                name='rule_fillet_width_3',
+                param_type=ParameterType.FLOAT,
+                bounds=(12.0, 25.0),
+                description='Fillet规则3的width上限值 (width_2-width_3)',
+                unit='mm',
+                ansa_mapping='rule_fillet_width_3',
+                default_value=20.0
+            ),
+            'rule_fillet_width_4': ParameterDefinition(
+                name='rule_fillet_width_4',
+                param_type=ParameterType.FLOAT,
+                bounds=(25.0, 40.0),
+                description='Fillet规则4的width上限值 (width_3-width_4)',
+                unit='mm',
+                ansa_mapping='rule_fillet_width_4',
+                default_value=30.0
+            ),
+            
+            # Recognize chamfers parameters (3 parameters)
+            'recognize_chamfers_min_angle': ParameterDefinition(
+                name='recognize_chamfers_min_angle',
+                param_type=ParameterType.FLOAT,
+                bounds=(10.0, 30.0),
+                description='Chamfer识别的最小角度',
+                unit='degrees',
+                ansa_mapping='recognize_chamfers_min_angle',
+                default_value=20.0
+            ),
+            'recognize_chamfers_max_angle': ParameterDefinition(
+                name='recognize_chamfers_max_angle',
+                param_type=ParameterType.FLOAT,
+                bounds=(60.0, 80.0),
+                description='Chamfer识别的最大角度',
+                unit='degrees',
+                ansa_mapping='recognize_chamfers_max_angle',
+                default_value=70.0
+            ),
+            'recognize_chamfers_max_width': ParameterDefinition(
+                name='recognize_chamfers_max_width',
+                param_type=ParameterType.FLOAT,
+                bounds=(10.0, 30.0),
+                description='Chamfer识别的最大宽度',
+                unit='mm',
+                ansa_mapping='recognize_chamfers_max_width',
+                default_value=20.0
+            ),
+            
+            # Rule chamfer parameters (1 parameter)
+            'rule_chamfer_width_1': ParameterDefinition(
+                name='rule_chamfer_width_1',
+                param_type=ParameterType.FLOAT,
+                bounds=(5.0, 20.0),
+                description='Chamfer规则的width上限值 (替换rule_chamfer配置中的width值)',
+                unit='mm',
+                ansa_mapping='rule_chamfer_width_1',
+                default_value=10.0
+            ),
+            
+            # Distortion angle parameter (1 parameter)
+            'distortion_angle': ParameterDefinition(
+                name='distortion_angle',
+                param_type=ParameterType.FLOAT,
+                bounds=(0.0, 45.0),
+                description='扭曲角度参数，对应8mm_V23.ansa_mpar文件中的distortion-angle',
+                unit='degrees',
+                ansa_mapping='distortion-angle',
+                default_value=0.0
+            ),
+            
+            # Perimeter distance parameter (1 parameter)
+            'perimeter_distance': ParameterDefinition(
+                name='perimeter_distance',
+                param_type=ParameterType.FLOAT,
+                bounds=(0.667, 1.0),
+                description='周边距离系数，对应8mm_V23.ansa_mpar文件中remove_perimeters_with_distance的系数部分',
+                unit='*Lmin',
+                ansa_mapping='remove_perimeters_with_distance',
+                default_value=0.667
+            ),
+            
             # CFD特定参数
             'mesh_density': ParameterDefinition(
                 name='mesh_density',
@@ -422,8 +522,34 @@ class UnifiedParameterSpace:
             if not param.validate_value(value):
                 errors.append(f"Parameter {name}: value {value} not in valid range {param.bounds}")
         
+        # 验证 rule_fillet_width 参数的递增关系
+        self._validate_rule_fillet_order(values, errors)
+        
         if errors:
             raise ValidationError(f"Parameter values validation failed: {'; '.join(errors)}")
+    
+    def _validate_rule_fillet_order(self, values: Dict[str, Any], errors: List[str]) -> None:
+        """验证 rule_fillet_width 参数的递增顺序"""
+        fillet_params = {}
+        
+        # 收集所有 rule_fillet_width 参数
+        for i in range(1, 5):
+            param_name = f'rule_fillet_width_{i}'
+            if param_name in values:
+                fillet_params[i] = float(values[param_name])
+        
+        # 检查递增顺序
+        if len(fillet_params) > 1:
+            sorted_indices = sorted(fillet_params.keys())
+            for i in range(len(sorted_indices) - 1):
+                current_idx = sorted_indices[i]
+                next_idx = sorted_indices[i + 1]
+                
+                current_value = fillet_params[current_idx]
+                next_value = fillet_params[next_idx]
+                
+                if current_value >= next_value:
+                    errors.append(f"rule_fillet_width_{current_idx} ({current_value}) must be less than rule_fillet_width_{next_idx} ({next_value})")
 
 
 class UnifiedConfigManager:
