@@ -94,7 +94,61 @@ OPTIONAL_MODULES = safe_import_optional_modules()
 
 # 本地模块导入
 try:
-    from config.config import config_manager, OptimizationConfig
+    # 优先使用重构后的配置，如果不可用则回退到原配置
+    try:
+        from config.config_refactored import unified_config_manager, OptimizationConfig
+        
+        # 创建兼容性包装器
+        class ConfigManagerWrapper:
+            def __init__(self, unified_manager):
+                self.unified_manager = unified_manager
+                self.optimization_config = unified_manager.optimization_config
+                self.parameter_space = ParameterSpaceWrapper(unified_manager.parameter_space)
+            
+            def load_config(self, config_file):
+                return self.unified_manager.load_config(config_file)
+        
+        class ParameterSpaceWrapper:
+            def __init__(self, unified_param_space):
+                self.unified_param_space = unified_param_space
+            
+            def get_param_names(self):
+                return self.unified_param_space.get_parameter_names()
+            
+            def get_parameter_names(self):
+                return self.unified_param_space.get_parameter_names()
+            
+            def get_bounds(self):
+                return self.unified_param_space.get_bounds()
+            
+            def get_param_types(self):
+                # 转换枚举类型为Python类型
+                param_types = []
+                for param_type in self.unified_param_space.get_parameter_types():
+                    if hasattr(param_type, 'value'):
+                        if param_type.value == 'float':
+                            param_types.append(float)
+                        elif param_type.value == 'integer':
+                            param_types.append(int)
+                        else:
+                            param_types.append(str)
+                    else:
+                        param_types.append(param_type)
+                return param_types
+            
+            def get_parameter_types(self):
+                return self.unified_param_space.get_parameter_types()
+            
+            def to_skopt_space(self):
+                return self.unified_param_space.to_skopt_space()
+        
+        config_manager = ConfigManagerWrapper(unified_config_manager)
+        logger.info("使用重构后的配置系统")
+        
+    except ImportError:
+        from config.config import config_manager, OptimizationConfig
+        logger.warning("重构配置不可用，使用原配置系统")
+    
     from evaluators.mesh_evaluator import create_mesh_evaluator, MeshEvaluator
     from utils.optimization_cache import OptimizationCache, CachedEvaluator
     from core.early_stopping import create_early_stopping, EarlyStopping
@@ -417,11 +471,13 @@ class MeshOptimizer:
         
         for _ in range(n_samples):
             params = {}
-            for i, (name, (low, high), param_type) in enumerate(zip(param_names, bounds, param_types)):
-                if param_type == int:
-                    params[name] = np.random.randint(low, high + 1)
-                else:
-                    params[name] = np.random.uniform(low, high)
+            for i, (name, bound, param_type) in enumerate(zip(param_names, bounds, param_types)):
+                if isinstance(bound, tuple) and len(bound) == 2:
+                    low, high = bound
+                    if param_type == int or param_type == 'integer':
+                        params[name] = np.random.randint(int(low), int(high) + 1)
+                    else:
+                        params[name] = np.random.uniform(float(low), float(high))
             param_sets.append(params)
         
         return param_sets

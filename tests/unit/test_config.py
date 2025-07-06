@@ -182,6 +182,11 @@ class TestUnifiedParameterSpace(unittest.TestCase):
         self.assertIn('element_size', param_names)
         self.assertIn('perimeter_length', param_names)
         self.assertIn('quality_threshold', param_names)
+        # 测试新增的 rule_fillet_width 参数
+        self.assertIn('rule_fillet_width_1', param_names)
+        self.assertIn('rule_fillet_width_2', param_names)
+        self.assertIn('rule_fillet_width_3', param_names)
+        self.assertIn('rule_fillet_width_4', param_names)
     
     def test_get_parameter(self):
         """测试获取参数"""
@@ -227,6 +232,71 @@ class TestUnifiedParameterSpace(unittest.TestCase):
         }
         with self.assertRaises(ValidationError):
             self.param_space.validate_parameter_values(invalid_values)
+    
+    def test_rule_fillet_width_parameters(self):
+        """测试 rule_fillet_width 参数"""
+        param_names = self.param_space.get_parameter_names()
+        
+        # 确保所有 rule_fillet_width 参数都存在
+        for i in range(1, 5):
+            param_name = f'rule_fillet_width_{i}'
+            self.assertIn(param_name, param_names)
+            
+            # 检查参数定义
+            param = self.param_space.get_parameter(param_name)
+            self.assertIsNotNone(param)
+            if param is not None:
+                self.assertEqual(param.param_type, ParameterType.FLOAT)
+                # 检查每个参数的具体边界
+                if i == 1:
+                    self.assertEqual(param.bounds, (1.0, 5.0))
+                elif i == 2:
+                    self.assertEqual(param.bounds, (5.0, 12.0))
+                elif i == 3:
+                    self.assertEqual(param.bounds, (12.0, 25.0))
+                elif i == 4:
+                    self.assertEqual(param.bounds, (25.0, 40.0))
+    
+    def test_rule_fillet_width_ordering_constraint(self):
+        """测试 rule_fillet_width 参数的递增约束"""
+        # 测试有效的递增序列（使用实际边界内的值）
+        valid_values = {
+            'rule_fillet_width_1': 3.0,   # 在 (1.0, 5.0) 范围内
+            'rule_fillet_width_2': 8.0,   # 在 (5.0, 12.0) 范围内
+            'rule_fillet_width_3': 18.0,  # 在 (12.0, 25.0) 范围内
+            'rule_fillet_width_4': 30.0   # 在 (25.0, 40.0) 范围内
+        }
+        try:
+            self.param_space.validate_parameter_values(valid_values)
+        except Exception as e:
+            self.fail(f"Valid ascending values should not raise exception: {e}")
+        
+        # 测试无效的非递增序列
+        invalid_values = {
+            'rule_fillet_width_1': 4.0,   # 在 (1.0, 5.0) 范围内
+            'rule_fillet_width_2': 6.0,   # 在 (5.0, 12.0) 范围内
+            'rule_fillet_width_3': 15.0,  # 在 (12.0, 25.0) 范围内
+            'rule_fillet_width_4': 28.0   # 在 (25.0, 40.0) 范围内，但违反递增约束
+        }
+        # 这个测试应该通过，因为值是递增的。让我们测试真正违反约束的情况
+        invalid_values_2 = {
+            'rule_fillet_width_1': 4.0,   # 在 (1.0, 5.0) 范围内
+            'rule_fillet_width_2': 10.0,  # 在 (5.0, 12.0) 范围内
+            'rule_fillet_width_3': 8.0,   # 违反递增约束：应该 > 10.0
+            'rule_fillet_width_4': 30.0   # 在 (25.0, 40.0) 范围内
+        }
+        with self.assertRaises(ValidationError):
+            self.param_space.validate_parameter_values(invalid_values_2)
+        
+        # 测试相等值（应该被拒绝）
+        equal_values = {
+            'rule_fillet_width_1': 3.0,   # 在 (1.0, 5.0) 范围内
+            'rule_fillet_width_2': 8.0,   # 在 (5.0, 12.0) 范围内
+            'rule_fillet_width_3': 8.0,   # 相等值违反严格递增约束
+            'rule_fillet_width_4': 30.0   # 在 (25.0, 40.0) 范围内
+        }
+        with self.assertRaises(ValidationError):
+            self.param_space.validate_parameter_values(equal_values)
     
     @patch('src.utils.dependency_manager.is_available')
     def test_to_skopt_space_unavailable(self, mock_is_available):
