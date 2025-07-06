@@ -102,7 +102,7 @@ def validate_param_types(params: Dict[str, Any], param_space) -> Dict[str, Union
     Returns:
         验证后的参数字典
     """
-    validated_params = {}
+    validated_params: Dict[str, Union[int, float]] = {}
     
     try:
         param_types = param_space.get_param_types()
@@ -122,7 +122,7 @@ def validate_param_types(params: Dict[str, Any], param_space) -> Dict[str, Union
                 # 类型转换
                 try:
                     if expected_type == int:
-                        converted_value = int(round(float(value)))
+                        converted_value: Union[int, float] = int(round(float(value)))
                     elif expected_type == float:
                         converted_value = float(value)
                     else:
@@ -181,7 +181,7 @@ def format_execution_time(seconds: float) -> str:
         return f"{hours:.1f}小时"
 
 def create_summary_table(data: List[Dict[str, Any]], 
-                        columns: List[str] = None,
+                        columns: Optional[List[str]] = None,
                         max_width: int = 120) -> str:
     """
     创建简单的表格摘要
@@ -262,7 +262,7 @@ def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> f
     except (ZeroDivisionError, TypeError, ValueError):
         return default
 
-def check_memory_usage() -> Dict[str, float]:
+def check_memory_usage() -> Dict[str, Union[float, str]]:
     """
     检查内存使用情况
     
@@ -349,8 +349,8 @@ def create_progress_callback(total_iterations: int,
     start_time = time.time()
     
     def progress_callback(iteration: int, 
-                         current_best: float = None, 
-                         message: str = None):
+                         current_best: Optional[float] = None, 
+                         message: Optional[str] = None):
         nonlocal last_update
         
         if not verbose or (iteration - last_update) < update_interval:
@@ -487,7 +487,7 @@ def load_json_config(config_file: Union[str, Path]) -> Dict[str, Any]:
             config = json.load(f)
         
         logger.info(f"成功加载配置文件: {config_path}")
-        return config
+        return dict(config)
         
     except json.JSONDecodeError as e:
         raise ValueError(f"JSON格式错误: {e}")

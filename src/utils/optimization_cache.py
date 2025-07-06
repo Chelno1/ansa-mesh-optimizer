@@ -14,7 +14,7 @@ import pickle
 import hashlib
 import logging
 import sqlite3
-from typing import Dict, Optional, Any, Tuple, List
+from typing import Dict, Optional, Any, Tuple, List, Union
 from pathlib import Path
 import json
 import time
@@ -58,7 +58,7 @@ class CacheEntry:
     __slots__ = ['params_hash', 'params', 'result', 'timestamp', 'access_count', 'evaluation_time']
     
     def __init__(self, params_hash: str, params: Dict[str, Any], result: float, 
-                 timestamp: str = None, evaluation_time: float = None):
+                 timestamp: Optional[str] = None, evaluation_time: Optional[float] = None):
         self.params_hash = params_hash
         self.params = params
         self.result = result
@@ -115,12 +115,13 @@ class OptimizationCache:
         self.use_database = use_database
         
         # 缓存存储
+        self.cache: Union[Dict[str, CacheEntry], OrderedDict[str, CacheEntry]]
         if use_database:
             self.db_file = self.cache_file.with_suffix('.db')
             self._init_database()
             self.cache = {}  # 内存缓存用于快速访问
         else:
-            self.cache: OrderedDict[str, CacheEntry] = OrderedDict()
+            self.cache = OrderedDict()
         
         # 统计信息
         self.hits = 0
@@ -220,7 +221,7 @@ class OptimizationCache:
                     entry.access_count += 1
                     
                     # 在OrderedDict中移动到末尾（LRU）
-                    if not self.use_database and params_hash in self.cache:
+                    if not self.use_database and params_hash in self.cache and isinstance(self.cache, OrderedDict):
                         self.cache.move_to_end(params_hash)
                     
                     self.hits += 1
@@ -282,7 +283,11 @@ class OptimizationCache:
                     # LRU淘汰策略
                     if len(self.cache) > self.max_entries:
                         # 移除最旧的条目
-                        oldest_key, _ = self.cache.popitem(last=False)
+                        if isinstance(self.cache, OrderedDict):
+                            oldest_key, _ = self.cache.popitem(last=False)
+                        else:
+                            oldest_key = next(iter(self.cache))
+                            del self.cache[oldest_key]
                         logger.debug(f"LRU淘汰缓存条目: {oldest_key[:8]}...")
                 
                 logger.debug(f"设置缓存: {params_hash[:8]}... -> {normalized_result}")
@@ -852,6 +857,7 @@ class CachedEvaluator:
         self._evaluation_count = 0
         self._cache_hits = 0
         self._start_time = time.time()
+        self._total_evaluation_time: float = 0.0
     
     def evaluate_mesh(self, params: Dict[str, float]) -> float:
         """
@@ -882,12 +888,9 @@ class CachedEvaluator:
                 self.cache.set(params, result)
             
             # 记录评估时间
-            if hasattr(self, '_total_evaluation_time'):
-                self._total_evaluation_time += evaluation_time
-            else:
-                self._total_evaluation_time = evaluation_time
+            self._total_evaluation_time += evaluation_time
             
-            return result
+            return float(result)
             
         except Exception as e:
             logger.error(f"评估失败: {e}")
@@ -895,7 +898,7 @@ class CachedEvaluator:
     
     def validate_params(self, params: Dict[str, float]) -> bool:
         """参数验证（直接委托给原评估器）"""
-        return self.evaluator.validate_params(params)
+        return bool(self.evaluator.validate_params(params))
     
     def get_evaluation_stats(self) -> Dict[str, Any]:
         """获取评估统计信息"""
@@ -908,7 +911,7 @@ class CachedEvaluator:
             'cache_misses': self._evaluation_count - self._cache_hits,
             'cache_hit_rate': cache_hit_rate,
             'total_runtime': total_time,
-            'avg_evaluation_time': getattr(self, '_total_evaluation_time', 0) / max(1, self._evaluation_count - self._cache_hits)
+            'avg_evaluation_time': self._total_evaluation_time / max(1, self._evaluation_count - self._cache_hits)
         }
         
         return stats

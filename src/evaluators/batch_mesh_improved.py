@@ -132,7 +132,7 @@ class AnsaBatchConfig:
 class AnsaBatchMeshRunner:
     """Ansa批处理网格运行器 - 增强版本"""
     
-    def __init__(self, script_dir: Path = None, config: AnsaBatchConfig = None):
+    def __init__(self, script_dir: Optional[Path] = None, config: Optional[AnsaBatchConfig] = None):
         """
         初始化批处理运行器
         
@@ -159,7 +159,7 @@ class AnsaBatchMeshRunner:
         self.mesh_dir.mkdir(parents=True, exist_ok=True)
         
         # 运行统计
-        self.stats = {
+        self.stats: Dict[str, Any] = {
             'start_time': None,
             'end_time': None,
             'total_elements': 0,
@@ -420,7 +420,7 @@ class AnsaBatchMeshRunner:
             min_length = custom_thresholds.get('min_element_length', self.config.min_element_length) if custom_thresholds else self.config.min_element_length
             max_length = custom_thresholds.get('max_element_length', self.config.max_element_length) if custom_thresholds else self.config.max_element_length
             
-            results = {
+            results: Dict[str, Any] = {
                 'timestamp': time.time(),
                 'thresholds': {
                     'min_length': min_length,
@@ -653,7 +653,7 @@ class AnsaBatchMeshRunner:
         
         return results
     
-    def save_model(self, output_file: Optional[str] = None) -> bool:
+    def save_model(self, output_file: Optional[Path] = None) -> bool:
         """
         保存模型 - 增强版本
         
@@ -725,7 +725,7 @@ class AnsaBatchMeshRunner:
     
     def generate_quality_report(self, 
                               quality_results: Dict[str, Any], 
-                              output_file: Optional[str] = None,
+                              output_file: Optional[Path] = None,
                               include_details: bool = True) -> str:
         """
         生成质量报告 - 增强版本
@@ -928,7 +928,7 @@ def batch_mesh_with_params(params: Dict[str, float]) -> int:
         
         # 检查质量
         quality_results = runner.check_element_quality()
-        bad_elements = quality_results.get('bad_elements', 99999)
+        bad_elements = int(quality_results.get('bad_elements', 99999))
         
         logger.info(f"网格参数: {params}")
         logger.info(f"不合格网格数量: {bad_elements}")
@@ -956,7 +956,7 @@ def check_shell_min_length(min_len: float) -> str:
     # 输出不合格单元数（与原代码兼容）
     print(f'bad elements: {result["failed_count"]}')
     
-    return result['status']
+    return str(result['status'])
 
 def check_shell_max_length(max_len: float) -> str:
     """
@@ -974,7 +974,7 @@ def check_shell_max_length(max_len: float) -> str:
     # 输出不合格单元数（与原代码兼容）
     print(f'bad elements: {result["failed_count"]}')
     
-    return result['status']
+    return str(result['status'])
 
 def run_batch_mesh() -> int:
     """

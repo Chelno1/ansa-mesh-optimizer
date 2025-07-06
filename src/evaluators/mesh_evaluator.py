@@ -11,7 +11,7 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, List, Tuple, Any
+from typing import Dict, Optional, List, Tuple, Any, Union
 import subprocess
 import os
 import re
@@ -125,7 +125,7 @@ class ParameterValidator:
         
         return is_valid, error_message, cleaned_params
     
-    def _clean_and_validate_param(self, name: str, value: Any) -> float:
+    def _clean_and_validate_param(self, name: str, value: Any) -> Union[int, float]:
         """清理和验证单个参数"""
         param_index = self.param_names.index(name)
         expected_type = self.param_types[param_index]
@@ -138,7 +138,7 @@ class ParameterValidator:
         # 类型转换
         try:
             if expected_type == int:
-                cleaned_value = int(round(float(value)))
+                cleaned_value: Union[int, float] = int(round(float(value)))
             else:
                 cleaned_value = float(value)
         except (ValueError, TypeError) as e:
@@ -710,7 +710,7 @@ class MockMeshEvaluator(MeshEvaluator):
             random.uniform(10, 50)  # 基础偏移
         )
         
-        return max(1, result)
+        return float(max(1, result))
     
     def get_optimal_params(self) -> Dict[str, float]:
         """获取当前景观的最优参数（用于测试）"""
