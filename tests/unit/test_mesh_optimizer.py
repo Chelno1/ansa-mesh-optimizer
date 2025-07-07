@@ -15,7 +15,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.core.ansa_mesh_optimizer_improved import (
+from src.core.ansa_mesh_optimizer_refactored import (
     MeshOptimizer, optimize_mesh_parameters, get_available_optimizers
 )
 from src.config.config_refactored import OptimizationConfig
@@ -48,10 +48,11 @@ class TestMeshOptimizer(unittest.TestCase):
             n_calls=5
         )
         
-        self.assertIsInstance(result, dict)
-        self.assertIn('best_params', result)
-        self.assertIn('best_value', result)
-        self.assertEqual(result['optimizer'], 'genetic')
+        # 重构后返回OptimizationResult对象
+        self.assertIsNotNone(result)
+        self.assertIsNotNone(result.best_params)
+        self.assertIsNotNone(result.best_value)
+        self.assertEqual(result.optimizer_name, 'Genetic Algorithm')
     
     def test_bayesian_optimization(self):
         """测试贝叶斯优化"""
@@ -71,10 +72,11 @@ class TestMeshOptimizer(unittest.TestCase):
             n_workers=2
         )
         
-        self.assertIsInstance(result, dict)
-        self.assertIn('best_params', result)
-        self.assertIn('best_value', result)
-        self.assertEqual(result['optimizer'], 'parallel')
+        # 重构后返回OptimizationResult对象
+        self.assertIsNotNone(result)
+        self.assertIsNotNone(result.best_params)
+        self.assertIsNotNone(result.best_value)
+        self.assertEqual(result.optimizer_name, 'Parallel Random Search')
     
     def test_early_stopping(self):
         """测试早停机制"""
@@ -93,7 +95,8 @@ class TestMeshOptimizer(unittest.TestCase):
             n_calls=10
         )
         
-        self.assertIsInstance(result, dict)
+        # 重构后返回OptimizationResult对象
+        self.assertIsNotNone(result)
         self.assertLessEqual(len(optimizer.optimization_history), 10)
     
     def test_parameter_validation(self):
@@ -123,7 +126,7 @@ class TestMeshOptimizer(unittest.TestCase):
         # 如果遗传算法失败，至少应该有一些评估记录
         self.assertTrue(
             len(self.optimizer.optimization_history) > 0 or
-            'all_results' in result,
+            hasattr(result, 'optimization_history'),
             "应该有优化历史记录或结果记录"
         )
         
@@ -175,7 +178,7 @@ class TestMeshOptimizer(unittest.TestCase):
             n_calls=3
         )
         
-        self.assertEqual(first_result['best_value'], second_result['best_value'])
+        self.assertEqual(first_result.best_value, second_result.best_value)
     
     def test_available_optimizers(self):
         """测试可用优化器获取"""

@@ -48,14 +48,14 @@ except ImportError:
 
 # 本地模块导入
 try:
-    from core.ansa_mesh_optimizer_improved import MeshOptimizer, optimize_mesh_parameters
-    from config.config import config_manager
-    from utils.utils import performance_monitor, format_execution_time, calculate_statistics
+    from src.core.ansa_mesh_optimizer_refactored import MeshOptimizer, optimize_mesh_parameters
+    from src.config.config import config_manager
+    from src.utils.utils import performance_monitor, format_execution_time, calculate_statistics
     
     # 导入新的模块化组件
-    from visualization.comparison_visualizer import ComparisonVisualizer
-    from analysis.statistical_analyzer import StatisticalAnalyzer
-    from reports.comparison_reporter import ComparisonReporter
+    from src.visualization.comparison_visualizer import ComparisonVisualizer
+    from src.analysis.statistical_analyzer import StatisticalAnalyzer
+    from src.reports.comparison_reporter import ComparisonReporter
 except ImportError as e:
     logger.error(f"本地模块导入失败: {e}")
     raise
@@ -195,7 +195,7 @@ class OptimizationComparison:
     def _check_optimizers_availability(self) -> List[str]:
         """检查优化器可用性"""
         try:
-            from core.ansa_mesh_optimizer_improved import check_dependencies
+            from src.core.ansa_mesh_optimizer_refactored import check_dependencies
             deps = check_dependencies()
             
             available_optimizers = []
@@ -334,15 +334,33 @@ class OptimizationComparison:
                     **extra_kwargs
                 )
                 
-                # 添加运行特定信息
-                result.update({
-                    'run_index': run_idx,
-                    'optimizer': optimizer,
-                    'evaluator_type': self.evaluator_type,
-                    'random_seed': run_config.random_state
-                })
+                # 将OptimizationResult转换为字典并添加运行特定信息
+                if hasattr(result, 'to_dict'):
+                    result_dict = result.to_dict()
+                else:
+                    result_dict = result
                 
-                return result
+                # 确保result_dict是字典类型
+                if isinstance(result_dict, dict):
+                    result_dict.update({
+                        'run_index': run_idx,
+                        'optimizer': optimizer,
+                        'evaluator_type': self.evaluator_type,
+                        'random_seed': run_config.random_state
+                    })
+                else:
+                    # 如果不是字典，创建一个新的字典
+                    result_dict = {
+                        'best_value': getattr(result, 'best_value', float('inf')),
+                        'best_params': getattr(result, 'best_params', {}),
+                        'execution_time': getattr(result, 'execution_time', 0),
+                        'run_index': run_idx,
+                        'optimizer': optimizer,
+                        'evaluator_type': self.evaluator_type,
+                        'random_seed': run_config.random_state
+                    }
+                
+                return result_dict
                 
         finally:
             # 恢复原始随机种子

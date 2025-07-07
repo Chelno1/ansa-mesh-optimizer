@@ -3,7 +3,7 @@
 """
 优化过程可视化模块
 
-从ansa_mesh_optimizer_improved.py中提取的可视化功能
+从ansa_mesh_optimizer_refactored.py中提取的可视化功能
 """
 
 import logging

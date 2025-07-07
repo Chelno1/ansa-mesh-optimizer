@@ -3,7 +3,7 @@
 """
 优化过程报告生成模块
 
-从ansa_mesh_optimizer_improved.py中提取的报告生成功能
+从ansa_mesh_optimizer_refactored.py中提取的报告生成功能
 """
 
 import json
