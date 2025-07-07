@@ -118,8 +118,8 @@ class OptimizationConfig:
         return available
     
     @handle_exceptions()
-    def validate(self) -> None:
-        """验证配置有效性"""
+    def validate(self) -> Tuple[bool, Optional[str]]:
+        """验证配置有效性，返回(is_valid, error_msg)元组"""
         errors = []
         
         if self.n_calls <= 0:
@@ -155,7 +155,10 @@ class OptimizationConfig:
             errors.append("max_stagnation_iterations must be positive")
         
         if errors:
-            raise ConfigurationError(f"Optimization config validation failed: {'; '.join(errors)}")
+            error_msg = f"Optimization config validation failed: {'; '.join(errors)}"
+            return False, error_msg
+        else:
+            return True, None
 
 
 @dataclass
@@ -191,8 +194,8 @@ class AnsaConfig:
         self.output_dir.mkdir(parents=True, exist_ok=True)
     
     @handle_exceptions()
-    def validate(self) -> None:
-        """验证Ansa配置"""
+    def validate(self) -> Tuple[bool, Optional[str]]:
+        """验证Ansa配置，返回(is_valid, error_msg)元组"""
         errors = []
         
         if self.min_element_length <= 0:
@@ -211,7 +214,10 @@ class AnsaConfig:
             errors.append(f"script_dir does not exist: {self.script_dir}")
         
         if errors:
-            raise ConfigurationError(f"Ansa config validation failed: {'; '.join(errors)}")
+            error_msg = f"Ansa config validation failed: {'; '.join(errors)}"
+            return False, error_msg
+        else:
+            return True, None
 
 
 @dataclass
@@ -634,7 +640,7 @@ class UnifiedConfigManager:
             logger.info(f"配置已从 {config_file} 加载")
             
         except Exception as e:
-            raise ConfigurationError(f"加载配置文件失败: {e}", file_path=config_file)
+            raise ConfigurationError(f"加载配置文件失败: {e}")
     
     def _update_optimization_config(self, data: Dict) -> None:
         """更新优化配置"""
@@ -687,7 +693,7 @@ class UnifiedConfigManager:
             logger.info(f"配置已保存到 {config_file}")
             
         except Exception as e:
-            raise ConfigurationError(f"保存配置文件失败: {e}", file_path=config_file)
+            raise ConfigurationError(f"保存配置文件失败: {e}")
     
     def _optimization_config_to_dict(self) -> Dict:
         """优化配置转字典"""

@@ -85,10 +85,24 @@ def run_basic_tests(modules, evaluator_type: str, n_iterations: int, verbose: bo
         
         test_params = {
             'element_size': 1.0,
-            'mesh_density': 2.0,
-            'mesh_quality_threshold': 0.5,
-            'smoothing_iterations': 40,
-            'mesh_growth_rate': 1.0,
+            'perimeter_length': 2.0,
+            'min_target_length': 1.5,
+            'max_target_length': 9.0,
+            'distortion_distance': 20,
+            'quality_threshold': 0.6,
+            'smoothing_iterations': 50,
+            'rule_fillet_width_1': 3.0,
+            'rule_fillet_width_2': 10.0,
+            'rule_fillet_width_3': 20.0,
+            'rule_fillet_width_4': 30.0,
+            'recognize_chamfers_min_angle': 20.0,
+            'recognize_chamfers_max_angle': 70.0,
+            'recognize_chamfers_max_width': 20.0,
+            'rule_chamfer_width_1': 10.0,
+            'distortion_angle': 0.0,
+            'perimeter_distance': 0.667,
+            'mesh_density': 5.0,
+            'growth_rate': 1.0,
             'mesh_topology': 2
         }
         

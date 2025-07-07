@@ -192,11 +192,16 @@ class AnsaMeshEvaluator(MeshEvaluator):
     def validate_params(self, params: Dict[str, float]) -> bool:
         """验证参数有效性"""
         try:
-            is_valid, _, _ = self.validator.validate_comprehensive(params)
+            is_valid, error_msg, _ = self.validator.validate_comprehensive(params)
+            if not is_valid:
+                raise ValueError(f"Parameter validation failed: {error_msg}")
             return is_valid
+        except ValueError:
+            # 重新抛出ValueError以便测试能够捕获
+            raise
         except Exception as e:
             logger.error(f"参数验证异常: {e}")
-            return False
+            raise ValueError(f"Parameter validation error: {e}")
     
     def evaluate_mesh(self, params: Dict[str, float]) -> float:
         """
@@ -526,34 +531,18 @@ class MockMeshEvaluator(MeshEvaluator):
     def validate_params(self, params: Dict[str, float]) -> bool:
         """验证参数有效性 - 修复版本"""
         try:
-            is_valid, _, _ = self.validator.validate_comprehensive(params)
+            is_valid, error_msg, _ = self.validator.validate_comprehensive(params)
+            if not is_valid:
+                # 对于测试，如果参数验证失败，抛出ValueError
+                raise ValueError(f"Parameter validation failed: {error_msg}")
             return is_valid
+        except ValueError:
+            # 重新抛出ValueError以便测试能够捕获
+            raise
         except Exception as e:
             logger.warning(f"Mock evaluator parameter validation failed: {e}")
-            return False
-        
-            # 备用验证：检查基本必需参数
-            required_params = [
-                'element_size', 'perimeter_length', 'distortion_distance',
-                'general_min_target_len', 'general_max_target_len'
-            ]
-            
-            for param in required_params:
-                if param not in params:
-                    logger.error(f"Missing required parameter: {param}")
-                    return False
-            
-            # 基本范围检查
-            try:
-                if not (0.1 <= params.get('element_size', 0) <= 10.0):
-                    return False
-                if not (0.1 <= params.get('perimeter_length', 0) <= 20.0):
-                    return False
-                if not (1 <= params.get('distortion_distance', 0) <= 100):
-                    return False
-                return True
-            except (ValueError, TypeError):
-                return False
+            # 对于其他异常，也抛出ValueError以保持一致性
+            raise ValueError(f"Parameter validation error: {e}")
     
     def evaluate_mesh(self, params: Dict[str, float]) -> float:
         """
@@ -570,13 +559,15 @@ class MockMeshEvaluator(MeshEvaluator):
             
             if not is_valid:
                 logger.warning(f"Mock evaluator: invalid parameters - {error_msg}")
-                # 对于测试，如果参数不完整，使用默认值
-                cleaned_params = self._fill_missing_params(normalized_params)
+                # 对于测试，如果参数验证失败，抛出ValueError
+                raise ValueError(f"Parameter validation failed: {error_msg}")
             
+        except ValueError:
+            # 重新抛出ValueError以便测试能够捕获
+            raise
         except Exception as e:
             logger.error(f"Mock evaluator parameter processing failed: {e}")
-            # 使用默认参数
-            cleaned_params = self._get_default_params()
+            raise ValueError(f"Parameter processing error: {e}")
         
         # 添加现实的延迟模拟
         if self.add_noise:
