@@ -96,7 +96,7 @@ OPTIONAL_MODULES = safe_import_optional_modules()
 try:
     # 优先使用重构后的配置，如果不可用则回退到原配置
     try:
-        from config.config_refactored import unified_config_manager, OptimizationConfig
+        from src.config.config_refactored import unified_config_manager, OptimizationConfig
         
         # 创建兼容性包装器
         class ConfigManagerWrapper:
@@ -146,14 +146,14 @@ try:
         logger.info("使用重构后的配置系统")
         
     except ImportError:
-        from config.config import config_manager, OptimizationConfig
+        from src.config.config import config_manager, OptimizationConfig
         logger.warning("重构配置不可用，使用原配置系统")
     
-    from evaluators.mesh_evaluator import create_mesh_evaluator, MeshEvaluator
-    from utils.optimization_cache import OptimizationCache, CachedEvaluator
-    from core.early_stopping import create_early_stopping, EarlyStopping
-    from core.genetic_optimizer_improved import GeneticOptimizer
-    from utils.utils import normalize_params, validate_param_types, performance_monitor
+    from src.evaluators.mesh_evaluator import create_mesh_evaluator, MeshEvaluator
+    from src.utils.optimization_cache import OptimizationCache, CachedEvaluator
+    from src.core.early_stopping import create_early_stopping, EarlyStopping
+    from src.core.genetic_optimizer_improved import GeneticOptimizer
+    from src.utils.utils import normalize_params, validate_param_types, performance_monitor
 except ImportError as e:
     logger.error(f"本地模块导入失败: {e}")
     logger.error("请确保所有必需的模块文件存在")

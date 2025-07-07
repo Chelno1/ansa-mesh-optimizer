@@ -987,12 +987,12 @@ class MockMeshEvaluator(MeshEvaluator):
             'element_size': 1.0,
             'perimeter_length': 2.0,
             'distortion_distance': 25,
-            'general_min_target_len': 1.5,
-            'general_max_target_len': 9.0,
+            'min_target_length': 1.5,
+            'max_target_length': 9.0,
             'mesh_density': 4.0,
-            'mesh_quality_threshold': 0.5,
+            'quality_threshold': 0.5,
             'smoothing_iterations': 50,
-            'mesh_growth_rate': 1.0,
+            'growth_rate': 1.0,
             'mesh_topology': 2
         }
     
@@ -1000,7 +1000,7 @@ class MockMeshEvaluator(MeshEvaluator):
         """Rosenbrock函数的变形（适合网格优化）"""
         x1 = params['element_size']
         x2 = params['perimeter_length']
-        x3 = params['mesh_quality_threshold']
+        x3 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
         
         # 标准化到[-2, 2]范围
         x1_norm = (x1 - 1.25) * 2.0  # element_size center at 1.25
@@ -1022,7 +1022,7 @@ class MockMeshEvaluator(MeshEvaluator):
         
         x1 = params['element_size']
         x2 = params['perimeter_length']
-        x3 = params['mesh_quality_threshold']
+        x3 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
         
         # 标准化
         x = [x1 - 1.25, x2 - 4.25, x3 - 0.6]
@@ -1044,7 +1044,7 @@ class MockMeshEvaluator(MeshEvaluator):
         
         x1 = params['element_size'] - 1.25
         x2 = params['perimeter_length'] - 4.25
-        x3 = params['mesh_quality_threshold'] - 0.6
+        x3 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5)) - 0.6
         
         A = 10
         result = A * 3 + sum(
@@ -1058,9 +1058,9 @@ class MockMeshEvaluator(MeshEvaluator):
         """模拟真实网格优化函数"""
         x1 = params['element_size']
         x2 = params['perimeter_length']
-        x3 = params['mesh_quality_threshold']
+        x3 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
         x4 = params.get('smoothing_iterations', 50)
-        x5 = params.get('mesh_growth_rate', 1.0)
+        x5 = params.get('growth_rate', params.get('mesh_growth_rate', 1.0))
         
         # 模拟网格质量与参数的非线性关系
         # 元素尺寸太小或太大都不好
