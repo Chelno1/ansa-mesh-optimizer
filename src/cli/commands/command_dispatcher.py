@@ -33,11 +33,11 @@ def check_and_import_modules():
         
         # 检查关键模块
         required_modules = [
-            'config.config_refactored',
+            'config.config',
             'evaluators.mesh_evaluator',
             'utils.optimization_cache',
             'core.early_stopping',
-            'core.genetic_optimizer_improved',
+            'core.genetic_optimizer',
             'utils.utils'
         ]
         
@@ -73,7 +73,7 @@ def check_modules_fallback():
         'mesh_evaluator',
         'optimization_cache',
         'early_stopping',
-        'genetic_optimizer_improved',
+        'genetic_optimizer',
         'utils'
     ]
     
@@ -110,11 +110,11 @@ def check_modules_fallback():
 def import_core_modules():
     """导入核心模块 - 使用重构后的配置系统"""
     try:
-        from core.ansa_mesh_optimizer_refactored import optimize_mesh_parameters, MeshOptimizer, check_dependencies
-        from core.compare_optimizers_improved import compare_optimizers
+        from core.ansa_mesh_optimizer import optimize_mesh_parameters, MeshOptimizer, check_dependencies
+        from core.compare_optimizers import compare_optimizers
         
         # 使用新的统一配置管理器类（不立即实例化）
-        from config.config_refactored import UnifiedConfigManager
+        from config.config import UnifiedConfigManager
         
         print("✅ 使用重构后的配置系统")
         return True, (optimize_mesh_parameters, MeshOptimizer, compare_optimizers, UnifiedConfigManager, check_dependencies)
@@ -122,8 +122,8 @@ def import_core_modules():
         print(f"❌ 核心模块导入失败: {e}")
         # 尝试回退到原始配置系统
         try:
-            from core.ansa_mesh_optimizer_refactored import optimize_mesh_parameters, MeshOptimizer, check_dependencies
-            from core.compare_optimizers_improved import compare_optimizers
+            from core.ansa_mesh_optimizer import optimize_mesh_parameters, MeshOptimizer, check_dependencies
+            from core.compare_optimizers import compare_optimizers
             from config.config import config_manager as legacy_config_manager
             print("⚠️  回退到原始配置系统")
             return True, (optimize_mesh_parameters, MeshOptimizer, compare_optimizers, legacy_config_manager, check_dependencies)

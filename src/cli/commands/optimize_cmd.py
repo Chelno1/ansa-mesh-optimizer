@@ -88,7 +88,7 @@ def cmd_optimize(args, modules) -> int:
         config.sensitivity_analysis = not args.no_sensitivity
         
         # 创建配置管理器包装器
-        from core.ansa_mesh_optimizer_refactored import ConfigManagerWrapper
+        from core.ansa_mesh_optimizer import ConfigManagerWrapper
         config_wrapper = ConfigManagerWrapper(config_manager)
         
         # 执行优化

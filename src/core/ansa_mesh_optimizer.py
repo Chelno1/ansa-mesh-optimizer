@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # 本地模块导入
 try:
     # 使用重构后的配置
-    from src.config.config_refactored import UnifiedConfigManager, OptimizationConfig
+    from config.config import UnifiedConfigManager, OptimizationConfig
     
     # 创建兼容性包装器
     class ConfigManagerWrapper:

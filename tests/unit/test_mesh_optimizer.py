@@ -15,10 +15,10 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.core.ansa_mesh_optimizer_refactored import (
+from core.ansa_mesh_optimizer import (
     MeshOptimizer, optimize_mesh_parameters, get_available_optimizers
 )
-from src.config.config_refactored import OptimizationConfig
+from config.config import OptimizationConfig
 
 class TestMeshOptimizer(unittest.TestCase):
     """网格优化器测试类"""

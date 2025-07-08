@@ -48,7 +48,7 @@ except ImportError:
 
 # 本地模块导入
 try:
-    from src.core.ansa_mesh_optimizer_refactored import MeshOptimizer, optimize_mesh_parameters
+    from src.core.ansa_mesh_optimizer import MeshOptimizer, optimize_mesh_parameters
     from src.config.config import config_manager
     from src.utils.utils import performance_monitor, format_execution_time, calculate_statistics
     
@@ -195,7 +195,7 @@ class OptimizationComparison:
     def _check_optimizers_availability(self) -> List[str]:
         """检查优化器可用性"""
         try:
-            from src.core.ansa_mesh_optimizer_refactored import check_dependencies
+            from src.core.ansa_mesh_optimizer import check_dependencies
             deps = check_dependencies()
             
             available_optimizers = []

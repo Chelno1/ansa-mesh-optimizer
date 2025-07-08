@@ -27,7 +27,7 @@ def debug_config_loading():
     logger.info("=== 调试配置加载过程 ===")
     
     try:
-        from src.config.config_refactored import unified_config_manager
+        from config.config import unified_config_manager
         
         # 检查默认配置
         logger.info("默认配置参数空间:")
@@ -258,7 +258,7 @@ def debug_ansa_subprocess():
     logger.info("=== 调试ANSA子进程执行 ===")
     
     try:
-        from src.config.config_refactored import unified_config_manager
+        from config.config import unified_config_manager
         
         ansa_config = unified_config_manager.ansa_config
         

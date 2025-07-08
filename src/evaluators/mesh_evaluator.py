@@ -23,9 +23,9 @@ import time
 import random
 
 try:
-    from src.config.config_refactored import UnifiedConfigManager
+    from config.config import UnifiedConfigManager
 except ImportError:
-    from config.config_refactored import UnifiedConfigManager
+    from config.config import UnifiedConfigManager
 
 logger = logging.getLogger(__name__)
 
