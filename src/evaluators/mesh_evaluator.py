@@ -89,9 +89,13 @@ class ParameterValidator:
         self.param_names = param_space.get_param_names()
         self.param_types = param_space.get_param_types()
     
-    def validate_comprehensive(self, params: Dict[str, Any]) -> Tuple[bool, str, Dict[str, Any]]:
+    def validate_comprehensive(self, params: Dict[str, Any], allow_partial: bool = True) -> Tuple[bool, str, Dict[str, Any]]:
         """
         全面的参数验证
+        
+        Args:
+            params: 输入参数字典
+            allow_partial: 是否允许部分参数（缺失参数用默认值填充）
         
         Returns:
             (is_valid, error_message, cleaned_params)
@@ -99,10 +103,18 @@ class ParameterValidator:
         errors = []
         cleaned_params = {}
         
-        # 检查必需参数
+        # 获取默认参数值
+        default_values = self._get_default_parameter_values()
+        
+        # 检查和处理参数
         for name in self.param_names:
             if name not in params:
-                errors.append(f"缺少必需参数: {name}")
+                if allow_partial and name in default_values:
+                    # 使用默认值填充缺失参数
+                    cleaned_params[name] = default_values[name]
+                    logger.debug(f"使用默认值填充参数 {name}: {default_values[name]}")
+                else:
+                    errors.append(f"缺少必需参数: {name}")
                 continue
             
             value = params[name]
@@ -149,6 +161,36 @@ class ParameterValidator:
             raise ValueError(f"值 {cleaned_value} 超出范围 [{low}, {high}]")
         
         return cleaned_value
+    
+    def _get_default_parameter_values(self) -> Dict[str, float]:
+        """获取默认参数值"""
+        try:
+            # 从配置管理器获取默认值
+            return self.param_space.get_default_values()
+        except AttributeError:
+            # 如果配置管理器没有默认值方法，使用硬编码默认值
+            return {
+                'element_size': 1.0,
+                'perimeter_length': 2.0,
+                'min_target_length': 1.5,
+                'max_target_length': 9.0,
+                'distortion_distance': 20,
+                'quality_threshold': 0.6,
+                'smoothing_iterations': 50,
+                'rule_fillet_width_1': 3.0,
+                'rule_fillet_width_2': 10.0,
+                'rule_fillet_width_3': 20.0,
+                'rule_fillet_width_4': 30.0,
+                'recognize_chamfers_min_angle': 20.0,
+                'recognize_chamfers_max_angle': 70.0,
+                'recognize_chamfers_max_width': 20.0,
+                'rule_chamfer_width_1': 10.0,
+                'distortion_angle': 0.0,
+                'perimeter_distance': 0.667,
+                'mesh_density': 5.0,
+                'growth_rate': 1.0,
+                'mesh_topology': 2
+            }
 
 class AnsaMeshEvaluator(MeshEvaluator):
     """Ansa网格评估器 - 改进版本"""
