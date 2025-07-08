@@ -77,8 +77,8 @@ class TestCLIIntegration(unittest.TestCase):
         
         runner = AnsaBatchMeshRunner()
         params = {
-            'mesh_density': 4.0,
-            'quality_threshold': 0.6
+            'quality_threshold': 0.6,
+            'distortion_distance': 20
         }
         
         success = runner.run_batch_mesh(params)

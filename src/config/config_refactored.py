@@ -378,34 +378,6 @@ class UnifiedParameterSpace:
                 default_value=0.667
             ),
             
-            # CFD特定参数
-            'mesh_density': ParameterDefinition(
-                name='mesh_density',
-                param_type=ParameterType.FLOAT,
-                bounds=(0.5, 12.0),
-                description='网格密度',
-                unit='',
-                ansa_mapping='cfd_mesh_density',
-                default_value=5.0
-            ),
-            'growth_rate': ParameterDefinition(
-                name='growth_rate',
-                param_type=ParameterType.FLOAT,
-                bounds=(0.5, 1.5),
-                description='增长率',
-                unit='',
-                ansa_mapping='cfd_interior_growth_rate',
-                default_value=1.0
-            ),
-            'mesh_topology': ParameterDefinition(
-                name='mesh_topology',
-                param_type=ParameterType.INTEGER,
-                bounds=(1, 3),
-                description='网格拓扑类型',
-                unit='',
-                ansa_mapping='mesh_type',
-                default_value=2
-            )
         }
     
     def get_parameter(self, name: str) -> Optional[ParameterDefinition]:

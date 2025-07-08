@@ -40,10 +40,7 @@ class TestMeshEvaluator(unittest.TestCase):
             'recognize_chamfers_max_width': 20.0,   # bounds: (10.0, 30.0)
             'rule_chamfer_width_1': 10.0,           # bounds: (5.0, 20.0)
             'distortion_angle': 22.5,               # bounds: (0.0, 45.0)
-            'perimeter_distance': 0.8,              # bounds: (0.667, 1.0)
-            'mesh_density': 5.0,                    # bounds: (0.5, 12.0)
-            'growth_rate': 1.0,                     # bounds: (0.5, 1.5)
-            'mesh_topology': 2.0                    # bounds: (1, 3)
+            'perimeter_distance': 0.8               # bounds: (0.667, 1.0)
         }
     
     def test_evaluator_creation(self) -> None:
@@ -72,8 +69,8 @@ class TestMeshEvaluator(unittest.TestCase):
         
         # 测试无效参数
         invalid_params: Dict[str, float] = {
-            'mesh_density': -1.0,
-            'quality_threshold': 2.0  # 超出[0,1]范围
+            'quality_threshold': 2.0,  # 超出[0,1]范围
+            'distortion_distance': -1.0  # 超出[10,30]范围
         }
         with self.assertRaises(ValueError):
             self.evaluator.evaluate_mesh(invalid_params)
@@ -144,8 +141,8 @@ class TestMeshEvaluator(unittest.TestCase):
         
         # 测试参数类型错误
         invalid_type_params: Dict[str, Any] = {
-            'mesh_density': '4.0',  # 应该是float
-            'quality_threshold': 0.6
+            'quality_threshold': '0.6',  # 应该是float
+            'distortion_distance': 20
         }
         with self.assertRaises((TypeError, ValueError)):
             self.evaluator.evaluate_mesh(invalid_type_params)  # type: ignore

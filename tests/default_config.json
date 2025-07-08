@@ -222,39 +222,6 @@
       "unit": "*Lmin",
       "ansa_mapping": "remove_perimeters_with_distance",
       "default_value": 0.667
-    },
-    "mesh_density": {
-      "param_type": "float",
-      "bounds": [
-        0.5,
-        12.0
-      ],
-      "description": "网格密度",
-      "unit": "",
-      "ansa_mapping": "cfd_mesh_density",
-      "default_value": 5.0
-    },
-    "growth_rate": {
-      "param_type": "float",
-      "bounds": [
-        0.5,
-        1.5
-      ],
-      "description": "增长率",
-      "unit": "",
-      "ansa_mapping": "cfd_interior_growth_rate",
-      "default_value": 1.0
-    },
-    "mesh_topology": {
-      "param_type": "integer",
-      "bounds": [
-        1,
-        3
-      ],
-      "description": "网格拓扑类型",
-      "unit": "",
-      "ansa_mapping": "mesh_type",
-      "default_value": 2
     }
   },
   "metadata": {

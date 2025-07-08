@@ -192,9 +192,9 @@ class AnsaBatchMeshRunner:
         try:
             logger.info("开始批处理网格生成")
             
-            # 应用参数（如果提供）
+            # 参数已提供但不需要特殊处理
             if params:
-                self._apply_mesh_parameters(params)
+                logger.info(f"使用提供的参数: {params}")
             
             # 读取网格参数
             success = self._load_mesh_parameters()
@@ -241,26 +241,6 @@ class AnsaBatchMeshRunner:
         
         finally:
             self.stats['end_time'] = time.time()
-    
-    def _apply_mesh_parameters(self, params: Dict[str, float]) -> None:
-        """应用网格参数"""
-        try:
-            logger.info("应用网格参数...")
-            
-            # 根据mesh_density调整参数
-            if 'mesh_density' in params:
-                density = params['mesh_density']
-                if density > 5.0:
-                    self.config.batch_mode = 'aggressive'
-                elif density < 2.0:
-                    self.config.batch_mode = 'conservative'
-                else:
-                    self.config.batch_mode = 'balanced'
-            
-            logger.info(f"参数应用完成，批处理模式: {self.config.batch_mode}")
-            
-        except Exception as e:
-            logger.error(f"应用网格参数失败: {e}")
     
     def _load_mesh_parameters(self) -> bool:
         """加载网格参数"""
@@ -364,10 +344,10 @@ class AnsaBatchMeshRunner:
         
         if params:
             # 根据参数调整成功率
-            mesh_density = params.get('mesh_density', 4.0)
+            quality_threshold = params.get('quality_threshold', 0.5)
             
             # 合理的参数范围有更高的成功率
-            if 2.0 <= mesh_density <= 6.0:
+            if 0.3 <= quality_threshold <= 0.8:
                 success_rate += 0.1
         
         # 随机决定是否成功

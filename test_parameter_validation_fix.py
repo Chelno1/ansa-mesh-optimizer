@@ -27,8 +27,8 @@ def test_partial_parameter_validation():
     
     # 测试参数 - 只包含部分参数
     partial_params = {
-        'mesh_density': 4.0,
         'quality_threshold': 0.6,
+        'distortion_distance': 20.0,
         'rule_fillet_width_1': 3.0,
         'rule_fillet_width_2': 8.0,
         'recognize_chamfers_min_angle': 25.0,
@@ -91,10 +91,8 @@ def test_full_parameter_validation():
     
     # 完整参数集
     full_params = {
-        'mesh_density': 4.0,
         'quality_threshold': 0.6,
         'distortion_distance': 20,
-        'quality_threshold': 0.6,
         'smoothing_iterations': 50,
         'rule_fillet_width_1': 3.0,
         'rule_fillet_width_2': 10.0,
@@ -105,10 +103,7 @@ def test_full_parameter_validation():
         'recognize_chamfers_max_width': 20.0,
         'rule_chamfer_width_1': 10.0,
         'distortion_angle': 0.0,
-        'perimeter_distance': 0.667,
-        'mesh_density': 5.0,
-        'growth_rate': 1.0,
-        'mesh_topology': 2
+        'perimeter_distance': 0.667
     }
     
     logger.info(f"完整参数数量: {len(full_params)}")
@@ -134,7 +129,7 @@ def test_parameter_flow_integration():
     
     # 模拟用户配置中的部分参数
     user_config_params = {
-        'mesh_density': 5.0,
+        'quality_threshold': 0.7,
         'rule_fillet_width_1': 4.0,
         'rule_fillet_width_2': 12.0,
         'recognize_chamfers_min_angle': 30.0,

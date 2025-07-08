@@ -137,7 +137,6 @@ def debug_evaluator_parameter_flow():
         
         # 测试参数
         test_params = {
-            'mesh_density': 4.0,
             'quality_threshold': 0.6,
             'distortion_distance': 25,
             'rule_fillet_width_1': 3.0,

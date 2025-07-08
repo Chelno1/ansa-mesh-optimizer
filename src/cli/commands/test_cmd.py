@@ -109,10 +109,7 @@ def run_basic_tests(modules, evaluator_type: str, n_iterations: int, verbose: bo
             'recognize_chamfers_max_width': 20.0,
             'rule_chamfer_width_1': 10.0,
             'distortion_angle': 0.0,
-            'perimeter_distance': 0.667,
-            'mesh_density': 5.0,
-            'growth_rate': 1.0,
-            'mesh_topology': 2
+            'perimeter_distance': 0.667
         }
         
         if evaluator.validate_params(test_params):

@@ -185,10 +185,7 @@ class ParameterValidator:
                 'recognize_chamfers_max_width': 20.0,
                 'rule_chamfer_width_1': 10.0,
                 'distortion_angle': 0.0,
-                'perimeter_distance': 0.667,
-                'mesh_density': 5.0,
-                'growth_rate': 1.0,
-                'mesh_topology': 2
+                'perimeter_distance': 0.667
             }
 
 class AnsaMeshEvaluator(MeshEvaluator):
@@ -657,29 +654,26 @@ class MockMeshEvaluator(MeshEvaluator):
         """获取默认参数"""
         return {
             'distortion_distance': 25,
-            'mesh_density': 4.0,
             'quality_threshold': 0.5,
-            'smoothing_iterations': 50,
-            'growth_rate': 1.0,
-            'mesh_topology': 2
+            'smoothing_iterations': 50
         }
     
     def _rosenbrock_function(self, params: Dict[str, float]) -> float:
         """Rosenbrock函数的变形（适合网格优化）"""
-        x1 = params.get('mesh_density', 4.0)
-        x2 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
-        x3 = params.get('smoothing_iterations', 50)
+        x1 = params.get('quality_threshold', 0.6)
+        x2 = params.get('smoothing_iterations', 50)
+        x3 = params.get('distortion_distance', 20)
         
         # 标准化到[-2, 2]范围
-        x1_norm = (x1 - 4.0) / 2.0  # mesh_density center at 4.0
-        x2_norm = (x2 - 0.6) * 10.0  # quality_threshold center at 0.6
-        x3_norm = (x3 - 50) / 25.0  # smoothing_iterations center at 50
+        x1_norm = (x1 - 0.6) * 10.0  # quality_threshold center at 0.6
+        x2_norm = (x2 - 50) / 25.0   # smoothing_iterations center at 50
+        x3_norm = (x3 - 20) / 10.0   # distortion_distance center at 20
         
         result = (
             100 * (x2_norm - x1_norm**2)**2 +
             (1 - x1_norm)**2 +
             50 * (x3_norm - 0.5)**2 +
-            params.get('distortion_distance', 20) / 10
+            10  # base offset
         )
         
         return max(0, result)
@@ -688,12 +682,12 @@ class MockMeshEvaluator(MeshEvaluator):
         """Ackley函数（多峰值景观）"""
         import math
         
-        x1 = params.get('mesh_density', 4.0)
-        x2 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
-        x3 = params.get('smoothing_iterations', 50)
+        x1 = params.get('quality_threshold', 0.6)
+        x2 = params.get('smoothing_iterations', 50)
+        x3 = params.get('distortion_distance', 20)
         
         # 标准化
-        x = [x1 - 4.0, x2 - 0.6, x3 - 50]
+        x = [x1 - 0.6, x2 - 50, x3 - 20]
         n = len(x)
         
         sum_sq = sum(xi**2 for xi in x)
@@ -710,9 +704,9 @@ class MockMeshEvaluator(MeshEvaluator):
         """Rastrigin函数（高度多峰值）"""
         import math
         
-        x1 = params.get('mesh_density', 4.0) - 4.0
-        x2 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5)) - 0.6
-        x3 = params.get('smoothing_iterations', 50) - 50
+        x1 = params.get('quality_threshold', 0.6) - 0.6
+        x2 = params.get('smoothing_iterations', 50) - 50
+        x3 = params.get('distortion_distance', 20) - 20
         
         A = 10
         result = A * 3 + sum(
@@ -724,34 +718,29 @@ class MockMeshEvaluator(MeshEvaluator):
     
     def _mesh_realistic_function(self, params: Dict[str, float]) -> float:
         """模拟真实网格优化函数"""
-        x1 = params.get('mesh_density', 4.0)
-        x2 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
-        x3 = params.get('smoothing_iterations', 50)
-        x4 = params.get('growth_rate', params.get('mesh_growth_rate', 1.0))
-        x5 = params.get('distortion_distance', 20)
+        x1 = params.get('quality_threshold', 0.6)
+        x2 = params.get('smoothing_iterations', 50)
+        x3 = params.get('distortion_distance', 20)
+        x4 = params.get('perimeter_distance', 0.667)
         
         # 模拟网格质量与参数的非线性关系
-        # 网格密度的最优区间
-        density_penalty = max(0, (x1 - 4.0)**2 - 1.0) * 50
-        
         # 质量阈值的影响
-        quality_penalty = (1.0 - x2)**2 * 200
+        quality_penalty = (1.0 - x1)**2 * 200
         
         # 平滑迭代次数的边际效应
-        smooth_effect = max(0, 100 - x3) + max(0, x3 - 80) * 2
-        
-        # 增长率的非线性效应
-        growth_penalty = abs(x4 - 1.0)**1.5 * 150
+        smooth_effect = max(0, 100 - x2) + max(0, x2 - 80) * 2
         
         # 扭曲距离的影响
-        distortion_penalty = abs(x5 - 20)**2 * 5
+        distortion_penalty = abs(x3 - 20)**2 * 5
+        
+        # 周边距离的影响
+        perimeter_penalty = abs(x4 - 0.667)**2 * 100
         
         result = (
-            density_penalty +
             quality_penalty +
             smooth_effect +
-            growth_penalty +
             distortion_penalty +
+            perimeter_penalty +
             random.uniform(10, 50)  # 基础偏移
         )
         
@@ -761,28 +750,22 @@ class MockMeshEvaluator(MeshEvaluator):
         """获取当前景观的最优参数（用于测试）"""
         optimal_params = {
             'rosenbrock': {
-                'mesh_density': 4.0,
                 'quality_threshold': 0.6,
                 'smoothing_iterations': 50,
-                'growth_rate': 1.0,
-                'mesh_topology': 2,
-                'distortion_distance': 20
+                'distortion_distance': 20,
+                'perimeter_distance': 0.667
             },
             'ackley': {
-                'mesh_density': 4.0,
                 'quality_threshold': 0.6,
                 'smoothing_iterations': 40,
-                'growth_rate': 1.0,
-                'mesh_topology': 2,
-                'distortion_distance': 20
+                'distortion_distance': 20,
+                'perimeter_distance': 0.667
             },
             'mesh_realistic': {
-                'mesh_density': 4.0,
                 'quality_threshold': 1.0,
                 'smoothing_iterations': 60,
-                'growth_rate': 1.0,
-                'mesh_topology': 2,
-                'distortion_distance': 20
+                'distortion_distance': 20,
+                'perimeter_distance': 0.667
             }
         }
         
@@ -824,12 +807,10 @@ def test_evaluator(evaluator: MeshEvaluator, n_tests: int = 5) -> None:
     else:
         # 使用默认测试参数
         test_params = {
-            'mesh_density': 4.0,
             'quality_threshold': 0.5,
             'smoothing_iterations': 40,
-            'growth_rate': 1.0,
-            'mesh_topology': 2,
-            'distortion_distance': 20
+            'distortion_distance': 20,
+            'perimeter_distance': 0.667
         }
     
     print(f"Test parameters: {test_params}")
@@ -864,7 +845,7 @@ if __name__ == "__main__":
     try:
         ansa_evaluator = create_mesh_evaluator('ansa')
         print("Ansa evaluator created successfully")
-        print(f"Parameter validation test: {ansa_evaluator.validate_params({'mesh_density': 2.0, 'quality_threshold': 0.5, 'distortion_distance': 20})}")
+        print(f"Parameter validation test: {ansa_evaluator.validate_params({'quality_threshold': 0.5, 'distortion_distance': 20, 'perimeter_distance': 0.8})}")
     except Exception as e:
         print(f"Ansa evaluator test skipped: {e}")
     
