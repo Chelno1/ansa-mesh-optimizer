@@ -91,21 +91,21 @@ def cmd_optimize(args, modules) -> int:
         # 输出结果
         print(f"\n🎉 优化完成！")
         print(f"   执行时间: {execution_time:.2f}秒")
-        print(f"   最佳目标值: {result['best_value']:.6f}")
+        print(f"   最佳目标值: {result.best_value:.6f}")
         
         print(f"\n📊 最佳参数:")
-        for name, value in result['best_params'].items():
+        for name, value in result.best_params.items():
             if isinstance(value, float):
                 print(f"   {name}: {value:.6f}")
             else:
                 print(f"   {name}: {value}")
         
         # 显示额外信息
-        if 'total_evaluations' in result:
+        if hasattr(result, 'n_evaluations') and result.n_evaluations:
             print(f"\n📈 统计信息:")
-            print(f"   总评估次数: {result['total_evaluations']}")
-            if result['total_evaluations'] > 0:
-                print(f"   平均评估时间: {execution_time/result['total_evaluations']:.3f}秒")
+            print(f"   总评估次数: {result.n_evaluations}")
+            if result.n_evaluations > 0:
+                print(f"   平均评估时间: {execution_time/result.n_evaluations:.3f}秒")
         
         # 保存结果（如果指定输出文件）
         if args.output:
@@ -126,7 +126,7 @@ def cmd_optimize(args, modules) -> int:
             traceback.print_exc()
         return 1
 
-def save_optimization_result(result: Dict[str, Any], output_file: str, save_plots: bool = False) -> None:
+def save_optimization_result(result, output_file: str, save_plots: bool = False) -> None:
     """保存优化结果"""
     import json
     import time
@@ -138,29 +138,51 @@ def save_optimization_result(result: Dict[str, Any], output_file: str, save_plot
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    # 准备保存数据
-    output_data = {
-        'metadata': {
-            'app_name': APP_NAME,
-            'app_version': APP_VERSION,
-            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'optimizer': result.get('optimizer', 'unknown')
-        },
-        'best_params': result['best_params'],
-        'best_value': result['best_value'],
-        'execution_time': result.get('execution_time', 0),
-        'total_evaluations': result.get('total_evaluations', 0),
-        'optimizer_name': result.get('optimizer_name', 'Unknown')
-    }
-    
-    # 添加额外信息（如果可用）
-    if 'convergence_info' in result:
-        output_data['convergence_info'] = result['convergence_info']
+    # 处理OptimizationResult对象或字典
+    if hasattr(result, 'to_dict'):
+        # OptimizationResult对象
+        result_dict = result.to_dict()
+        output_data = {
+            'metadata': {
+                'app_name': APP_NAME,
+                'app_version': APP_VERSION,
+                'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
+                'optimizer': result.optimizer_name
+            },
+            'best_params': result.best_params,
+            'best_value': result.best_value,
+            'execution_time': getattr(result, 'execution_time', 0),
+            'total_evaluations': getattr(result, 'n_evaluations', 0),
+            'optimizer_name': result.optimizer_name
+        }
+        
+        # 添加额外信息（如果可用）
+        if hasattr(result, 'convergence_info') and result.convergence_info:
+            output_data['convergence_info'] = result.convergence_info
+    else:
+        # 字典格式（向后兼容）
+        output_data = {
+            'metadata': {
+                'app_name': APP_NAME,
+                'app_version': APP_VERSION,
+                'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
+                'optimizer': result.get('optimizer', 'unknown')
+            },
+            'best_params': result['best_params'],
+            'best_value': result['best_value'],
+            'execution_time': result.get('execution_time', 0),
+            'total_evaluations': result.get('total_evaluations', 0),
+            'optimizer_name': result.get('optimizer_name', 'Unknown')
+        }
+        
+        # 添加额外信息（如果可用）
+        if 'convergence_info' in result:
+            output_data['convergence_info'] = result['convergence_info']
     
     # 保存JSON文件
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(output_data, f, indent=2, ensure_ascii=False)
     
     # 保存图表（如果请求）
-    if save_plots and 'report_dir' in result:
-        print(f"📊 优化图表已保存到: {result['report_dir']}")
+    if save_plots:
+        print(f"📊 优化图表保存功能已启用")

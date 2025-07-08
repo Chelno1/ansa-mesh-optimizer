@@ -520,12 +520,20 @@ def get_available_optimizers() -> List[str]:
 
 def check_dependencies() -> Dict[str, Any]:
     """检查依赖库状态"""
-    return {
+    from src.optimizers.optimizer_strategies import SKOPT_MODULES
+    
+    result = {
         'available_optimizers': get_available_optimizers(),
         'optimizer_factory_available': True,
         'visualization_available': True,
-        'reporting_available': True
+        'reporting_available': True,
+        'skopt_available': SKOPT_MODULES['available']  # 添加缺失的键
     }
+    
+    # 添加调试日志
+    logger.info(f"依赖检查结果: {result}")
+    
+    return result
 
 if __name__ == "__main__":
     # 示例用法

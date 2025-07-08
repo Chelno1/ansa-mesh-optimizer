@@ -16,7 +16,7 @@ import logging
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.cli.cli_main import main_cli, create_parser
-from src.core.ansa_mesh_optimizer_improved import MeshOptimizer
+from src.core.ansa_mesh_optimizer_refactored import MeshOptimizer
 from src.evaluators.batch_mesh_improved import AnsaBatchMeshRunner
 
 class TestCLIIntegration(unittest.TestCase):
@@ -85,7 +85,7 @@ class TestCLIIntegration(unittest.TestCase):
         self.assertTrue(success)
         mock_run_batch.assert_called_once()
     
-    @patch('src.core.ansa_mesh_optimizer_improved.MeshOptimizer.optimize')
+    @patch('src.core.ansa_mesh_optimizer_refactored.MeshOptimizer.optimize')
     def test_mesh_optimization(self, mock_optimize):
         """测试网格优化"""
         expected_result = {

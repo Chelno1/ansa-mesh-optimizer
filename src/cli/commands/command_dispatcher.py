@@ -110,7 +110,7 @@ def check_modules_fallback():
 def import_core_modules():
     """导入核心模块 - 使用重构后的配置系统"""
     try:
-        from core.ansa_mesh_optimizer_improved import optimize_mesh_parameters, MeshOptimizer, check_dependencies
+        from core.ansa_mesh_optimizer_refactored import optimize_mesh_parameters, MeshOptimizer, check_dependencies
         from core.compare_optimizers_improved import compare_optimizers
         
         # 使用新的统一配置管理器
@@ -123,7 +123,7 @@ def import_core_modules():
         print(f"❌ 核心模块导入失败: {e}")
         # 尝试回退到原始配置系统
         try:
-            from core.ansa_mesh_optimizer_improved import optimize_mesh_parameters, MeshOptimizer, check_dependencies
+            from core.ansa_mesh_optimizer_refactored import optimize_mesh_parameters, MeshOptimizer, check_dependencies
             from core.compare_optimizers_improved import compare_optimizers
             from config.config import config_manager as legacy_config_manager
             print("⚠️  回退到原始配置系统")
