@@ -98,8 +98,6 @@ def run_basic_tests(modules, evaluator_type: str, n_iterations: int, verbose: bo
         
         test_params = {
             'distortion_distance': 20,
-            'quality_threshold': 0.6,
-            'smoothing_iterations': 50,
             'rule_fillet_width_1': 3.0,
             'rule_fillet_width_2': 10.0,
             'rule_fillet_width_3': 20.0,

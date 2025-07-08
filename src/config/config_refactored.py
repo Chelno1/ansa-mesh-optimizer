@@ -248,7 +248,7 @@ class UnifiedParameterSpace:
     def _define_parameters(self) -> Dict[str, ParameterDefinition]:
         """定义统一的参数空间"""
         return {
-            # 网格尺寸参数
+            # 网格尺寸参数-已删除
             # 网格质量参数
             'distortion_distance': ParameterDefinition(
                 name='distortion_distance',
@@ -258,24 +258,6 @@ class UnifiedParameterSpace:
                 unit='%',
                 ansa_mapping='distortion-distance',
                 default_value=20
-            ),
-            'quality_threshold': ParameterDefinition(
-                name='quality_threshold',
-                param_type=ParameterType.FLOAT,
-                bounds=(0.2, 1.0),
-                description='质量阈值',
-                unit='',
-                ansa_mapping='cfd_distortion_angle',
-                default_value=0.6
-            ),
-            'smoothing_iterations': ParameterDefinition(
-                name='smoothing_iterations',
-                param_type=ParameterType.INTEGER,
-                bounds=(20, 80),
-                description='平滑迭代次数',
-                unit='',
-                ansa_mapping='smoothing_iterations',
-                default_value=50
             ),
             
             # 新增 rule_fillet width 参数 - 确保递增顺序
@@ -444,8 +426,7 @@ class UnifiedParameterSpace:
                     if isinstance(low, (int, float)) and isinstance(high, (int, float)):
                         if low >= high:
                             errors.append(f"Parameter {name}: lower bound {low} >= upper bound {high}")
-                        if low < 0 and name in ['quality_threshold']:
-                            errors.append(f"Parameter {name}: lower bound {low} cannot be negative")
+                        # Remove quality_threshold specific validation since parameter was deleted
         
         if errors:
             raise ValidationError(f"Parameter bounds validation failed: {'; '.join(errors)}")

@@ -29,8 +29,6 @@ class TestMeshEvaluator(unittest.TestCase):
         # 使用完整的参数集合以满足验证要求，所有值都在有效范围内
         self.test_params: Dict[str, float] = {
             'distortion_distance': 20.0,            # bounds: (10, 30)
-            'quality_threshold': 0.6,               # bounds: (0.2, 1.0)
-            'smoothing_iterations': 50.0,           # bounds: (20, 80)
             'rule_fillet_width_1': 3.0,             # bounds: (1.0, 5.0)
             'rule_fillet_width_2': 8.0,             # bounds: (5.0, 12.0)
             'rule_fillet_width_3': 18.0,            # bounds: (12.0, 25.0)
@@ -69,7 +67,6 @@ class TestMeshEvaluator(unittest.TestCase):
         
         # 测试无效参数
         invalid_params: Dict[str, float] = {
-            'quality_threshold': 2.0,  # 超出[0,1]范围
             'distortion_distance': -1.0  # 超出[10,30]范围
         }
         with self.assertRaises(ValueError):
@@ -141,15 +138,14 @@ class TestMeshEvaluator(unittest.TestCase):
         
         # 测试参数类型错误
         invalid_type_params: Dict[str, Any] = {
-            'quality_threshold': '0.6',  # 应该是float
-            'distortion_distance': 20
+            'distortion_distance': '20'  # 应该是float
         }
         with self.assertRaises((TypeError, ValueError)):
             self.evaluator.evaluate_mesh(invalid_type_params)  # type: ignore
         
         # 测试参数范围错误
         out_of_range_params = self.test_params.copy()
-        out_of_range_params['quality_threshold'] = 2.0  # 超出[0,1]范围
+        out_of_range_params['distortion_distance'] = 100.0  # 超出[10,30]范围
         with self.assertRaises(ValueError):
             self.evaluator.evaluate_mesh(out_of_range_params)
     

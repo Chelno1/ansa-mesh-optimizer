@@ -47,28 +47,6 @@
       "ansa_mapping": "distortion-distance",
       "default_value": 20
     },
-    "quality_threshold": {
-      "param_type": "float",
-      "bounds": [
-        0.2,
-        1.0
-      ],
-      "description": "质量阈值",
-      "unit": "",
-      "ansa_mapping": "cfd_distortion_angle",
-      "default_value": 0.6
-    },
-    "smoothing_iterations": {
-      "param_type": "integer",
-      "bounds": [
-        20,
-        80
-      ],
-      "description": "平滑迭代次数",
-      "unit": "",
-      "ansa_mapping": "smoothing_iterations",
-      "default_value": 50
-    },
     "rule_fillet_width_1": {
       "param_type": "float",
       "bounds": [

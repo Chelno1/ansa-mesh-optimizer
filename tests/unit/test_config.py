@@ -179,7 +179,6 @@ class TestUnifiedParameterSpace(unittest.TestCase):
     def test_parameter_definitions(self):
         """测试参数定义"""
         param_names = self.param_space.get_parameter_names()
-        self.assertIn('quality_threshold', param_names)
         # 测试新增的 rule_fillet_width 参数
         self.assertIn('rule_fillet_width_1', param_names)
         self.assertIn('rule_fillet_width_2', param_names)
@@ -188,11 +187,11 @@ class TestUnifiedParameterSpace(unittest.TestCase):
     
     def test_get_parameter(self):
         """测试获取参数"""
-        param = self.param_space.get_parameter('quality_threshold')
+        param = self.param_space.get_parameter('distortion_distance')
         self.assertIsNotNone(param)
         if param is not None:
-            self.assertEqual(param.name, 'quality_threshold')
-            self.assertEqual(param.param_type, ParameterType.FLOAT)
+            self.assertEqual(param.name, 'distortion_distance')
+            self.assertEqual(param.param_type, ParameterType.INTEGER)
     
     def test_get_bounds(self):
         """测试获取边界"""
@@ -204,7 +203,7 @@ class TestUnifiedParameterSpace(unittest.TestCase):
         """测试获取ANSA映射"""
         mapping = self.param_space.get_ansa_mapping()
         self.assertIsInstance(mapping, dict)
-        self.assertIn('quality_threshold', mapping)
+        self.assertIn('distortion_distance', mapping)
     
     def test_validate_bounds(self):
         """测试边界验证"""
@@ -216,7 +215,6 @@ class TestUnifiedParameterSpace(unittest.TestCase):
     def test_validate_parameter_values(self):
         """测试参数值验证"""
         valid_values = {
-            'quality_threshold': 0.5,
             'distortion_distance': 20
         }
         try:
@@ -225,7 +223,7 @@ class TestUnifiedParameterSpace(unittest.TestCase):
             self.fail(f"Valid values should not raise exception: {e}")
         
         invalid_values = {
-            'quality_threshold': -1.0,  # 负值
+            'distortion_distance': -1.0,  # 负值
             'unknown_param': 1.0   # 未知参数
         }
         with self.assertRaises(ValidationError):

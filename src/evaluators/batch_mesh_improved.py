@@ -344,10 +344,10 @@ class AnsaBatchMeshRunner:
         
         if params:
             # 根据参数调整成功率
-            quality_threshold = params.get('quality_threshold', 0.5)
+            distortion_distance = params.get('distortion_distance', 20.0)
             
             # 合理的参数范围有更高的成功率
-            if 0.3 <= quality_threshold <= 0.8:
+            if 10.0 <= distortion_distance <= 30.0:
                 success_rate += 0.1
         
         # 随机决定是否成功

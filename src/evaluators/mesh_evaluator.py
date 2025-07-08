@@ -174,8 +174,6 @@ class ParameterValidator:
             # 如果配置管理器没有默认值方法，使用硬编码默认值
             return {
                 'distortion_distance': 20,
-                'quality_threshold': 0.6,
-                'smoothing_iterations': 50,
                 'rule_fillet_width_1': 3.0,
                 'rule_fillet_width_2': 10.0,
                 'rule_fillet_width_3': 20.0,
@@ -653,21 +651,19 @@ class MockMeshEvaluator(MeshEvaluator):
     def _get_default_params(self) -> Dict[str, float]:
         """获取默认参数"""
         return {
-            'distortion_distance': 25,
-            'quality_threshold': 0.5,
-            'smoothing_iterations': 50
+            'distortion_distance': 25
         }
     
     def _rosenbrock_function(self, params: Dict[str, float]) -> float:
         """Rosenbrock函数的变形（适合网格优化）"""
-        x1 = params.get('quality_threshold', 0.6)
-        x2 = params.get('smoothing_iterations', 50)
-        x3 = params.get('distortion_distance', 20)
+        x1 = params.get('distortion_distance', 20)
+        x2 = params.get('perimeter_distance', 0.667)
+        x3 = params.get('rule_fillet_width_1', 3.0)
         
         # 标准化到[-2, 2]范围
-        x1_norm = (x1 - 0.6) * 10.0  # quality_threshold center at 0.6
-        x2_norm = (x2 - 50) / 25.0   # smoothing_iterations center at 50
-        x3_norm = (x3 - 20) / 10.0   # distortion_distance center at 20
+        x1_norm = (x1 - 20) / 10.0   # distortion_distance center at 20
+        x2_norm = (x2 - 0.667) * 3.0 # perimeter_distance center at 0.667
+        x3_norm = (x3 - 3.0) / 5.0   # rule_fillet_width_1 center at 3.0
         
         result = (
             100 * (x2_norm - x1_norm**2)**2 +
@@ -682,12 +678,12 @@ class MockMeshEvaluator(MeshEvaluator):
         """Ackley函数（多峰值景观）"""
         import math
         
-        x1 = params.get('quality_threshold', 0.6)
-        x2 = params.get('smoothing_iterations', 50)
-        x3 = params.get('distortion_distance', 20)
+        x1 = params.get('distortion_distance', 20)
+        x2 = params.get('perimeter_distance', 0.667)
+        x3 = params.get('rule_fillet_width_1', 3.0)
         
         # 标准化
-        x = [x1 - 0.6, x2 - 50, x3 - 20]
+        x = [x1 - 20, (x2 - 0.667) * 30, x3 - 3.0]
         n = len(x)
         
         sum_sq = sum(xi**2 for xi in x)
@@ -704,9 +700,9 @@ class MockMeshEvaluator(MeshEvaluator):
         """Rastrigin函数（高度多峰值）"""
         import math
         
-        x1 = params.get('quality_threshold', 0.6) - 0.6
-        x2 = params.get('smoothing_iterations', 50) - 50
-        x3 = params.get('distortion_distance', 20) - 20
+        x1 = params.get('distortion_distance', 20) - 20
+        x2 = (params.get('perimeter_distance', 0.667) - 0.667) * 30
+        x3 = params.get('rule_fillet_width_1', 3.0) - 3.0
         
         A = 10
         result = A * 3 + sum(
@@ -718,29 +714,29 @@ class MockMeshEvaluator(MeshEvaluator):
     
     def _mesh_realistic_function(self, params: Dict[str, float]) -> float:
         """模拟真实网格优化函数"""
-        x1 = params.get('quality_threshold', 0.6)
-        x2 = params.get('smoothing_iterations', 50)
-        x3 = params.get('distortion_distance', 20)
-        x4 = params.get('perimeter_distance', 0.667)
+        x1 = params.get('distortion_distance', 20)
+        x2 = params.get('perimeter_distance', 0.667)
+        x3 = params.get('rule_fillet_width_1', 3.0)
+        x4 = params.get('distortion_angle', 0.0)
         
         # 模拟网格质量与参数的非线性关系
-        # 质量阈值的影响
-        quality_penalty = (1.0 - x1)**2 * 200
-        
-        # 平滑迭代次数的边际效应
-        smooth_effect = max(0, 100 - x2) + max(0, x2 - 80) * 2
-        
         # 扭曲距离的影响
-        distortion_penalty = abs(x3 - 20)**2 * 5
+        distortion_penalty = abs(x1 - 20)**2 * 5
         
         # 周边距离的影响
-        perimeter_penalty = abs(x4 - 0.667)**2 * 100
+        perimeter_penalty = abs(x2 - 0.667)**2 * 100
+        
+        # 圆角宽度的影响
+        fillet_penalty = abs(x3 - 3.0)**2 * 10
+        
+        # 扭曲角度的影响
+        angle_penalty = abs(x4)**2 * 20
         
         result = (
-            quality_penalty +
-            smooth_effect +
             distortion_penalty +
             perimeter_penalty +
+            fillet_penalty +
+            angle_penalty +
             random.uniform(10, 50)  # 基础偏移
         )
         
@@ -750,22 +746,22 @@ class MockMeshEvaluator(MeshEvaluator):
         """获取当前景观的最优参数（用于测试）"""
         optimal_params = {
             'rosenbrock': {
-                'quality_threshold': 0.6,
-                'smoothing_iterations': 50,
                 'distortion_distance': 20,
-                'perimeter_distance': 0.667
+                'perimeter_distance': 0.667,
+                'rule_fillet_width_1': 3.0,
+                'distortion_angle': 0.0
             },
             'ackley': {
-                'quality_threshold': 0.6,
-                'smoothing_iterations': 40,
                 'distortion_distance': 20,
-                'perimeter_distance': 0.667
+                'perimeter_distance': 0.667,
+                'rule_fillet_width_1': 3.0,
+                'distortion_angle': 0.0
             },
             'mesh_realistic': {
-                'quality_threshold': 1.0,
-                'smoothing_iterations': 60,
                 'distortion_distance': 20,
-                'perimeter_distance': 0.667
+                'perimeter_distance': 0.667,
+                'rule_fillet_width_1': 3.0,
+                'distortion_angle': 0.0
             }
         }
         
@@ -807,10 +803,10 @@ def test_evaluator(evaluator: MeshEvaluator, n_tests: int = 5) -> None:
     else:
         # 使用默认测试参数
         test_params = {
-            'quality_threshold': 0.5,
-            'smoothing_iterations': 40,
             'distortion_distance': 20,
-            'perimeter_distance': 0.667
+            'perimeter_distance': 0.667,
+            'rule_fillet_width_1': 3.0,
+            'distortion_angle': 0.0
         }
     
     print(f"Test parameters: {test_params}")
@@ -845,7 +841,7 @@ if __name__ == "__main__":
     try:
         ansa_evaluator = create_mesh_evaluator('ansa')
         print("Ansa evaluator created successfully")
-        print(f"Parameter validation test: {ansa_evaluator.validate_params({'quality_threshold': 0.5, 'distortion_distance': 20, 'perimeter_distance': 0.8})}")
+        print(f"Parameter validation test: {ansa_evaluator.validate_params({'distortion_distance': 20, 'perimeter_distance': 0.8, 'rule_fillet_width_1': 3.0})}")
     except Exception as e:
         print(f"Ansa evaluator test skipped: {e}")
     

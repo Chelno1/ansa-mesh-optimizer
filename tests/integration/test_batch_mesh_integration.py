@@ -42,8 +42,7 @@ class TestBatchMeshIntegration(unittest.TestCase):
         """测试完整的批处理网格工作流"""
         # 设置测试参数
         params = {
-            'quality_threshold': 0.6,
-            'distortion_distance': 20
+            'distortion_distance': 20.0
         }
         
         # 运行批处理
@@ -69,8 +68,7 @@ class TestBatchMeshIntegration(unittest.TestCase):
         """测试错误处理"""
         # 无效参数测试
         invalid_params = {
-            'quality_threshold': 2.0,    # 无效的超出范围值
-            'distortion_distance': -1    # 无效的负值
+            'distortion_distance': -1.0    # 无效的负值
         }
         
         success = self.runner.run_batch_mesh(invalid_params)
@@ -118,8 +116,7 @@ class TestBatchMeshIntegration(unittest.TestCase):
     def test_batch_mesh_with_params_function(self):
         """测试批处理参数函数"""
         params = {
-            'quality_threshold': 0.6,
-            'distortion_distance': 20
+            'distortion_distance': 20.0
         }
         
         bad_elements = batch_mesh_with_params(params)

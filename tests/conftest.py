@@ -17,9 +17,7 @@ from typing import Dict, Any, Generator
 def test_params() -> Dict[str, float]:
     """测试参数夹具"""
     return {
-        'quality_threshold': 0.6,
-        'distortion_distance': 20,
-        'smoothing_iterations': 50.0
+        'distortion_distance': 20
     }
 
 @pytest.fixture
@@ -69,17 +67,17 @@ def sample_optimization_history() -> list:
     """示例优化历史夹具"""
     return [
         {
-            'params': {'quality_threshold': 0.6, 'distortion_distance': 20},
+            'params': {'distortion_distance': 20},
             'result': 100,
             'timestamp': '2025-07-07T12:00:00'
         },
         {
-            'params': {'quality_threshold': 0.7, 'distortion_distance': 22},
+            'params': {'distortion_distance': 22},
             'result': 80,
             'timestamp': '2025-07-07T12:01:00'
         },
         {
-            'params': {'quality_threshold': 0.8, 'distortion_distance': 25},
+            'params': {'distortion_distance': 25},
             'result': 50,
             'timestamp': '2025-07-07T12:02:00'
         }
