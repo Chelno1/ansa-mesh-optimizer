@@ -25,7 +25,8 @@ import random
 try:
     from config.config import UnifiedConfigManager
 except ImportError:
-    from config.config import UnifiedConfigManager
+    # 如果从src目录运行，使用相对导入
+    from ..config.config import UnifiedConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -326,7 +327,7 @@ class AnsaMeshEvaluator(MeshEvaluator):
             raise
     
     def _process_parameter_files(self, config_file: str, params: Dict[str, float]) -> str:
-        """处理参数文件替换 - 使用策略模式重构"""
+        """处理参数文件替换 - 更新mpar文件中的参数并保存"""
         # 查找mpar文件
         mpar_files = list(Path('.').glob(self.config.mpar_file_pattern))
         
@@ -338,30 +339,139 @@ class AnsaMeshEvaluator(MeshEvaluator):
         logger.info(f"使用mpar文件: {mpar_file}")
         
         try:
-            # 使用参数替换管理器处理所有特殊参数
-            from .parameter_replacement_strategies import ParameterReplacementManager
-            replacement_manager = ParameterReplacementManager()
+            # 首先处理需要特殊策略的参数 (rule_fillet_width, rule_chamfer_width)
+            self._apply_special_parameter_strategies(mpar_file, params)
             
-            # 应用所有适用的参数替换策略
-            updated_mpar_file = replacement_manager.process_parameter_replacements(str(mpar_file), params)
-            mpar_file = Path(updated_mpar_file)
+            # 然后处理其他简单参数
+            self._update_simple_mpar_parameters(mpar_file, params)
             
-            # 解析mpar参数
-            mpar_params = self._parse_mpar_file(mpar_file)
-            
-            if not mpar_params:
-                logger.warning("mpar文件解析为空，使用原始配置")
-                return config_file
-            
-            # 替换其他参数
-            final_config_file = self._replace_parameters(config_file, mpar_params)
-            
-            return final_config_file
+            # 返回原始配置文件
+            return config_file
             
         except Exception as e:
             logger.error(f"处理参数文件失败: {e}")
             return config_file
     
+    def _apply_special_parameter_strategies(self, mpar_file: Path, params: Dict[str, float]) -> None:
+        """应用特殊参数替换策略 (rule_fillet, rule_chamfer等)"""
+        try:
+            from .parameter_replacement_strategies import ParameterReplacementManager
+            replacement_manager = ParameterReplacementManager()
+            
+            # 只处理需要特殊策略的参数
+            special_params = {}
+            special_param_prefixes = ['rule_fillet_width_', 'rule_chamfer_width_']
+            
+            for param_name, param_value in params.items():
+                if any(param_name.startswith(prefix) for prefix in special_param_prefixes):
+                    special_params[param_name] = param_value
+            
+            if special_params:
+                logger.info(f"应用特殊参数策略: {list(special_params.keys())}")
+                
+                # 使用策略替换器处理参数（会创建新的输出文件）
+                updated_mpar_file_path = replacement_manager.process_parameter_replacements(str(mpar_file), special_params)
+                
+                # 如果创建了新文件，需要将内容复制回原文件并清理
+                if updated_mpar_file_path != str(mpar_file):
+                    # 读取更新后的文件内容
+                    with open(updated_mpar_file_path, 'r', encoding='utf-8') as f:
+                        updated_content = f.read()
+                    
+                    # 写入原文件
+                    with open(mpar_file, 'w', encoding='utf-8') as f:
+                        f.write(updated_content)
+                    
+                    # 清理临时文件
+                    Path(updated_mpar_file_path).unlink(missing_ok=True)
+                    logger.info(f"已将更新内容复制回原文件: {mpar_file}")
+                
+        except Exception as e:
+            logger.error(f"应用特殊参数策略失败: {e}")
+    
+    def _update_simple_mpar_parameters(self, mpar_file: Path, params: Dict[str, float]) -> None:
+        """更新简单mpar文件参数 (非rule_fillet, rule_chamfer)"""
+        try:
+            # 读取mpar文件内容
+            with open(mpar_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 更新参数值
+            updated_content = content
+            updated_count = 0
+            
+            # 过滤掉需要特殊策略处理的参数
+            special_param_prefixes = ['rule_fillet_width_', 'rule_chamfer_width_']
+            simple_params = {k: v for k, v in params.items()
+                           if not any(k.startswith(prefix) for prefix in special_param_prefixes)}
+            
+            for param_name, param_value in simple_params.items():
+                # 根据参数名映射到mpar文件中的实际参数名
+                mpar_param_name = self._map_param_to_mpar_name(param_name)
+                
+                # 查找参数行的模式，支持多种格式:
+                # 1. PARAM_NAME = value
+                # 2. PARAM_NAME: value
+                # 3. PARAM_NAME value
+                patterns = [
+                    rf'^(\s*{re.escape(mpar_param_name)}\s*=\s*)[^\r\n]*',  # equals format
+                    rf'^(\s*{re.escape(mpar_param_name)}\s*:\s*)[^\r\n]*',  # colon format
+                    rf'^(\s*{re.escape(mpar_param_name)}\s+)[^\r\n]*',     # space format
+                ]
+                
+                param_found = False
+                for pattern in patterns:
+                    if re.search(pattern, content, flags=re.MULTILINE):
+                        # 格式化参数值
+                        formatted_value = self._format_mpar_parameter_value(param_name, param_value)
+                        replacement = rf'\g<1>{formatted_value}'
+                        updated_content = re.sub(pattern, replacement, updated_content, flags=re.MULTILINE)
+                        param_found = True
+                        updated_count += 1
+                        logger.debug(f"更新参数 {mpar_param_name} = {formatted_value}")
+                        break
+                
+                # 如果没有找到参数，记录警告
+                if not param_found:
+                    logger.warning(f"参数 {param_name} (映射为 {mpar_param_name}) 未在mpar文件中找到")
+            
+            # 保存更新后的内容到原文件
+            with open(mpar_file, 'w', encoding='utf-8') as f:
+                f.write(updated_content)
+            
+            logger.info(f"已更新{updated_count}个简单参数并保存到mpar文件: {mpar_file}")
+            
+        except Exception as e:
+            logger.error(f"更新简单mpar参数失败: {e}")
+            raise
+    
+    def _map_param_to_mpar_name(self, param_name: str) -> str:
+        """将参数名映射到mpar文件中的实际参数名"""
+        # 使用配置管理器的参数映射
+        if hasattr(self.config_manager, 'parameter_space'):
+            param_def = self.config_manager.parameter_space.get_parameter(param_name)
+            if param_def and param_def.ansa_mapping:
+                return param_def.ansa_mapping
+        
+        # 如果没有映射，返回原参数名
+        return param_name
+    
+    def _format_mpar_parameter_value(self, param_name: str, value: float) -> str:
+        """格式化mpar参数值"""
+        # 根据参数名进行特殊格式化
+        if param_name == 'distortion_distance':
+            # 扭曲距离需要加上%符号
+            return f"{value}%"
+        elif param_name == 'distortion_angle':
+            # 扭曲角度需要加上.符号
+            return f"{value}."
+        elif param_name == 'perimeter_distance':
+            # 周边距离需要加上*Lmin
+            return f"{value}*Lmin"
+        else:
+            # 其他参数直接返回数值
+            return str(value)
+
     def _parse_mpar_file(self, mpar_file: Path) -> Dict[str, str]:
         """解析mpar文件"""
         params = {}

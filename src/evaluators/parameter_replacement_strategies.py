@@ -190,15 +190,11 @@ class RecognizeChampersReplacementStrategy(ParameterReplacementStrategy):
             logger.debug(f"应用替换: {pattern_info['description']}")
         
         return updated_content
-<<<<<<< HEAD
-    
     def _generate_output_path(self, file_path: str, suffix: str) -> str:
         """生成输出文件路径"""
         base_name = os.path.splitext(os.path.basename(file_path))[0]
         dir_name = os.path.dirname(file_path)
         return os.path.join(dir_name, f"{base_name}{suffix}.ansa_mpar")
-=======
->>>>>>> main
 
 class RuleChamferReplacementStrategy(ParameterReplacementStrategy):
     """Rule Chamfer参数替换策略"""
