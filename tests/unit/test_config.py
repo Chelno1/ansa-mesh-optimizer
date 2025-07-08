@@ -179,8 +179,6 @@ class TestUnifiedParameterSpace(unittest.TestCase):
     def test_parameter_definitions(self):
         """测试参数定义"""
         param_names = self.param_space.get_parameter_names()
-        self.assertIn('element_size', param_names)
-        self.assertIn('perimeter_length', param_names)
         self.assertIn('quality_threshold', param_names)
         # 测试新增的 rule_fillet_width 参数
         self.assertIn('rule_fillet_width_1', param_names)
@@ -190,10 +188,10 @@ class TestUnifiedParameterSpace(unittest.TestCase):
     
     def test_get_parameter(self):
         """测试获取参数"""
-        param = self.param_space.get_parameter('element_size')
+        param = self.param_space.get_parameter('quality_threshold')
         self.assertIsNotNone(param)
         if param is not None:
-            self.assertEqual(param.name, 'element_size')
+            self.assertEqual(param.name, 'quality_threshold')
             self.assertEqual(param.param_type, ParameterType.FLOAT)
     
     def test_get_bounds(self):
@@ -206,7 +204,7 @@ class TestUnifiedParameterSpace(unittest.TestCase):
         """测试获取ANSA映射"""
         mapping = self.param_space.get_ansa_mapping()
         self.assertIsInstance(mapping, dict)
-        self.assertIn('element_size', mapping)
+        self.assertIn('quality_threshold', mapping)
     
     def test_validate_bounds(self):
         """测试边界验证"""
@@ -218,8 +216,8 @@ class TestUnifiedParameterSpace(unittest.TestCase):
     def test_validate_parameter_values(self):
         """测试参数值验证"""
         valid_values = {
-            'element_size': 1.0,
-            'quality_threshold': 0.5
+            'quality_threshold': 0.5,
+            'distortion_distance': 20
         }
         try:
             self.param_space.validate_parameter_values(valid_values)
@@ -227,7 +225,7 @@ class TestUnifiedParameterSpace(unittest.TestCase):
             self.fail(f"Valid values should not raise exception: {e}")
         
         invalid_values = {
-            'element_size': -1.0,  # 负值
+            'quality_threshold': -1.0,  # 负值
             'unknown_param': 1.0   # 未知参数
         }
         with self.assertRaises(ValidationError):

@@ -137,8 +137,8 @@ def debug_evaluator_parameter_flow():
         
         # 测试参数
         test_params = {
-            'element_size': 1.5,
-            'perimeter_length': 6.0,
+            'mesh_density': 4.0,
+            'quality_threshold': 0.6,
             'distortion_distance': 25,
             'rule_fillet_width_1': 3.0,
             'rule_fillet_width_2': 8.0,

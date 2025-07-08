@@ -97,10 +97,6 @@ def run_basic_tests(modules, evaluator_type: str, n_iterations: int, verbose: bo
         evaluator = create_mesh_evaluator(evaluator_type, config_manager=config_manager)
         
         test_params = {
-            'element_size': 1.0,
-            'perimeter_length': 2.0,
-            'min_target_length': 1.5,
-            'max_target_length': 9.0,
             'distortion_distance': 20,
             'quality_threshold': 0.6,
             'smoothing_iterations': 50,

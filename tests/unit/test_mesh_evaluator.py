@@ -28,10 +28,6 @@ class TestMeshEvaluator(unittest.TestCase):
         self.evaluator = create_mesh_evaluator('mock')
         # 使用完整的参数集合以满足验证要求，所有值都在有效范围内
         self.test_params: Dict[str, float] = {
-            'element_size': 1.5,                    # bounds: (0.5, 2.0)
-            'perimeter_length': 2.0,                # bounds: (0.5, 8.0)
-            'min_target_length': 1.5,               # bounds: (1.0, 2.0)
-            'max_target_length': 9.0,               # bounds: (8.0, 10.0)
             'distortion_distance': 20.0,            # bounds: (10, 30)
             'quality_threshold': 0.6,               # bounds: (0.2, 1.0)
             'smoothing_iterations': 50.0,           # bounds: (20, 80)
@@ -76,8 +72,8 @@ class TestMeshEvaluator(unittest.TestCase):
         
         # 测试无效参数
         invalid_params: Dict[str, float] = {
-            'element_size': -1.0,
-            'mesh_density': 0.0
+            'mesh_density': -1.0,
+            'quality_threshold': 2.0  # 超出[0,1]范围
         }
         with self.assertRaises(ValueError):
             self.evaluator.evaluate_mesh(invalid_params)
@@ -148,8 +144,8 @@ class TestMeshEvaluator(unittest.TestCase):
         
         # 测试参数类型错误
         invalid_type_params: Dict[str, Any] = {
-            'element_size': '1.5',  # 应该是float
-            'mesh_density': 4.0
+            'mesh_density': '4.0',  # 应该是float
+            'quality_threshold': 0.6
         }
         with self.assertRaises((TypeError, ValueError)):
             self.evaluator.evaluate_mesh(invalid_type_params)  # type: ignore

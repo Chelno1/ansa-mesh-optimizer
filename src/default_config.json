@@ -36,50 +36,6 @@
     "temp_cleanup": true
   },
   "parameters": {
-    "element_size": {
-      "param_type": "float",
-      "bounds": [
-        0.5,
-        2.0
-      ],
-      "description": "目标单元尺寸",
-      "unit": "mm",
-      "ansa_mapping": "target_element_length",
-      "default_value": 1.0
-    },
-    "perimeter_length": {
-      "param_type": "float",
-      "bounds": [
-        0.5,
-        8.0
-      ],
-      "description": "周边长度",
-      "unit": "mm",
-      "ansa_mapping": "perimeter_length",
-      "default_value": 2.0
-    },
-    "min_target_length": {
-      "param_type": "float",
-      "bounds": [
-        1.0,
-        2.0
-      ],
-      "description": "最小目标长度",
-      "unit": "mm",
-      "ansa_mapping": "general_min_target_len",
-      "default_value": 1.5
-    },
-    "max_target_length": {
-      "param_type": "float",
-      "bounds": [
-        8.0,
-        10.0
-      ],
-      "description": "最大目标长度",
-      "unit": "mm",
-      "ansa_mapping": "general_max_target_len",
-      "default_value": 9.0
-    },
     "distortion_distance": {
       "param_type": "integer",
       "bounds": [

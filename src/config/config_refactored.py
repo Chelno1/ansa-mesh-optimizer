@@ -249,43 +249,6 @@ class UnifiedParameterSpace:
         """定义统一的参数空间"""
         return {
             # 网格尺寸参数
-            'element_size': ParameterDefinition(
-                name='element_size',
-                param_type=ParameterType.FLOAT,
-                bounds=(0.5, 2.0),
-                description='目标单元尺寸',
-                unit='mm',
-                ansa_mapping='target_element_length',
-                default_value=1.0
-            ),
-            'perimeter_length': ParameterDefinition(
-                name='perimeter_length',
-                param_type=ParameterType.FLOAT,
-                bounds=(0.5, 8.0),
-                description='周边长度',
-                unit='mm',
-                ansa_mapping='perimeter_length',
-                default_value=2.0
-            ),
-            'min_target_length': ParameterDefinition(
-                name='min_target_length',
-                param_type=ParameterType.FLOAT,
-                bounds=(1.0, 2.0),
-                description='最小目标长度',
-                unit='mm',
-                ansa_mapping='general_min_target_len',
-                default_value=1.5
-            ),
-            'max_target_length': ParameterDefinition(
-                name='max_target_length',
-                param_type=ParameterType.FLOAT,
-                bounds=(8.0, 10.0),
-                description='最大目标长度',
-                unit='mm',
-                ansa_mapping='general_max_target_len',
-                default_value=9.0
-            ),
-            
             # 网格质量参数
             'distortion_distance': ParameterDefinition(
                 name='distortion_distance',
@@ -509,7 +472,7 @@ class UnifiedParameterSpace:
                     if isinstance(low, (int, float)) and isinstance(high, (int, float)):
                         if low >= high:
                             errors.append(f"Parameter {name}: lower bound {low} >= upper bound {high}")
-                        if low < 0 and name in ['element_size', 'perimeter_length', 'quality_threshold']:
+                        if low < 0 and name in ['quality_threshold']:
                             errors.append(f"Parameter {name}: lower bound {low} cannot be negative")
         
         if errors:

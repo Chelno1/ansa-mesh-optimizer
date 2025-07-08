@@ -173,10 +173,6 @@ class ParameterValidator:
         except AttributeError:
             # 如果配置管理器没有默认值方法，使用硬编码默认值
             return {
-                'element_size': 1.0,
-                'perimeter_length': 2.0,
-                'min_target_length': 1.5,
-                'max_target_length': 9.0,
                 'distortion_distance': 20,
                 'quality_threshold': 0.6,
                 'smoothing_iterations': 50,
@@ -660,11 +656,7 @@ class MockMeshEvaluator(MeshEvaluator):
     def _get_default_params(self) -> Dict[str, float]:
         """获取默认参数"""
         return {
-            'element_size': 1.0,
-            'perimeter_length': 2.0,
             'distortion_distance': 25,
-            'min_target_length': 1.5,
-            'max_target_length': 9.0,
             'mesh_density': 4.0,
             'quality_threshold': 0.5,
             'smoothing_iterations': 50,
@@ -674,20 +666,20 @@ class MockMeshEvaluator(MeshEvaluator):
     
     def _rosenbrock_function(self, params: Dict[str, float]) -> float:
         """Rosenbrock函数的变形（适合网格优化）"""
-        x1 = params['element_size']
-        x2 = params['perimeter_length']
-        x3 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
+        x1 = params.get('mesh_density', 4.0)
+        x2 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
+        x3 = params.get('smoothing_iterations', 50)
         
         # 标准化到[-2, 2]范围
-        x1_norm = (x1 - 1.25) * 2.0  # element_size center at 1.25
-        x2_norm = (x2 - 4.25) / 2.0  # perimeter_length center at 4.25
-        x3_norm = (x3 - 0.6) * 10.0  # mesh_quality_threshold center at 0.6
+        x1_norm = (x1 - 4.0) / 2.0  # mesh_density center at 4.0
+        x2_norm = (x2 - 0.6) * 10.0  # quality_threshold center at 0.6
+        x3_norm = (x3 - 50) / 25.0  # smoothing_iterations center at 50
         
         result = (
-            100 * (x2_norm - x1_norm**2)**2 + 
+            100 * (x2_norm - x1_norm**2)**2 +
             (1 - x1_norm)**2 +
             50 * (x3_norm - 0.5)**2 +
-            params.get('smoothing_iterations', 50) / 20
+            params.get('distortion_distance', 20) / 10
         )
         
         return max(0, result)
@@ -696,12 +688,12 @@ class MockMeshEvaluator(MeshEvaluator):
         """Ackley函数（多峰值景观）"""
         import math
         
-        x1 = params['element_size']
-        x2 = params['perimeter_length']
-        x3 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
+        x1 = params.get('mesh_density', 4.0)
+        x2 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
+        x3 = params.get('smoothing_iterations', 50)
         
         # 标准化
-        x = [x1 - 1.25, x2 - 4.25, x3 - 0.6]
+        x = [x1 - 4.0, x2 - 0.6, x3 - 50]
         n = len(x)
         
         sum_sq = sum(xi**2 for xi in x)
@@ -718,9 +710,9 @@ class MockMeshEvaluator(MeshEvaluator):
         """Rastrigin函数（高度多峰值）"""
         import math
         
-        x1 = params['element_size'] - 1.25
-        x2 = params['perimeter_length'] - 4.25
-        x3 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5)) - 0.6
+        x1 = params.get('mesh_density', 4.0) - 4.0
+        x2 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5)) - 0.6
+        x3 = params.get('smoothing_iterations', 50) - 50
         
         A = 10
         result = A * 3 + sum(
@@ -732,34 +724,34 @@ class MockMeshEvaluator(MeshEvaluator):
     
     def _mesh_realistic_function(self, params: Dict[str, float]) -> float:
         """模拟真实网格优化函数"""
-        x1 = params['element_size']
-        x2 = params['perimeter_length']
-        x3 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
-        x4 = params.get('smoothing_iterations', 50)
-        x5 = params.get('growth_rate', params.get('mesh_growth_rate', 1.0))
+        x1 = params.get('mesh_density', 4.0)
+        x2 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
+        x3 = params.get('smoothing_iterations', 50)
+        x4 = params.get('growth_rate', params.get('mesh_growth_rate', 1.0))
+        x5 = params.get('distortion_distance', 20)
         
         # 模拟网格质量与参数的非线性关系
-        # 元素尺寸太小或太大都不好
-        size_penalty = abs(x1 - 1.0)**2 * 100
-        
         # 网格密度的最优区间
-        density_penalty = max(0, (x2 - 6.0)**2 - 4.0) * 50
+        density_penalty = max(0, (x1 - 4.0)**2 - 1.0) * 50
         
         # 质量阈值的影响
-        quality_penalty = (1.0 - x3)**2 * 200
+        quality_penalty = (1.0 - x2)**2 * 200
         
         # 平滑迭代次数的边际效应
-        smooth_effect = max(0, 100 - x4) + max(0, x4 - 80) * 2
+        smooth_effect = max(0, 100 - x3) + max(0, x3 - 80) * 2
         
         # 增长率的非线性效应
-        growth_penalty = abs(x5 - 1.0)**1.5 * 150
+        growth_penalty = abs(x4 - 1.0)**1.5 * 150
+        
+        # 扭曲距离的影响
+        distortion_penalty = abs(x5 - 20)**2 * 5
         
         result = (
-            size_penalty + 
-            density_penalty + 
-            quality_penalty + 
-            smooth_effect + 
+            density_penalty +
+            quality_penalty +
+            smooth_effect +
             growth_penalty +
+            distortion_penalty +
             random.uniform(10, 50)  # 基础偏移
         )
         
@@ -769,28 +761,28 @@ class MockMeshEvaluator(MeshEvaluator):
         """获取当前景观的最优参数（用于测试）"""
         optimal_params = {
             'rosenbrock': {
-                'element_size': 1.25,
-                'perimeter_length': 4.25,
-                'mesh_quality_threshold': 0.6,
+                'mesh_density': 4.0,
+                'quality_threshold': 0.6,
                 'smoothing_iterations': 50,
-                'mesh_growth_rate': 1.0,
-                'mesh_topology': 2
+                'growth_rate': 1.0,
+                'mesh_topology': 2,
+                'distortion_distance': 20
             },
             'ackley': {
-                'element_size': 1.25,
-                'perimeter_length': 4.25,
-                'mesh_quality_threshold': 0.6,
+                'mesh_density': 4.0,
+                'quality_threshold': 0.6,
                 'smoothing_iterations': 40,
-                'mesh_growth_rate': 1.0,
-                'mesh_topology': 2
+                'growth_rate': 1.0,
+                'mesh_topology': 2,
+                'distortion_distance': 20
             },
             'mesh_realistic': {
-                'element_size': 1.0,
-                'perimeter_length': 6.0,
-                'mesh_quality_threshold': 1.0,
+                'mesh_density': 4.0,
+                'quality_threshold': 1.0,
                 'smoothing_iterations': 60,
-                'mesh_growth_rate': 1.0,
-                'mesh_topology': 2
+                'growth_rate': 1.0,
+                'mesh_topology': 2,
+                'distortion_distance': 20
             }
         }
         
@@ -832,12 +824,12 @@ def test_evaluator(evaluator: MeshEvaluator, n_tests: int = 5) -> None:
     else:
         # 使用默认测试参数
         test_params = {
-            'element_size': 1.0,
-            'perimeter_length': 2.0,
-            'mesh_quality_threshold': 0.5,
+            'mesh_density': 4.0,
+            'quality_threshold': 0.5,
             'smoothing_iterations': 40,
-            'mesh_growth_rate': 1.0,
-            'mesh_topology': 2
+            'growth_rate': 1.0,
+            'mesh_topology': 2,
+            'distortion_distance': 20
         }
     
     print(f"Test parameters: {test_params}")
@@ -872,7 +864,7 @@ if __name__ == "__main__":
     try:
         ansa_evaluator = create_mesh_evaluator('ansa')
         print("Ansa evaluator created successfully")
-        print(f"Parameter validation test: {ansa_evaluator.validate_params({'element_size': 1.0, 'mesh_density': 2.0, 'mesh_quality_threshold': 0.5})}")
+        print(f"Parameter validation test: {ansa_evaluator.validate_params({'mesh_density': 2.0, 'quality_threshold': 0.5, 'distortion_distance': 20})}")
     except Exception as e:
         print(f"Ansa evaluator test skipped: {e}")
     

@@ -247,13 +247,6 @@ class AnsaBatchMeshRunner:
         try:
             logger.info("应用网格参数...")
             
-            # 更新配置中的相关参数
-            if 'element_size' in params:
-                # 可以根据element_size调整min/max长度
-                element_size = params['element_size']
-                self.config.min_element_length = element_size * 0.5
-                self.config.max_element_length = element_size * 4.0
-            
             # 根据mesh_density调整参数
             if 'mesh_density' in params:
                 density = params['mesh_density']
@@ -371,12 +364,9 @@ class AnsaBatchMeshRunner:
         
         if params:
             # 根据参数调整成功率
-            element_size = params.get('element_size', 1.0)
             mesh_density = params.get('mesh_density', 4.0)
             
             # 合理的参数范围有更高的成功率
-            if 0.8 <= element_size <= 2.0:
-                success_rate += 0.1
             if 2.0 <= mesh_density <= 6.0:
                 success_rate += 0.1
         

@@ -644,8 +644,8 @@ if __name__ == "__main__":
     
     # 测试参数标准化
     test_params = {
-        'element_size': np.float64(1.5),
-        'perimeter_length': np.array([2.0]),
+        'mesh_density': np.float64(4.0),
+        'quality_threshold': np.array([0.6]),
         'normal_param': 3.0
     }
     

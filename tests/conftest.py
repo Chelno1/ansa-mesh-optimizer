@@ -17,10 +17,9 @@ from typing import Dict, Any, Generator
 def test_params() -> Dict[str, float]:
     """测试参数夹具"""
     return {
-        'element_size': 1.5,
         'mesh_density': 4.0,
         'quality_threshold': 0.6,
-        'perimeter_length': 2.0,
+        'distortion_distance': 20,
         'smoothing_iterations': 50.0
     }
 
@@ -71,17 +70,17 @@ def sample_optimization_history() -> list:
     """示例优化历史夹具"""
     return [
         {
-            'params': {'element_size': 1.0, 'mesh_density': 4.0},
+            'params': {'mesh_density': 4.0, 'quality_threshold': 0.6},
             'result': 100,
             'timestamp': '2025-07-07T12:00:00'
         },
         {
-            'params': {'element_size': 1.2, 'mesh_density': 4.5},
+            'params': {'mesh_density': 4.5, 'quality_threshold': 0.7},
             'result': 80,
             'timestamp': '2025-07-07T12:01:00'
         },
         {
-            'params': {'element_size': 1.5, 'mesh_density': 5.0},
+            'params': {'mesh_density': 5.0, 'quality_threshold': 0.8},
             'result': 50,
             'timestamp': '2025-07-07T12:02:00'
         }
