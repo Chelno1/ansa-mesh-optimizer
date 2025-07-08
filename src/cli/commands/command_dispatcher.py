@@ -113,12 +113,11 @@ def import_core_modules():
         from core.ansa_mesh_optimizer_refactored import optimize_mesh_parameters, MeshOptimizer, check_dependencies
         from core.compare_optimizers_improved import compare_optimizers
         
-        # 使用新的统一配置管理器
+        # 使用新的统一配置管理器类（不立即实例化）
         from config.config_refactored import UnifiedConfigManager
-        config_manager = UnifiedConfigManager()
         
         print("✅ 使用重构后的配置系统")
-        return True, (optimize_mesh_parameters, MeshOptimizer, compare_optimizers, config_manager, check_dependencies)
+        return True, (optimize_mesh_parameters, MeshOptimizer, compare_optimizers, UnifiedConfigManager, check_dependencies)
     except ImportError as e:
         print(f"❌ 核心模块导入失败: {e}")
         # 尝试回退到原始配置系统

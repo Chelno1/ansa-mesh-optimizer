@@ -42,10 +42,23 @@ def cmd_test(args, modules) -> int:
             print("❌ 模块导入失败")
             return 1
             
-        optimize_mesh_parameters, MeshOptimizer, compare_optimizers, config_manager, check_dependencies = modules
+        optimize_mesh_parameters, MeshOptimizer, compare_optimizers, UnifiedConfigManager, check_dependencies = modules
+        
+        # 为测试创建配置管理器（使用默认配置文件）
+        try:
+            import os
+            default_config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'default_config.json')
+            # 直接使用类创建实例
+            config_manager_class = UnifiedConfigManager
+            config_manager_instance = config_manager_class()
+            config_manager_instance.load_config(default_config_path)
+            print(f"✓ 测试配置已从默认配置文件加载")
+        except Exception as e:
+            print(f"❌ 无法加载默认配置文件: {e}")
+            return 1
         
         # 运行基础功能测试
-        success = run_basic_tests(modules, args.evaluator, test_iterations, args.verbose_test)
+        success = run_basic_tests((optimize_mesh_parameters, MeshOptimizer, compare_optimizers, config_manager_instance, check_dependencies), args.evaluator, test_iterations, args.verbose_test)
         
         if success:
             print(f"\n✅ 所有测试通过!")
@@ -81,7 +94,7 @@ def run_basic_tests(modules, evaluator_type: str, n_iterations: int, verbose: bo
         
         # 测试评估器
         from evaluators.mesh_evaluator import create_mesh_evaluator
-        evaluator = create_mesh_evaluator(evaluator_type)
+        evaluator = create_mesh_evaluator(evaluator_type, config_manager=config_manager)
         
         test_params = {
             'element_size': 1.0,
@@ -124,15 +137,20 @@ def run_basic_tests(modules, evaluator_type: str, n_iterations: int, verbose: bo
         
         # 测试基础优化
         try:
+            # 为测试创建临时配置文件路径
+            import os
+            default_config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'default_config.json')
+            
             result = optimize_mesh_parameters(
                 n_calls=n_iterations,
                 optimizer='genetic',  # 使用总是可用的遗传算法
                 evaluator_type=evaluator_type,
-                use_cache=False
+                use_cache=False,
+                config_file=default_config_path
             )
             
-            if 'best_value' in result and isinstance(result['best_value'], (int, float)):
-                print(f"   ✓ 优化功能正常 (最佳值: {result['best_value']:.6f})")
+            if hasattr(result, 'best_value') and isinstance(result.best_value, (int, float)):
+                print(f"   ✓ 优化功能正常 (最佳值: {result.best_value:.6f})")
             else:
                 print("   ❌ 优化返回无效结果")
                 all_tests_passed = False
@@ -147,13 +165,18 @@ def run_basic_tests(modules, evaluator_type: str, n_iterations: int, verbose: bo
             print(f"\n4️⃣  测试比较功能...")
             
             try:
+                # 为比较测试使用配置文件
+                import os
+                default_config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'default_config.json')
+                
                 comparison_results = compare_optimizers(
                     optimizers=['random', 'genetic'],
                     n_calls=5,  # 快速测试
                     n_runs=1,
                     evaluator_type=evaluator_type,
                     run_sensitivity_analysis=False,
-                    generate_report=False
+                    generate_report=False,
+                    config_file=default_config_path
                 )
                 
                 if 'best_optimizer' in comparison_results:

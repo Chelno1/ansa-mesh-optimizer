@@ -40,7 +40,7 @@ def register_optimize_command(subparsers):
 def cmd_optimize(args, modules) -> int:
     """执行优化命令"""
     logger = logging.getLogger(__name__)
-    optimize_mesh_parameters, MeshOptimizer, compare_optimizers, config_manager, check_dependencies = modules
+    optimize_mesh_parameters, MeshOptimizer, compare_optimizers, UnifiedConfigManager, check_dependencies = modules
     
     try:
         # 设置无头模式（必须在任何matplotlib导入之前）
@@ -61,13 +61,22 @@ def cmd_optimize(args, modules) -> int:
             print("请运行: pip install scikit-optimize")
             return 1
         
-        # 加载配置
-        if args.config:
-            try:
-                config_manager.load_config(args.config)
-                print(f"✓ 配置已从 {args.config} 加载")
-            except Exception as e:
-                print(f"⚠️  配置文件加载失败，使用默认配置: {e}")
+        # 检查配置文件是否提供
+        if not args.config:
+            print("❌ 错误: 未指定配置文件")
+            print("请使用 --config 参数指定配置文件路径")
+            print("示例: python main.py optimize --config my_config.json --optimizer bayesian")
+            print("可以使用以下命令生成默认配置文件:")
+            print("  python main.py config generate --output my_config.json")
+            return 1
+        
+        # 创建配置管理器并加载配置
+        try:
+            config_manager = UnifiedConfigManager(config_file=args.config, require_config=True)
+            print(f"✓ 配置已从 {args.config} 加载")
+        except Exception as e:
+            print(f"❌ 配置文件加载失败: {e}")
+            return 1
         
         # 更新配置
         config = config_manager.optimization_config
@@ -78,13 +87,18 @@ def cmd_optimize(args, modules) -> int:
         config.early_stopping = not args.no_early_stopping
         config.sensitivity_analysis = not args.no_sensitivity
         
+        # 创建配置管理器包装器
+        from core.ansa_mesh_optimizer_refactored import ConfigManagerWrapper
+        config_wrapper = ConfigManagerWrapper(config_manager)
+        
         # 执行优化
         start_time = time.time()
         result = optimize_mesh_parameters(
             n_calls=args.n_calls,
             optimizer=args.optimizer,
             evaluator_type=args.evaluator,
-            use_cache=not args.no_cache
+            use_cache=not args.no_cache,
+            config_manager=config_wrapper
         )
         execution_time = time.time() - start_time
         

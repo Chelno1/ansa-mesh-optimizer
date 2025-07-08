@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # 本地模块导入
 try:
     # 使用重构后的配置
-    from src.config.config_refactored import unified_config_manager, OptimizationConfig
+    from src.config.config_refactored import UnifiedConfigManager, OptimizationConfig
     
     # 创建兼容性包装器
     class ConfigManagerWrapper:
@@ -75,9 +75,8 @@ try:
         
         def to_skopt_space(self):
             return self.unified_param_space.to_skopt_space()
-        
-    config_manager = ConfigManagerWrapper(unified_config_manager)
-    logger.info("使用重构后的配置系统")
+    
+    logger.info("配置系统类已导入")
         
     # 导入重构后的模块
     from src.evaluators.mesh_evaluator import create_mesh_evaluator, MeshEvaluator
@@ -109,11 +108,12 @@ class MeshOptimizer:
     使用依赖注入实现模块化架构
     """
     
-    def __init__(self, 
+    def __init__(self,
                  config: Optional[OptimizationConfig] = None,
                  evaluator_type: str = 'ansa',
                  use_cache: bool = True,
-                 optimizer_config: Optional[OptimizerConfig] = None):
+                 optimizer_config: Optional[OptimizerConfig] = None,
+                 config_manager: Optional[ConfigManagerWrapper] = None):
         """
         初始化优化器
         
@@ -122,7 +122,11 @@ class MeshOptimizer:
             evaluator_type: 评估器类型 ('ansa' 或 'mock')
             use_cache: 是否使用缓存
             optimizer_config: 优化器配置对象
+            config_manager: 配置管理器实例
         """
+        if config_manager is None:
+            raise ValueError("必须提供配置管理器实例")
+        
         self.config = config or config_manager.optimization_config
         self.param_space = config_manager.parameter_space
         self.optimizer_config = optimizer_config or create_default_config()
@@ -134,7 +138,7 @@ class MeshOptimizer:
             raise ValueError(f"配置验证失败: {e}")
         
         # 创建评估器
-        self.base_evaluator = create_mesh_evaluator(evaluator_type)
+        self.base_evaluator = create_mesh_evaluator(evaluator_type, config_manager=config_manager.unified_manager)
         
         # 创建缓存（如果启用）
         if use_cache and self.config.use_cache:
@@ -455,6 +459,7 @@ def optimize_mesh_parameters(
     evaluator_type: str = 'ansa',
     config_file: Optional[str] = None,
     use_cache: bool = True,
+    config_manager: Optional[ConfigManagerWrapper] = None,
     **kwargs
 ) -> OptimizationResult:
     """
@@ -466,22 +471,25 @@ def optimize_mesh_parameters(
         evaluator_type: 评估器类型
         config_file: 配置文件路径
         use_cache: 是否使用缓存
+        config_manager: 配置管理器实例
         **kwargs: 其他优化器参数
         
     Returns:
         优化结果对象
     """
-    # 加载配置
-    if config_file:
-        try:
-            config_manager.load_config(config_file)
-        except Exception as e:
-            logger.warning(f"配置文件加载失败，使用默认配置: {e}")
+    # 检查配置管理器
+    if config_manager is None:
+        if config_file is None:
+            raise ValueError("必须提供配置文件或配置管理器实例")
+        # 创建配置管理器
+        unified_manager = UnifiedConfigManager(config_file=config_file, require_config=True)
+        config_manager = ConfigManagerWrapper(unified_manager)
     
     # 创建优化器
     mesh_optimizer = MeshOptimizer(
         evaluator_type=evaluator_type,
-        use_cache=use_cache
+        use_cache=use_cache,
+        config_manager=config_manager
     )
     
     # 执行优化

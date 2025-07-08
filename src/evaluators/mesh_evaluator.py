@@ -23,9 +23,9 @@ import time
 import random
 
 try:
-    from src.config.config_refactored import unified_config_manager as config_manager
+    from src.config.config_refactored import UnifiedConfigManager
 except ImportError:
-    from config.config_refactored import unified_config_manager as config_manager
+    from config.config_refactored import UnifiedConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +198,10 @@ class ParameterValidator:
 class AnsaMeshEvaluator(MeshEvaluator):
     """Ansa网格评估器 - 改进版本"""
     
-    def __init__(self):
+    def __init__(self, config_manager=None):
+        if config_manager is None:
+            raise ValueError("AnsaMeshEvaluator requires a config_manager instance")
+        self.config_manager = config_manager
         self.config = config_manager.ansa_config
         self.param_mapping = config_manager.parameter_space.get_ansa_mapping()
         self.validator = ParameterValidator(config_manager.parameter_space)
@@ -561,10 +564,14 @@ class AnsaMeshEvaluator(MeshEvaluator):
 class MockMeshEvaluator(MeshEvaluator):
     """模拟网格评估器（用于测试）- 改进版本"""
     
-    def __init__(self, landscape_type: str = 'rosenbrock', add_noise: bool = True):
+    def __init__(self, landscape_type: str = 'rosenbrock', add_noise: bool = True, config_manager=None):
         self.landscape_type = landscape_type
         self.add_noise = add_noise
         self.evaluation_count = 0
+        
+        if config_manager is None:
+            raise ValueError("MockMeshEvaluator requires a config_manager instance")
+        self.config_manager = config_manager
         self.validator = ParameterValidator(config_manager.parameter_space)
         
         # 设置随机种子以便可重现
@@ -789,24 +796,28 @@ class MockMeshEvaluator(MeshEvaluator):
         
         return optimal_params.get(self.landscape_type, optimal_params['rosenbrock'])
 
-def create_mesh_evaluator(evaluator_type: str = 'ansa') -> MeshEvaluator:
+def create_mesh_evaluator(evaluator_type: str = 'ansa', config_manager=None) -> MeshEvaluator:
     """
     创建网格评估器
     
     Args:
         evaluator_type: 评估器类型 ('ansa' 或 'mock')
+        config_manager: 配置管理器实例
         
     Returns:
         网格评估器实例
     """
+    if config_manager is None:
+        raise ValueError("create_mesh_evaluator requires a config_manager instance")
+        
     if evaluator_type.lower() == 'ansa':
-        return AnsaMeshEvaluator()
+        return AnsaMeshEvaluator(config_manager=config_manager)
     elif evaluator_type.lower() == 'mock':
-        return MockMeshEvaluator()
+        return MockMeshEvaluator(config_manager=config_manager)
     elif evaluator_type.lower().startswith('mock_'):
         # 支持不同的mock类型，例如 'mock_ackley'
         landscape = evaluator_type[5:]  # 去掉 'mock_' 前缀
-        return MockMeshEvaluator(landscape_type=landscape)
+        return MockMeshEvaluator(landscape_type=landscape, config_manager=config_manager)
     else:
         raise ValueError(f"不支持的评估器类型: {evaluator_type}")
 

@@ -166,11 +166,7 @@ class AnsaConfig:
     """Ansa软件配置类 - 重构版"""
     # 路径配置
     ansa_executable: str = 'ansa'
-<<<<<<< HEAD
     script_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent / 'evaluators')
-=======
-    script_dir: Path = field(default_factory=lambda: Path(__file__).parent)
->>>>>>> main
     input_model: str = 'input_model.ansa'
     output_dir: Path = field(default_factory=lambda: Path('output'))
     
@@ -565,8 +561,16 @@ class UnifiedParameterSpace:
 class UnifiedConfigManager:
     """统一配置管理器 - 重构版"""
     
-    def __init__(self, config_file: Optional[str] = None):
+    def __init__(self, config_file: Optional[str] = None, require_config: bool = False):
         self.config_file = config_file
+        self.require_config = require_config
+        
+        # 如果要求必须有配置文件但没有提供，则抛出异常
+        if require_config and not config_file:
+            raise ConfigurationError("未指定配置文件。请使用 --config 参数指定配置文件路径。")
+        
+        if require_config and config_file and not Path(config_file).exists():
+            raise ConfigurationError(f"配置文件不存在: {config_file}")
         
         # 如果提供了配置文件，先提取参数列表
         config_specified_params = None
@@ -756,5 +760,5 @@ class UnifiedConfigManager:
         }
 
 
-# 全局配置实例
-unified_config_manager = UnifiedConfigManager()
+# 全局配置实例 - 现在要求配置文件
+unified_config_manager = None  # 将在需要时初始化

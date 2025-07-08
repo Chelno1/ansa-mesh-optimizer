@@ -31,9 +31,27 @@ def register_compare_command(subparsers):
 def cmd_compare(args, modules) -> int:
     """执行比较命令"""
     logger = logging.getLogger(__name__)
-    optimize_mesh_parameters, MeshOptimizer, compare_optimizers, config_manager, check_dependencies = modules
+    optimize_mesh_parameters, MeshOptimizer, compare_optimizers, UnifiedConfigManager, check_dependencies = modules
     
     try:
+        # 检查配置文件是否提供
+        if not args.config:
+            print("❌ 错误: 未指定配置文件")
+            print("请使用 --config 参数指定配置文件路径")
+            print("示例: python main.py compare --config my_config.json --optimizers bayesian genetic")
+            print("可以使用以下命令生成默认配置文件:")
+            print("  python main.py config generate --output my_config.json")
+            return 1
+        
+        # 创建配置管理器并加载配置
+        try:
+            config_manager = UnifiedConfigManager()
+            config_manager.load_config(args.config)
+            print(f"✓ 配置已从 {args.config} 加载")
+        except Exception as e:
+            print(f"❌ 配置文件加载失败: {e}")
+            return 1
+        
         print(f"🔍 开始优化器比较")
         print(f"   优化器: {', '.join(args.optimizers)}")
         print(f"   评估器: {args.evaluator}")
@@ -64,7 +82,8 @@ def cmd_compare(args, modules) -> int:
             n_runs=args.n_runs,
             evaluator_type=args.evaluator,
             run_sensitivity_analysis=not args.no_sensitivity,
-            generate_report=not args.no_report
+            generate_report=not args.no_report,
+            config_file=args.config
         )
         execution_time = time.time() - start_time
         
