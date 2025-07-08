@@ -1,0 +1,120 @@
+graph TD
+    START[开始优化] --> INIT[初始化MeshOptimizer]
+    INIT --> CONFIG_LOAD[加载配置参数]
+    CONFIG_LOAD --> EVAL_CREATE[创建评估器]
+    
+    EVAL_CREATE --> CACHE_CHECK{启用缓存?}
+    CACHE_CHECK -->|是| CACHE_INIT[初始化OptimizationCache]
+    CACHE_CHECK -->|否| EARLY_INIT[初始化早停机制]
+    CACHE_INIT --> CACHE_WRAP[包装为CachedEvaluator]
+    CACHE_WRAP --> EARLY_INIT
+    
+    EARLY_INIT --> OPT_SELECT{选择优化器类型}
+    
+    %% 贝叶斯优化分支
+    OPT_SELECT -->|bayesian| BAY_INIT[初始化贝叶斯优化]
+    BAY_INIT --> BAY_SPACE[定义参数空间]
+    BAY_SPACE --> BAY_INITIAL[初始随机点评估]
+    BAY_INITIAL --> BAY_LOOP[贝叶斯优化循环]
+    
+    BAY_LOOP --> BAY_ACQUIRE[采集函数选择下一点]
+    BAY_ACQUIRE --> EVALUATE[参数评估]
+    EVALUATE --> BAY_UPDATE[更新高斯过程模型]
+    BAY_UPDATE --> EARLY_CHECK{早停检查}
+    EARLY_CHECK -->|继续| BAY_LOOP
+    EARLY_CHECK -->|停止| RESULT_FORMAT[格式化结果]
+    
+    %% 遗传算法分支
+    OPT_SELECT -->|genetic| GA_INIT[初始化遗传算法]
+    GA_INIT --> GA_POP[初始化种群]
+    GA_POP --> GA_EVAL_POP[评估种群适应度]
+    
+    GA_EVAL_POP --> GA_LOOP[遗传算法主循环]
+    GA_LOOP --> GA_SELECT[选择操作]
+    GA_SELECT --> GA_CROSS[交叉操作]
+    GA_CROSS --> GA_MUTATE[变异操作]
+    GA_MUTATE --> GA_EVAL_NEW[评估新个体]
+    GA_EVAL_NEW --> GA_UPDATE[更新种群]
+    GA_UPDATE --> GA_CONVERGE{收敛检查}
+    GA_CONVERGE -->|否| GA_RESTART{需要重启?}
+    GA_RESTART -->|是| GA_RESTART_POP[重启种群]
+    GA_RESTART_POP --> GA_LOOP
+    GA_RESTART -->|否| GA_LOOP
+    GA_CONVERGE -->|是| RESULT_FORMAT
+    
+    %% 并行优化分支
+    OPT_SELECT -->|parallel| PAR_INIT[初始化并行优化]
+    PAR_INIT --> PAR_PARAMS[生成随机参数组合]
+    PAR_PARAMS --> PAR_WORKERS[创建工作进程池]
+    PAR_WORKERS --> PAR_SUBMIT[提交评估任务]
+    PAR_SUBMIT --> PAR_COLLECT[收集评估结果]
+    PAR_COLLECT --> PAR_BEST[选择最佳结果]
+    PAR_BEST --> RESULT_FORMAT
+    
+    %% 参数评估详细流程
+    EVALUATE --> PARAM_NORM[参数标准化]
+    GA_EVAL_POP --> PARAM_NORM
+    GA_EVAL_NEW --> PARAM_NORM
+    
+    PARAM_NORM --> PARAM_VALID[参数验证]
+    PARAM_VALID --> CACHE_LOOKUP{缓存查找}
+    CACHE_LOOKUP -->|命中| CACHE_HIT[返回缓存结果]
+    CACHE_LOOKUP -->|未命中| EVAL_TYPE{评估器类型}
+    
+    EVAL_TYPE -->|ansa| ANSA_EVAL[Ansa评估]
+    EVAL_TYPE -->|mock| MOCK_EVAL[模拟评估]
+    
+    %% Ansa评估详细流程
+    ANSA_EVAL --> ANSA_CONFIG[创建临时配置]
+    ANSA_CONFIG --> ANSA_MPAR[处理mpar文件]
+    ANSA_MPAR --> ANSA_CMD[构建Ansa命令]
+    ANSA_CMD --> ANSA_RUN[执行Ansa批处理]
+    ANSA_RUN --> ANSA_PARSE[解析输出结果]
+    ANSA_PARSE --> ANSA_RESULT[返回不合格单元数]
+    
+    %% 模拟评估流程
+    MOCK_EVAL --> MOCK_FUNC{选择测试函数}
+    MOCK_FUNC -->|rosenbrock| MOCK_ROS[Rosenbrock函数]
+    MOCK_FUNC -->|ackley| MOCK_ACK[Ackley函数]
+    MOCK_FUNC -->|realistic| MOCK_REAL[真实网格函数]
+    MOCK_ROS --> MOCK_RESULT[返回模拟结果]
+    MOCK_ACK --> MOCK_RESULT
+    MOCK_REAL --> MOCK_RESULT
+    
+    ANSA_RESULT --> EVAL_RESULT[评估结果]
+    MOCK_RESULT --> EVAL_RESULT
+    CACHE_HIT --> EVAL_RESULT
+    
+    EVAL_RESULT --> CACHE_STORE{存储到缓存}
+    CACHE_STORE --> EARLY_UPDATE[更新早停机制]
+    EARLY_UPDATE --> RETURN_EVAL[返回评估值]
+    
+    %% 结果处理
+    RESULT_FORMAT --> BEST_UPDATE[更新最佳结果]
+    BEST_UPDATE --> SENS_CHECK{敏感性分析?}
+    SENS_CHECK -->|是| SENS_ANAL[参数敏感性分析]
+    SENS_CHECK -->|否| REPORT_GEN[生成优化报告]
+    SENS_ANAL --> REPORT_GEN
+    
+    REPORT_GEN --> SAVE_PARAMS[保存最佳参数]
+    SAVE_PARAMS --> PLOT_GEN{生成图表?}
+    PLOT_GEN -->|是| PLOT_CONV[收敛图]
+    PLOT_GEN -->|否| END_OPT[优化完成]
+    PLOT_CONV --> PLOT_SENS[敏感性图]
+    PLOT_SENS --> END_OPT
+    
+    %% 样式定义
+    classDef start fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
+    classDef process fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef decision fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef optimizer fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef evaluator fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef result fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
+    classDef end fill:#ffcdd2,stroke:#d32f2f,stroke-width:3px
+    
+    class START,END_OPT start
+    class INIT,CONFIG_LOAD,EVAL_CREATE,PARAM_NORM,PARAM_VALID process
+    class CACHE_CHECK,OPT_SELECT,EARLY_CHECK,CACHE_LOOKUP,EVAL_TYPE decision
+    class BAY_INIT,BAY_LOOP,GA_INIT,GA_LOOP,PAR_INIT optimizer
+    class ANSA_EVAL,MOCK_EVAL,EVALUATE evaluator
+    class RESULT_FORMAT,REPORT_GEN,SAVE_PARAMS result

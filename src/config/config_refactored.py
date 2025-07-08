@@ -166,7 +166,11 @@ class AnsaConfig:
     """Ansa软件配置类 - 重构版"""
     # 路径配置
     ansa_executable: str = 'ansa'
+<<<<<<< HEAD
     script_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent / 'evaluators')
+=======
+    script_dir: Path = field(default_factory=lambda: Path(__file__).parent)
+>>>>>>> main
     input_model: str = 'input_model.ansa'
     output_dir: Path = field(default_factory=lambda: Path('output'))
     

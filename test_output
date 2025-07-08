@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "app_name": "Ansa Mesh Optimizer",
+    "app_version": "1.3.0",
+    "timestamp": "2025-07-04 15:01:17",
+    "optimizer": "random"
+  },
+  "best_params": {
+    "element_size": 0.5308767414437037,
+    "perimeter_length": 7.774323891214959,
+    "distortion_distance": 21,
+    "general_min_target_len": 1.9385527090157504,
+    "general_max_target_len": 8.001557531682028,
+    "mesh_density": 11.910432931849003,
+    "mesh_quality_threshold": 0.6939852077021733,
+    "smoothing_iterations": 77,
+    "mesh_growth_rate": 1.024756431632238,
+    "mesh_topology": 1
+  },
+  "best_value": 29.218285732277565,
+  "execution_time": 0,
+  "total_evaluations": 5,
+  "optimizer_name": "Random Search",
+  "convergence_info": {
+    "n_calls": 5,
+    "best_iteration": 1,
+    "improvement_ratio": 0.9775848140816196
+  }
+}

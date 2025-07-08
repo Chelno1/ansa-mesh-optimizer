@@ -11,7 +11,7 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, List, Tuple, Any
+from typing import Dict, Optional, List, Tuple, Any, Union
 import subprocess
 import os
 import re
@@ -22,7 +22,10 @@ import glob
 import time
 import random
 
-from config.config import config_manager
+try:
+    from src.config.config_refactored import unified_config_manager as config_manager
+except ImportError:
+    from config.config_refactored import unified_config_manager as config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -86,8 +89,8 @@ class ParameterValidator:
     def __init__(self, param_space):
         self.param_space = param_space
         self.bounds = param_space.get_bounds()
-        self.param_names = param_space.get_param_names()
-        self.param_types = param_space.get_param_types()
+        self.param_names = param_space.get_parameter_names()
+        self.param_types = param_space.get_parameter_types()
     
     def validate_comprehensive(self, params: Dict[str, Any], allow_partial: bool = True) -> Tuple[bool, str, Dict[str, Any]]:
         """
@@ -137,7 +140,7 @@ class ParameterValidator:
         
         return is_valid, error_message, cleaned_params
     
-    def _clean_and_validate_param(self, name: str, value: Any) -> float:
+    def _clean_and_validate_param(self, name: str, value: Any) -> Union[int, float]:
         """清理和验证单个参数"""
         param_index = self.param_names.index(name)
         expected_type = self.param_types[param_index]
@@ -150,7 +153,7 @@ class ParameterValidator:
         # 类型转换
         try:
             if expected_type == int:
-                cleaned_value = int(round(float(value)))
+                cleaned_value: Union[int, float] = int(round(float(value)))
             else:
                 cleaned_value = float(value)
         except (ValueError, TypeError) as e:
@@ -197,9 +200,10 @@ class AnsaMeshEvaluator(MeshEvaluator):
     
     def __init__(self):
         self.config = config_manager.ansa_config
-        self.param_mapping = config_manager.get_parameter_mapping()
+        self.param_mapping = config_manager.parameter_space.get_ansa_mapping()
         self.validator = ParameterValidator(config_manager.parameter_space)
         self._validate_environment()
+    
     
     def _validate_environment(self) -> None:
         """验证Ansa环境"""
@@ -230,11 +234,16 @@ class AnsaMeshEvaluator(MeshEvaluator):
     def validate_params(self, params: Dict[str, float]) -> bool:
         """验证参数有效性"""
         try:
-            is_valid, _, _ = self.validator.validate_comprehensive(params)
+            is_valid, error_msg, _ = self.validator.validate_comprehensive(params)
+            if not is_valid:
+                raise ValueError(f"Parameter validation failed: {error_msg}")
             return is_valid
+        except ValueError:
+            # 重新抛出ValueError以便测试能够捕获
+            raise
         except Exception as e:
             logger.error(f"参数验证异常: {e}")
-            return False
+            raise ValueError(f"Parameter validation error: {e}")
     
     def evaluate_mesh(self, params: Dict[str, float]) -> float:
         """
@@ -283,12 +292,36 @@ class AnsaMeshEvaluator(MeshEvaluator):
                 locals().get('final_config_file')
             ])
     
+    def _format_parameter_value(self, param_name: str, value: Any) -> str:
+        """
+        格式化参数值
+        
+        Args:
+            param_name: 参数名
+            value: 参数值
+            
+        Returns:
+            格式化后的参数值字符串
+        """
+        # 定义需要特殊格式化的参数
+        special_formatting = {
+            'distortion_distance': lambda v: f"{v}.%",
+            # 可以添加更多特殊格式化规则
+            # 'another_param': lambda v: f"{v}mm",
+        }
+        
+        if param_name in special_formatting:
+            return special_formatting[param_name](value)
+        else:
+            return str(value)
+
     def _create_temp_config(self, params: Dict[str, float]) -> str:
         """创建临时配置文件"""
         try:
             with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
                 for key, value in params.items():
-                    f.write(f"{key} = {value}\n")
+                    formatted_value = self._format_parameter_value(key, value)
+                    f.write(f"{key} = {formatted_value}\n")
                 temp_file = f.name
             
             logger.debug(f"创建临时配置文件: {temp_file}")
@@ -299,7 +332,7 @@ class AnsaMeshEvaluator(MeshEvaluator):
             raise
     
     def _process_parameter_files(self, config_file: str, params: Dict[str, float]) -> str:
-        """处理参数文件替换"""
+        """处理参数文件替换 - 使用策略模式重构"""
         # 查找mpar文件
         mpar_files = list(Path('.').glob(self.config.mpar_file_pattern))
         
@@ -311,6 +344,14 @@ class AnsaMeshEvaluator(MeshEvaluator):
         logger.info(f"使用mpar文件: {mpar_file}")
         
         try:
+            # 使用参数替换管理器处理所有特殊参数
+            from .parameter_replacement_strategies import ParameterReplacementManager
+            replacement_manager = ParameterReplacementManager()
+            
+            # 应用所有适用的参数替换策略
+            updated_mpar_file = replacement_manager.process_parameter_replacements(str(mpar_file), params)
+            mpar_file = Path(updated_mpar_file)
+            
             # 解析mpar参数
             mpar_params = self._parse_mpar_file(mpar_file)
             
@@ -318,7 +359,7 @@ class AnsaMeshEvaluator(MeshEvaluator):
                 logger.warning("mpar文件解析为空，使用原始配置")
                 return config_file
             
-            # 替换参数
+            # 替换其他参数
             final_config_file = self._replace_parameters(config_file, mpar_params)
             
             return final_config_file
@@ -392,6 +433,7 @@ class AnsaMeshEvaluator(MeshEvaluator):
         except Exception as e:
             logger.error(f"参数替换失败: {e}")
             return temp_file
+    
     
     def _run_ansa_batch(self, config_file: str) -> float:
         """运行Ansa批处理 - 改进的错误处理"""
@@ -531,34 +573,18 @@ class MockMeshEvaluator(MeshEvaluator):
     def validate_params(self, params: Dict[str, float]) -> bool:
         """验证参数有效性 - 修复版本"""
         try:
-            is_valid, _, _ = self.validator.validate_comprehensive(params)
+            is_valid, error_msg, _ = self.validator.validate_comprehensive(params)
+            if not is_valid:
+                # 对于测试，如果参数验证失败，抛出ValueError
+                raise ValueError(f"Parameter validation failed: {error_msg}")
             return is_valid
+        except ValueError:
+            # 重新抛出ValueError以便测试能够捕获
+            raise
         except Exception as e:
             logger.warning(f"Mock evaluator parameter validation failed: {e}")
-            return False
-        
-            # 备用验证：检查基本必需参数
-            required_params = [
-                'element_size', 'perimeter_length', 'distortion_distance',
-                'general_min_target_len', 'general_max_target_len'
-            ]
-            
-            for param in required_params:
-                if param not in params:
-                    logger.error(f"Missing required parameter: {param}")
-                    return False
-            
-            # 基本范围检查
-            try:
-                if not (0.1 <= params.get('element_size', 0) <= 10.0):
-                    return False
-                if not (0.1 <= params.get('perimeter_length', 0) <= 20.0):
-                    return False
-                if not (1 <= params.get('distortion_distance', 0) <= 100):
-                    return False
-                return True
-            except (ValueError, TypeError):
-                return False
+            # 对于其他异常，也抛出ValueError以保持一致性
+            raise ValueError(f"Parameter validation error: {e}")
     
     def evaluate_mesh(self, params: Dict[str, float]) -> float:
         """
@@ -575,13 +601,15 @@ class MockMeshEvaluator(MeshEvaluator):
             
             if not is_valid:
                 logger.warning(f"Mock evaluator: invalid parameters - {error_msg}")
-                # 对于测试，如果参数不完整，使用默认值
-                cleaned_params = self._fill_missing_params(normalized_params)
+                # 对于测试，如果参数验证失败，抛出ValueError
+                raise ValueError(f"Parameter validation failed: {error_msg}")
             
+        except ValueError:
+            # 重新抛出ValueError以便测试能够捕获
+            raise
         except Exception as e:
             logger.error(f"Mock evaluator parameter processing failed: {e}")
-            # 使用默认参数
-            cleaned_params = self._get_default_params()
+            raise ValueError(f"Parameter processing error: {e}")
         
         # 添加现实的延迟模拟
         if self.add_noise:
@@ -628,12 +656,12 @@ class MockMeshEvaluator(MeshEvaluator):
             'element_size': 1.0,
             'perimeter_length': 2.0,
             'distortion_distance': 25,
-            'general_min_target_len': 1.5,
-            'general_max_target_len': 9.0,
+            'min_target_length': 1.5,
+            'max_target_length': 9.0,
             'mesh_density': 4.0,
-            'mesh_quality_threshold': 0.5,
+            'quality_threshold': 0.5,
             'smoothing_iterations': 50,
-            'mesh_growth_rate': 1.0,
+            'growth_rate': 1.0,
             'mesh_topology': 2
         }
     
@@ -641,7 +669,7 @@ class MockMeshEvaluator(MeshEvaluator):
         """Rosenbrock函数的变形（适合网格优化）"""
         x1 = params['element_size']
         x2 = params['perimeter_length']
-        x3 = params['mesh_quality_threshold']
+        x3 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
         
         # 标准化到[-2, 2]范围
         x1_norm = (x1 - 1.25) * 2.0  # element_size center at 1.25
@@ -663,7 +691,7 @@ class MockMeshEvaluator(MeshEvaluator):
         
         x1 = params['element_size']
         x2 = params['perimeter_length']
-        x3 = params['mesh_quality_threshold']
+        x3 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
         
         # 标准化
         x = [x1 - 1.25, x2 - 4.25, x3 - 0.6]
@@ -685,7 +713,7 @@ class MockMeshEvaluator(MeshEvaluator):
         
         x1 = params['element_size'] - 1.25
         x2 = params['perimeter_length'] - 4.25
-        x3 = params['mesh_quality_threshold'] - 0.6
+        x3 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5)) - 0.6
         
         A = 10
         result = A * 3 + sum(
@@ -699,9 +727,9 @@ class MockMeshEvaluator(MeshEvaluator):
         """模拟真实网格优化函数"""
         x1 = params['element_size']
         x2 = params['perimeter_length']
-        x3 = params['mesh_quality_threshold']
+        x3 = params.get('quality_threshold', params.get('mesh_quality_threshold', 0.5))
         x4 = params.get('smoothing_iterations', 50)
-        x5 = params.get('mesh_growth_rate', 1.0)
+        x5 = params.get('growth_rate', params.get('mesh_growth_rate', 1.0))
         
         # 模拟网格质量与参数的非线性关系
         # 元素尺寸太小或太大都不好
@@ -728,7 +756,7 @@ class MockMeshEvaluator(MeshEvaluator):
             random.uniform(10, 50)  # 基础偏移
         )
         
-        return max(1, result)
+        return float(max(1, result))
     
     def get_optimal_params(self) -> Dict[str, float]:
         """获取当前景观的最优参数（用于测试）"""
@@ -788,7 +816,7 @@ def test_evaluator(evaluator: MeshEvaluator, n_tests: int = 5) -> None:
     print(f"Testing {evaluator.__class__.__name__}...")
     
     # 获取最优参数（如果是Mock评估器）
-    if hasattr(evaluator, 'get_optimal_params'):
+    if isinstance(evaluator, MockMeshEvaluator) and hasattr(evaluator, 'get_optimal_params'):
         test_params = evaluator.get_optimal_params()
     else:
         # 使用默认测试参数

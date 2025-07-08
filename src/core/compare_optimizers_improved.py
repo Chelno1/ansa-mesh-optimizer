@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-改进的优化器比较工具 - 增强版本
+改进的优化器比较工具 - 重构版本
 
 作者: Chel
 创建日期: 2025-06-19
-版本: 1.2.0
-更新日期: 2025-06-20
-修复: 并行执行，统计分析，内存优化，错误处理
+版本: 1.3.0
+更新日期: 2025-07-07
+重构: 模块化架构，分离可视化、统计分析和报告生成
 """
 
 import time
@@ -20,23 +20,6 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import multiprocessing as mp
 
-# 安全导入字体配置模块
-try:
-    from utils.font_decorator import with_chinese_font, plotting_ready
-    DECORATOR_AVAILABLE = True
-except ImportError:
-    logger.warning("字体装饰器模块未找到")
-    DECORATOR_AVAILABLE = False
-    
-    # 创建空装饰器作为备用
-    def with_chinese_font(func):
-        return func
-    
-    def plotting_ready(**kwargs):
-        def decorator(func):
-            return func
-        return decorator
-
 # 配置日志
 logger = logging.getLogger(__name__)
 
@@ -45,8 +28,6 @@ ANALYSIS_LIBS_AVAILABLE = False
 try:
     import pandas as pd
     import numpy as np
-    import matplotlib.pyplot as plt
-    import seaborn as sns
     ANALYSIS_LIBS_AVAILABLE = True
     logger.info("分析库加载成功")
 except ImportError as e:
@@ -67,9 +48,14 @@ except ImportError:
 
 # 本地模块导入
 try:
-    from core.ansa_mesh_optimizer_improved import MeshOptimizer, optimize_mesh_parameters
-    from config.config import config_manager
-    from utils.utils import performance_monitor, format_execution_time, calculate_statistics
+    from src.core.ansa_mesh_optimizer_refactored import MeshOptimizer, optimize_mesh_parameters
+    from src.config.config import config_manager
+    from src.utils.utils import performance_monitor, format_execution_time, calculate_statistics
+    
+    # 导入新的模块化组件
+    from src.visualization.comparison_visualizer import ComparisonVisualizer
+    from src.analysis.statistical_analyzer import StatisticalAnalyzer
+    from src.reports.comparison_reporter import ComparisonReporter
 except ImportError as e:
     logger.error(f"本地模块导入失败: {e}")
     raise
@@ -77,14 +63,14 @@ except ImportError as e:
 class OptimizationComparison:
     """优化器比较分析类 - 增强版本"""
     
-    def __init__(self, 
-                 optimizers: List[str] = None,
+    def __init__(self,
+                 optimizers: Optional[List[str]] = None,
                  n_calls: int = 30,
                  evaluator_type: str = 'mock',
                  n_runs: int = 1,
                  use_cache: bool = False,
                  parallel_execution: bool = False,
-                 max_workers: int = None):
+                 max_workers: Optional[int] = None):
         """
         初始化优化器比较
         
@@ -171,14 +157,24 @@ class OptimizationComparison:
             self._generate_comparison_summary()
             
             # 保存结果
-            self._save_results()
+            reporter = ComparisonReporter(self.results_dir)
+            reporter.save_all_results(
+                self.results,
+                self.comparison_summary,
+                self.comparison_metadata,
+                self.optimizers,
+                self.failed_runs
+            )
             
             # 生成可视化报告
             if ANALYSIS_LIBS_AVAILABLE:
                 try:
-                    self._generate_visualizations()
+                    visualizer = ComparisonVisualizer(self.results_dir)
+                    visualizer.generate_all_visualizations(self.results, self.optimizers, self.execution_times)
+                    
                     if SCIPY_AVAILABLE:
-                        self._generate_statistical_analysis()
+                        analyzer = StatisticalAnalyzer(self.results_dir)
+                        analyzer.generate_statistical_analysis(self.results, self.optimizers)
                 except Exception as e:
                     logger.warning(f"生成可视化报告失败: {e}")
             
@@ -199,7 +195,7 @@ class OptimizationComparison:
     def _check_optimizers_availability(self) -> List[str]:
         """检查优化器可用性"""
         try:
-            from core.ansa_mesh_optimizer_improved import check_dependencies
+            from src.core.ansa_mesh_optimizer_refactored import check_dependencies
             deps = check_dependencies()
             
             available_optimizers = []
@@ -338,15 +334,33 @@ class OptimizationComparison:
                     **extra_kwargs
                 )
                 
-                # 添加运行特定信息
-                result.update({
-                    'run_index': run_idx,
-                    'optimizer': optimizer,
-                    'evaluator_type': self.evaluator_type,
-                    'random_seed': run_config.random_state
-                })
+                # 将OptimizationResult转换为字典并添加运行特定信息
+                if hasattr(result, 'to_dict'):
+                    result_dict = result.to_dict()
+                else:
+                    result_dict = result
                 
-                return result
+                # 确保result_dict是字典类型
+                if isinstance(result_dict, dict):
+                    result_dict.update({
+                        'run_index': run_idx,
+                        'optimizer': optimizer,
+                        'evaluator_type': self.evaluator_type,
+                        'random_seed': run_config.random_state
+                    })
+                else:
+                    # 如果不是字典，创建一个新的字典
+                    result_dict = {
+                        'best_value': getattr(result, 'best_value', float('inf')),
+                        'best_params': getattr(result, 'best_params', {}),
+                        'execution_time': getattr(result, 'execution_time', 0),
+                        'run_index': run_idx,
+                        'optimizer': optimizer,
+                        'evaluator_type': self.evaluator_type,
+                        'random_seed': run_config.random_state
+                    }
+                
+                return result_dict
                 
         finally:
             # 恢复原始随机种子
@@ -412,7 +426,7 @@ class OptimizationComparison:
             try:
                 self.comparison_summary = pd.DataFrame(summary_data)
                 # 排序（按平均最佳值）
-                if not self.comparison_summary.empty:
+                if hasattr(self.comparison_summary, 'empty') and not self.comparison_summary.empty:
                     self.comparison_summary = self.comparison_summary.sort_values('mean_best_value')
             except Exception as e:
                 logger.warning(f"创建pandas DataFrame失败: {e}")
@@ -494,7 +508,10 @@ class OptimizationComparison:
             summary_data = self.comparison_summary
         else:
             try:
-                summary_data = self.comparison_summary.to_dict('records')
+                if self.comparison_summary is not None and hasattr(self.comparison_summary, 'to_dict'):
+                    summary_data = self.comparison_summary.to_dict('records')
+                else:
+                    summary_data = [{'error': 'Summary conversion failed'}]
             except:
                 summary_data = [{'error': 'Summary conversion failed'}]
         
@@ -602,383 +619,6 @@ class OptimizationComparison:
         except Exception as e:
             logger.error(f"保存详细报告失败: {e}")
     
-    def _generate_visualizations(self) -> None:
-        """生成可视化图表"""
-        if not ANALYSIS_LIBS_AVAILABLE:
-            logger.warning("可视化库不可用，跳过图表生成")
-            return
-        
-        try:
-            # 设置样式
-            plt.style.use('default')
-            if 'sns' in globals():
-                sns.set_palette("husl")
-            
-            # 1. 性能比较图
-            self._plot_performance_comparison()
-            
-            # 2. 执行时间比较图
-            self._plot_execution_time_comparison()
-            
-            # 3. 箱线图
-            self._plot_box_plots()
-            
-            # 4. 散点图矩阵
-            self._plot_scatter_matrix()
-            
-            # 5. 收敛性分析
-            self._plot_convergence_analysis()
-            
-            logger.info("可视化图表已生成")
-            
-        except Exception as e:
-            logger.error(f"生成可视化图表失败: {e}")
-            logger.debug(traceback.format_exc())
-    
-    @with_chinese_font
-    def _plot_performance_comparison(self) -> None:
-        """绘制性能比较图"""
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-        
-        # 准备数据
-        optimizers = []
-        mean_values = []
-        std_values = []
-        
-        for optimizer in self.optimizers:
-            runs = self.results.get(optimizer, [])
-            successful_runs = [r for r in runs if not r.get('failed', False)]
-            
-            if successful_runs:
-                values = [r['best_value'] for r in successful_runs]
-                optimizers.append(optimizer)
-                mean_values.append(np.mean(values))
-                std_values.append(np.std(values))
-        
-        if not optimizers:
-            logger.warning("没有数据可用于性能比较图")
-            plt.close(fig)
-            return
-        
-        # 柱状图（平均值 + 误差棒）
-        x_pos = np.arange(len(optimizers))
-        colors = plt.cm.Set3(np.linspace(0, 1, len(optimizers)))
-        bars = ax1.bar(x_pos, mean_values, yerr=std_values, capsize=5, 
-                      alpha=0.8, color=colors)
-        ax1.set_xlabel('优化器')
-        ax1.set_ylabel('目标值')
-        ax1.set_title('优化器性能比较（平均值 ± 标准差）')
-        ax1.set_xticks(x_pos)
-        ax1.set_xticklabels(optimizers, rotation=45)
-        ax1.grid(True, alpha=0.3)
-        
-        # 添加数值标签
-        for i, (mean_val, std_val) in enumerate(zip(mean_values, std_values)):
-            ax1.text(i, mean_val + std_val + max(mean_values) * 0.01, 
-                    f'{mean_val:.3f}', ha='center', va='bottom', fontsize=9)
-        
-        # 散点图（所有运行结果）
-        for i, optimizer in enumerate(optimizers):
-            successful_runs = [r for r in self.results[optimizer] if not r.get('failed', False)]
-            values = [r['best_value'] for r in successful_runs]
-            x_scatter = [i + np.random.uniform(-0.2, 0.2) for _ in values]  # 添加抖动
-            ax2.scatter(x_scatter, values, alpha=0.6, s=50, 
-                       label=optimizer, color=colors[i])
-        
-        ax2.set_xlabel('优化器')
-        ax2.set_ylabel('目标值')
-        ax2.set_title('所有运行结果分布')
-        ax2.set_xticks(x_pos)
-        ax2.set_xticklabels(optimizers, rotation=45)
-        ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-        ax2.grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        plt.savefig(self.results_dir / 'performance_comparison.png', dpi=300, bbox_inches='tight')
-        plt.close()
-    
-    @with_chinese_font
-    def _plot_execution_time_comparison(self) -> None:
-        """绘制执行时间比较图"""
-        fig, ax = plt.subplots(figsize=(10, 6))
-        
-        # 准备数据
-        optimizers = []
-        mean_times = []
-        std_times = []
-        
-        for optimizer in self.optimizers:
-            execution_times = self.execution_times.get(optimizer, [])
-            if execution_times:
-                optimizers.append(optimizer)
-                mean_times.append(np.mean(execution_times))
-                std_times.append(np.std(execution_times))
-        
-        if not optimizers:
-            logger.warning("没有数据可用于执行时间比较图")
-            plt.close(fig)
-            return
-        
-        # 柱状图
-        x_pos = np.arange(len(optimizers))
-        colors = plt.cm.viridis(np.linspace(0, 1, len(optimizers)))
-        bars = ax.bar(x_pos, mean_times, yerr=std_times, capsize=5, 
-                     alpha=0.8, color=colors)
-        
-        ax.set_xlabel('优化器')
-        ax.set_ylabel('执行时间 (秒)')
-        ax.set_title('优化器执行时间比较')
-        ax.set_xticks(x_pos)
-        ax.set_xticklabels(optimizers, rotation=45)
-        ax.grid(True, alpha=0.3)
-        
-        # 添加数值标签
-        for i, (mean_time, std_time) in enumerate(zip(mean_times, std_times)):
-            ax.text(i, mean_time + std_time + max(mean_times) * 0.02, 
-                   f'{mean_time:.1f}s', ha='center', va='bottom', fontsize=9)
-        
-        plt.tight_layout()
-        plt.savefig(self.results_dir / 'execution_time_comparison.png', dpi=300, bbox_inches='tight')
-        plt.close()
-    
-    @with_chinese_font
-    def _plot_box_plots(self) -> None:
-        """绘制箱线图"""
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-        
-        # 准备数据
-        performance_data = []
-        time_data = []
-        labels = []
-        
-        for optimizer in self.optimizers:
-            runs = self.results.get(optimizer, [])
-            successful_runs = [r for r in runs if not r.get('failed', False)]
-            
-            if successful_runs:
-                values = [r['best_value'] for r in successful_runs]
-                times = [r.get('execution_time', 0) for r in successful_runs]
-                
-                performance_data.append(values)
-                time_data.append(times)
-                labels.append(optimizer)
-        
-        if not performance_data:
-            logger.warning("没有数据可用于箱线图")
-            plt.close(fig)
-            return
-        
-        # 性能箱线图
-        bp1 = ax1.boxplot(performance_data, labels=labels, patch_artist=True)
-        ax1.set_xlabel('优化器')
-        ax1.set_ylabel('目标值')
-        ax1.set_title('优化器性能分布（箱线图）')
-        ax1.tick_params(axis='x', rotation=45)
-        ax1.grid(True, alpha=0.3)
-        
-        # 执行时间箱线图
-        bp2 = ax2.boxplot(time_data, labels=labels, patch_artist=True)
-        ax2.set_xlabel('优化器')
-        ax2.set_ylabel('执行时间 (秒)')
-        ax2.set_title('优化器执行时间分布（箱线图）')
-        ax2.tick_params(axis='x', rotation=45)
-        ax2.grid(True, alpha=0.3)
-        
-        # 设置颜色
-        colors = plt.cm.Set3(np.linspace(0, 1, len(labels)))
-        for patch, color in zip(bp1['boxes'], colors):
-            patch.set_facecolor(color)
-        for patch, color in zip(bp2['boxes'], colors):
-            patch.set_facecolor(color)
-        
-        plt.tight_layout()
-        plt.savefig(self.results_dir / 'box_plots.png', dpi=300, bbox_inches='tight')
-        plt.close()
-    
-    @with_chinese_font
-    def _plot_scatter_matrix(self) -> None:
-        """绘制散点图矩阵"""
-        if not isinstance(self.comparison_summary, type(pd.DataFrame())):
-            return
-        
-        try:
-            # 选择数值列
-            numeric_cols = ['mean_best_value', 'std_best_value', 'mean_execution_time', 
-                          'efficiency_score', 'robustness_score']
-            
-            available_cols = [col for col in numeric_cols if col in self.comparison_summary.columns]
-            
-            if len(available_cols) < 2:
-                logger.warning("数据不足，无法生成散点图矩阵")
-                return
-            
-            data_for_plot = self.comparison_summary[available_cols]
-            
-            fig, axes = plt.subplots(len(available_cols), len(available_cols), 
-                                   figsize=(12, 12))
-            
-            for i, col1 in enumerate(available_cols):
-                for j, col2 in enumerate(available_cols):
-                    ax = axes[i, j]
-                    
-                    if i == j:
-                        # 对角线：直方图
-                        ax.hist(data_for_plot[col1], bins=10, alpha=0.7)
-                        ax.set_title(col1)
-                    else:
-                        # 非对角线：散点图
-                        ax.scatter(data_for_plot[col2], data_for_plot[col1], alpha=0.7)
-                        
-                        # 添加优化器标签
-                        for idx, row in self.comparison_summary.iterrows():
-                            ax.annotate(row['optimizer'], 
-                                      (row[col2], row[col1]), 
-                                      xytext=(5, 5), textcoords='offset points',
-                                      fontsize=8, alpha=0.7)
-                    
-                    if i == len(available_cols) - 1:
-                        ax.set_xlabel(col2)
-                    if j == 0:
-                        ax.set_ylabel(col1)
-            
-            plt.tight_layout()
-            plt.savefig(self.results_dir / 'scatter_matrix.png', dpi=300, bbox_inches='tight')
-            plt.close()
-            
-        except Exception as e:
-            logger.warning(f"生成散点图矩阵失败: {e}")
-    
-    @with_chinese_font
-    def _plot_convergence_analysis(self) -> None:
-        """绘制收敛性分析图"""
-        # 这是一个简化的收敛分析，基于最终结果
-        fig, ax = plt.subplots(figsize=(10, 6))
-        
-        for optimizer in self.optimizers:
-            runs = self.results.get(optimizer, [])
-            successful_runs = [r for r in runs if not r.get('failed', False)]
-            
-            if successful_runs:
-                values = [r['best_value'] for r in successful_runs]
-                iterations = [self.n_calls] * len(values)
-                
-                # 添加一些随机噪声来显示分布
-                iterations_jittered = [it + np.random.normal(0, self.n_calls * 0.01) for it in iterations]
-                
-                ax.scatter(iterations_jittered, values, alpha=0.6, label=optimizer, s=50)
-        
-        ax.set_xlabel('迭代次数')
-        ax.set_ylabel('最终目标值')
-        ax.set_title('优化器收敛性分析')
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        plt.savefig(self.results_dir / 'convergence_analysis.png', dpi=300, bbox_inches='tight')
-        plt.close()
-    
-    def _generate_statistical_analysis(self) -> None:
-        """生成统计分析报告"""
-        if not SCIPY_AVAILABLE:
-            logger.warning("scipy不可用，跳过统计分析")
-            return
-        
-        try:
-            # 准备数据进行统计检验
-            performance_data = {}
-            time_data = {}
-            
-            for optimizer in self.optimizers:
-                runs = self.results.get(optimizer, [])
-                successful_runs = [r for r in runs if not r.get('failed', False)]
-                
-                if len(successful_runs) > 1:
-                    performance_data[optimizer] = [r['best_value'] for r in successful_runs]
-                    time_data[optimizer] = [r.get('execution_time', 0) for r in successful_runs]
-            
-            if len(performance_data) < 2:
-                logger.warning("统计分析需要至少2个优化器的多次运行数据")
-                return
-            
-            # 生成统计报告
-            self._write_statistical_report(performance_data, time_data)
-            
-        except Exception as e:
-            logger.error(f"统计分析失败: {e}")
-    
-    def _write_statistical_report(self, performance_data: Dict[str, List[float]], 
-                                time_data: Dict[str, List[float]]) -> None:
-        """写入统计分析报告"""
-        stats_report = self.results_dir / 'statistical_analysis.txt'
-        
-        with open(stats_report, 'w', encoding='utf-8') as f:
-            f.write("统计分析报告\n")
-            f.write("=" * 50 + "\n\n")
-            
-            # 描述性统计
-            f.write("描述性统计:\n")
-            f.write("-" * 30 + "\n")
-            
-            for optimizer, values in performance_data.items():
-                f.write(f"\n{optimizer} (性能):\n")
-                f.write(f"  样本数: {len(values)}\n")
-                f.write(f"  均值: {np.mean(values):.6f}\n")
-                f.write(f"  标准差: {np.std(values):.6f}\n")
-                f.write(f"  中位数: {np.median(values):.6f}\n")
-                f.write(f"  最小值: {np.min(values):.6f}\n")
-                f.write(f"  最大值: {np.max(values):.6f}\n")
-            
-            # 正态性检验
-            f.write("\n\n正态性检验 (Shapiro-Wilk):\n")
-            f.write("-" * 40 + "\n")
-            
-            for optimizer, values in performance_data.items():
-                if len(values) >= 3:
-                    try:
-                        stat, p_value = stats.shapiro(values)
-                        f.write(f"{optimizer}: 统计量={stat:.4f}, p值={p_value:.4f}")
-                        f.write(f" ({'正态分布' if p_value > 0.05 else '非正态分布'})\n")
-                    except Exception as e:
-                        f.write(f"{optimizer}: 检验失败 ({e})\n")
-            
-            # 两两比较
-            f.write("\n\n两两比较:\n")
-            f.write("-" * 30 + "\n")
-            
-            optimizers_list = list(performance_data.keys())
-            for i in range(len(optimizers_list)):
-                for j in range(i + 1, len(optimizers_list)):
-                    opt1, opt2 = optimizers_list[i], optimizers_list[j]
-                    values1, values2 = performance_data[opt1], performance_data[opt2]
-                    
-                    if len(values1) >= 3 and len(values2) >= 3:
-                        try:
-                            # 使用Mann-Whitney U检验（非参数）
-                            stat, p_value = stats.mannwhitneyu(values1, values2, alternative='two-sided')
-                            
-                            f.write(f"\n{opt1} vs {opt2} (Mann-Whitney U检验):\n")
-                            f.write(f"  统计量: {stat:.4f}\n")
-                            f.write(f"  p值: {p_value:.4f}\n")
-                            f.write(f"  结果: {'显著差异' if p_value < 0.05 else '无显著差异'}\n")
-                            
-                        except Exception as e:
-                            f.write(f"\n{opt1} vs {opt2}: 检验失败 ({e})\n")
-            
-            # 方差分析（如果有多个组）
-            if len(performance_data) > 2:
-                f.write("\n\nKruskal-Wallis检验 (非参数方差分析):\n")
-                f.write("-" * 45 + "\n")
-                
-                try:
-                    values_list = list(performance_data.values())
-                    h_stat, p_value = stats.kruskal(*values_list)
-                    f.write(f"H统计量: {h_stat:.4f}\n")
-                    f.write(f"p值: {p_value:.4f}\n")
-                    f.write(f"结果: {'组间存在显著差异' if p_value < 0.05 else '组间无显著差异'}\n")
-                except Exception as e:
-                    f.write(f"Kruskal-Wallis检验失败: {e}\n")
-        
-        logger.info(f"统计分析报告已保存: {stats_report}")
     
     def _build_final_result(self) -> Dict[str, Any]:
         """构建最终结果"""

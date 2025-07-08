@@ -125,6 +125,11 @@ class RecognizeChampersReplacementStrategy(ParameterReplacementStrategy):
     
     def replace_parameters(self, file_path: str, params: Dict[str, float]) -> str:
         """替换recognize_chamfers参数"""
+<<<<<<< HEAD
+=======
+        output_file = file_path + "_chamfers_updated"
+        
+>>>>>>> main
         try:
             # 提取参数值
             chamfer_params = self._extract_chamfer_params(params)
@@ -138,6 +143,7 @@ class RecognizeChampersReplacementStrategy(ParameterReplacementStrategy):
             # 执行替换
             updated_content = self._perform_chamfer_replacements(content, chamfer_params)
             
+<<<<<<< HEAD
             # 生成新文件路径
             updated_file_path = self._generate_output_path(file_path, "_chamfer_updated")
             
@@ -147,6 +153,14 @@ class RecognizeChampersReplacementStrategy(ParameterReplacementStrategy):
                         
             logger.info(f"recognize_chamfers 参数替换完成，结果保存至: {updated_file_path}")
             return updated_file_path
+=======
+            # 写入更新后的文件
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(updated_content)
+            
+            logger.info(f"recognize_chamfers 参数替换完成，结果保存至: {output_file}")
+            return output_file
+>>>>>>> main
             
         except Exception as e:
             logger.error(f"recognize_chamfers 参数替换失败: {e}")
@@ -190,12 +204,15 @@ class RecognizeChampersReplacementStrategy(ParameterReplacementStrategy):
             logger.debug(f"应用替换: {pattern_info['description']}")
         
         return updated_content
+<<<<<<< HEAD
     
     def _generate_output_path(self, file_path: str, suffix: str) -> str:
         """生成输出文件路径"""
         base_name = os.path.splitext(os.path.basename(file_path))[0]
         dir_name = os.path.dirname(file_path)
         return os.path.join(dir_name, f"{base_name}{suffix}.ansa_mpar")
+=======
+>>>>>>> main
 
 class RuleChamferReplacementStrategy(ParameterReplacementStrategy):
     """Rule Chamfer参数替换策略"""

@@ -21,12 +21,16 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# 安全导入matplotlib
+# 安全导入matplotlib和显示配置
 try:
+    from utils.display_config import configure_matplotlib_for_display, safe_show, safe_close
+    configure_matplotlib_for_display()
     import matplotlib.pyplot as plt
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
+    safe_show = None
+    safe_close = None
     logger.warning("matplotlib不可用，无法生成图表")
 
 # 尝试导入字体装饰器模块
@@ -524,11 +528,14 @@ class GeneticOptimizer:
         current_best = min(population)
         
         # 更新当前代最佳
-        if self.best_individual is None or current_best.fitness < self.best_individual.fitness:
+        if (self.best_individual is None or
+            (current_best.fitness is not None and
+             (self.best_individual.fitness is None or current_best.fitness < self.best_individual.fitness))):
             self.best_individual = current_best.copy()
         
         # 更新历史最佳
-        if current_best.fitness < self.best_ever_fitness:
+        if (current_best.fitness is not None and
+            (self.best_ever_fitness is None or current_best.fitness < self.best_ever_fitness)):
             self.best_ever_fitness = current_best.fitness
             self.best_ever_individual = current_best.copy()
     

@@ -295,9 +295,9 @@ class ConfigManager:
             else:
                 logger.warning(f"Unknown configuration key: {key}")
     
-    def _dataclass_to_dict(self, obj: Any) -> Dict:
+    def _dataclass_to_dict(self, obj: Any) -> Dict[str, Any]:
         """将数据类转换为字典"""
-        result = {}
+        result: Dict[str, Any] = {}
         for key, value in obj.__dict__.items():
             if isinstance(value, Path):
                 result[key] = str(value)
