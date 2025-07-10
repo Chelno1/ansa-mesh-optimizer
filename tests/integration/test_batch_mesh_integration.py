@@ -93,8 +93,8 @@ class TestBatchMeshIntegration(unittest.TestCase):
     def test_config_validation(self):
         """测试配置验证"""
         # 设置无效配置
-        self.config.min_element_length = -1.0
-        self.config.max_element_length = 0.0
+        self.config.min_length = -1.0
+        self.config.max_length = 0.0
         
         # 验证配置
         is_valid, errors = self.config.validate()

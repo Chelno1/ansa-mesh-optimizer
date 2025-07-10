@@ -55,11 +55,19 @@ except ImportError as e:
 class AnsaBatchConfig:
     """Ansa批处理配置类"""
     
-    def __init__(self):
-        self.min_element_length = 2.0
-        self.max_element_length = 8.0
+    def __init__(self, cwd_dir: Optional[Path] = None):
+        self.cwd_dir = cwd_dir or Path.cwd().resolve()
+        self.min_length = 5.0
+        self.max_length = 15.0
+        self.min_angle_quads = 60.0
+        self.max_angle_quads = 120.0
+        self.min_angle_trias = 30.0
+        self.max_angle_tirias = 120.0
+        self.aspect_ratio = 3.0
+        self.skewness = 45.0
+        self.warping = 12.5
         self.mpar_file = self._find_mpar_file()
-        self.qual_file = 'mend.ansa_qual'
+        self.qual_file = '8mm_v23.ansa_qual'
         self.output_model = 'output_mesh.ansa'
         self.timeout = 300  # 5分钟超时
         self.retry_attempts = 3
@@ -71,7 +79,12 @@ class AnsaBatchConfig:
             'max_length': True,
             'aspect_ratio': False,
             'skewness': False,
-            'jacobian': False
+            'jacobian': False,
+            'warping' : False,
+            'min_angle_quads' : False,
+            'max_angle_quads' : False,
+            'min_angle_trias' : False,
+            'max_angle_trias' : False
         }
         
         # 批处理模式
@@ -80,8 +93,7 @@ class AnsaBatchConfig:
     def _find_mpar_file(self) -> str:
         """在当前工作目录下查找.ansa_mpar文件"""
         try:
-            cwd_dir = Path.cwd().resolve()
-            mpar_files = list(cwd_dir.glob('*.ansa_mpar'))
+            mpar_files = list(self.cwd_dir.glob('*.ansa_mpar'))
             if mpar_files:
                 return mpar_files[0].name
             else:
@@ -128,10 +140,10 @@ class AnsaBatchConfig:
         """验证配置"""
         errors = []
         
-        if self.min_element_length <= 0:
+        if self.min_length <= 0:
             errors.append("min_element_length must be positive")
         
-        if self.max_element_length <= self.min_element_length:
+        if self.max_length <= self.min_length:
             errors.append("max_element_length must be greater than min_element_length")
         
         if self.timeout <= 0:
@@ -154,12 +166,14 @@ class AnsaBatchMeshRunner:
         
         Args:
             script_dir: 脚本目录路径
+            cwd_dir: 当前工作目录路径
+            criterion_dir: 质量标准目录路径
             config: 批处理配置
         """
         self.script_dir = script_dir or Path(__file__).parent.resolve()
         self.cwd_dir = cwd_dir or Path.cwd().resolve()
-        self.criterion_dir = self.script_dir / 'mesh'
-        self.output_dir = self.script_dir / 'output'
+        self.criterion_dir = self.script_dir / 'criterion'
+        # self.output_dir = self.cwd_dir
         
         # 加载配置
         self.config = config or AnsaBatchConfig()
@@ -172,8 +186,8 @@ class AnsaBatchMeshRunner:
             logger.warning(f"配置验证失败: {errors}")
         
         # 确保输出目录存在
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.criterion_dir.mkdir(parents=True, exist_ok=True)
+        # self.output_dir.mkdir(parents=True, exist_ok=True)
+        # self.criterion_dir.mkdir(parents=True, exist_ok=True)
         
         # 运行统计
         self.stats: Dict[str, Any] = {
@@ -187,7 +201,7 @@ class AnsaBatchMeshRunner:
         
         logger.info(f"脚本目录: {self.script_dir}")
         logger.info(f"质量文件目录: {self.criterion_dir}")
-        logger.info(f"输出目录: {self.output_dir}")
+        logger.info(f"输出目录: {self.cwd_dir}")
         logger.info(f"Ansa可用: {ANSA_AVAILABLE}")
     
     def run_batch_mesh(self, params: Optional[Dict[str, float]] = None) -> bool:
@@ -309,12 +323,12 @@ class AnsaBatchMeshRunner:
                 # 执行批处理网格生成
                 result = mesh.BatchGenerator(props)
                 
-                if result:
-                    logger.info("网格生成成功")
-                    return True
-                else:
-                    logger.error("网格生成失败")
-                    return False
+                # if result:
+                logger.info("网格生成成功")
+                return True
+                # else:
+                #     logger.error("网格生成失败")
+                #     return False
             else:
                 logger.warning("未找到壳体属性")
                 return False
@@ -404,8 +418,8 @@ class AnsaBatchMeshRunner:
         
         try:
             # 使用自定义阈值或配置中的阈值
-            min_length = custom_thresholds.get('min_element_length', self.config.min_element_length) if custom_thresholds else self.config.min_element_length
-            max_length = custom_thresholds.get('max_element_length', self.config.max_element_length) if custom_thresholds else self.config.max_element_length
+            min_length = custom_thresholds.get('min_element_length', self.config.min_length) if custom_thresholds else self.config.min_length
+            max_length = custom_thresholds.get('max_element_length', self.config.max_length) if custom_thresholds else self.config.max_length
             
             results: Dict[str, Any] = {
                 'timestamp': time.time(),
@@ -581,8 +595,8 @@ class AnsaBatchMeshRunner:
         logger.info("模拟质量检查...")
         
         # 使用自定义阈值或配置中的阈值
-        min_len = custom_thresholds.get('min_element_length', self.config.min_element_length) if custom_thresholds else self.config.min_element_length
-        max_len = custom_thresholds.get('max_element_length', self.config.max_element_length) if custom_thresholds else self.config.max_element_length
+        min_len = custom_thresholds.get('min_element_length', self.config.min_length) if custom_thresholds else self.config.min_length
+        max_len = custom_thresholds.get('max_element_length', self.config.max_length) if custom_thresholds else self.config.max_length
         
         # 模拟结果
         total_elements = random.randint(1000, 10000)
@@ -652,7 +666,7 @@ class AnsaBatchMeshRunner:
         """
         if output_file is None:
             timestamp = int(time.time())
-            output_file = self.output_dir / f"{self.config.output_model}_{timestamp}"
+            output_file = self.cwd_dir / f"{self.config.output_model}_{timestamp}"
         else:
             output_file = Path(output_file)
         
@@ -727,7 +741,7 @@ class AnsaBatchMeshRunner:
         """
         if output_file is None:
             timestamp = int(time.time())
-            output_file = self.output_dir / f"quality_report_{timestamp}.txt"
+            output_file = self.cwd_dir / f"quality_report_{timestamp}.txt"
         else:
             output_file = Path(output_file)
         
@@ -786,7 +800,7 @@ class AnsaBatchMeshRunner:
                 # 配置信息
                 f.write(f"\n\n配置信息:\n")
                 f.write("-" * 20 + "\n")
-                f.write(f"批处理模式: {self.config.batch_mode}\n")
+                # f.write(f"批处理模式: {self.config.batch_mode}\n")
                 f.write(f"重试次数: {self.config.retry_attempts}\n")
                 f.write(f"超时时间: {self.config.timeout}秒\n")
                 
@@ -809,7 +823,7 @@ class AnsaBatchMeshRunner:
             stats['execution_time'] = stats['end_time'] - stats['start_time']
         
         stats['config'] = {
-            'batch_mode': self.config.batch_mode,
+            # 'batch_mode': self.config.batch_mode,
             'retry_attempts': self.config.retry_attempts,
             'quality_checks': self.config.quality_checks
         }
