@@ -20,7 +20,9 @@ import traceback
 
 # 设置脚本目录
 script_dir = Path(__file__).parent.resolve()
+cwd_dir = Path.cwd().resolve()
 sys.path.append(str(script_dir))
+sys.path.append(str(cwd_dir))
 
 # 配置日志
 def setup_logging(log_level=logging.INFO):
@@ -29,7 +31,7 @@ def setup_logging(log_level=logging.INFO):
         level=log_level,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler(script_dir / 'ansa_batch.log'),
+            logging.FileHandler(cwd_dir / 'ansa_batch.log'),
             logging.StreamHandler()
         ]
     )
@@ -56,7 +58,7 @@ class AnsaBatchConfig:
     def __init__(self):
         self.min_element_length = 2.0
         self.max_element_length = 8.0
-        self.mpar_file = 'mend.ansa_mpar'
+        self.mpar_file = self._find_mpar_file()
         self.qual_file = 'mend.ansa_qual'
         self.output_model = 'output_mesh.ansa'
         self.timeout = 300  # 5分钟超时
@@ -73,20 +75,34 @@ class AnsaBatchConfig:
         }
         
         # 批处理模式
-        self.batch_mode = 'conservative'  # conservative, aggressive, balanced
+        # self.batch_mode = 'conservative'  # conservative, aggressive, balanced
+    
+    def _find_mpar_file(self) -> str:
+        """在当前工作目录下查找.ansa_mpar文件"""
+        try:
+            cwd_dir = Path.cwd().resolve()
+            mpar_files = list(cwd_dir.glob('*.ansa_mpar'))
+            if mpar_files:
+                return mpar_files[0].name
+            else:
+                # 如果没有找到，返回默认值
+                return 'mend.ansa_mpar'
+        except Exception as e:
+            logger.warning(f"查找.ansa_mpar文件失败: {e}")
+            return 'mend.ansa_mpar'
         
-    def load_from_file(self, config_file: Path) -> None:
+    def load_from_file(self, json_config_file: Path) -> None:
         """从文件加载配置"""
         try:
-            if config_file.exists():
-                with open(config_file, 'r', encoding='utf-8') as f:
+            if json_config_file.exists():
+                with open(json_config_file, 'r', encoding='utf-8') as f:
                     config_data = json.load(f)
                 
                 for key, value in config_data.items():
                     if hasattr(self, key):
                         setattr(self, key, value)
                 
-                logger.info(f"配置已从{config_file}加载")
+                logger.info(f"配置已从{json_config_file}加载")
             else:
                 logger.info("配置文件不存在，使用默认配置")
         except Exception as e:
@@ -124,15 +140,15 @@ class AnsaBatchConfig:
         if self.retry_attempts < 0:
             errors.append("retry_attempts must be non-negative")
         
-        if self.batch_mode not in ['conservative', 'aggressive', 'balanced']:
-            errors.append("batch_mode must be 'conservative', 'aggressive', or 'balanced'")
+        # if self.batch_mode not in ['conservative', 'aggressive', 'balanced']:
+        #     errors.append("batch_mode must be 'conservative', 'aggressive', or 'balanced'")
         
         return len(errors) == 0, errors
 
 class AnsaBatchMeshRunner:
     """Ansa批处理网格运行器 - 增强版本"""
     
-    def __init__(self, script_dir: Optional[Path] = None, config: Optional[AnsaBatchConfig] = None):
+    def __init__(self, script_dir: Optional[Path] = None, cwd_dir: Optional[Path] = None, config: Optional[AnsaBatchConfig] = None):
         """
         初始化批处理运行器
         
@@ -141,13 +157,14 @@ class AnsaBatchMeshRunner:
             config: 批处理配置
         """
         self.script_dir = script_dir or Path(__file__).parent.resolve()
-        self.mesh_dir = self.script_dir / 'mesh'
+        self.cwd_dir = cwd_dir or Path.cwd().resolve()
+        self.criterion_dir = self.script_dir / 'mesh'
         self.output_dir = self.script_dir / 'output'
         
         # 加载配置
         self.config = config or AnsaBatchConfig()
-        config_file = self.script_dir / 'batch_config.json'
-        self.config.load_from_file(config_file)
+        json_config_file = self.cwd_dir / 'mesh_config.json'
+        self.config.load_from_file(json_config_file)
         
         # 验证配置
         is_valid, errors = self.config.validate()
@@ -156,7 +173,7 @@ class AnsaBatchMeshRunner:
         
         # 确保输出目录存在
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.mesh_dir.mkdir(parents=True, exist_ok=True)
+        self.criterion_dir.mkdir(parents=True, exist_ok=True)
         
         # 运行统计
         self.stats: Dict[str, Any] = {
@@ -169,7 +186,7 @@ class AnsaBatchMeshRunner:
         }
         
         logger.info(f"脚本目录: {self.script_dir}")
-        logger.info(f"网格目录: {self.mesh_dir}")
+        logger.info(f"质量文件目录: {self.criterion_dir}")
         logger.info(f"输出目录: {self.output_dir}")
         logger.info(f"Ansa可用: {ANSA_AVAILABLE}")
     
@@ -245,7 +262,7 @@ class AnsaBatchMeshRunner:
     def _load_mesh_parameters(self) -> bool:
         """加载网格参数"""
         try:
-            mpar_file = self.mesh_dir / self.config.mpar_file
+            mpar_file = self.cwd_dir / self.config.mpar_file
             if mpar_file.exists():
                 if ANSA_AVAILABLE:
                     mesh.ReadMeshParams(str(mpar_file))
@@ -261,7 +278,7 @@ class AnsaBatchMeshRunner:
     def _load_quality_criteria(self) -> bool:
         """加载质量标准"""
         try:
-            qual_file = self.mesh_dir / self.config.qual_file
+            qual_file = self.criterion_dir / self.config.qual_file
             if qual_file.exists():
                 if ANSA_AVAILABLE:
                     mesh.ReadQualityCriteria(str(qual_file))
@@ -287,7 +304,7 @@ class AnsaBatchMeshRunner:
                 logger.info(f"找到{len(props)}个壳体属性")
                 
                 # 根据批处理模式设置参数
-                self._configure_batch_mode()
+                #self._configure_batch_mode()
                 
                 # 执行批处理网格生成
                 result = mesh.BatchGenerator(props)
@@ -306,28 +323,28 @@ class AnsaBatchMeshRunner:
             logger.error(f"执行批处理网格生成失败: {e}")
             raise
     
-    def _configure_batch_mode(self) -> None:
-        """配置批处理模式"""
-        if not ANSA_AVAILABLE:
-            return
+    # def _configure_batch_mode(self) -> None:
+    #     """配置批处理模式"""
+    #     if not ANSA_AVAILABLE:
+    #         return
         
-        try:
-            if self.config.batch_mode == 'conservative':
-                # 保守模式：更严格的质量控制
-                logger.info("使用保守批处理模式")
-                # 这里可以设置更严格的网格参数
+    #     try:
+    #         if self.config.batch_mode == 'conservative':
+    #             # 保守模式：更严格的质量控制
+    #             logger.info("使用保守批处理模式")
+    #             # 这里可以设置更严格的网格参数
                 
-            elif self.config.batch_mode == 'aggressive':
-                # 激进模式：更快速的网格生成
-                logger.info("使用激进批处理模式")
-                # 这里可以设置更宽松的网格参数
+    #         elif self.config.batch_mode == 'aggressive':
+    #             # 激进模式：更快速的网格生成
+    #             logger.info("使用激进批处理模式")
+    #             # 这里可以设置更宽松的网格参数
                 
-            else:  # balanced
-                # 平衡模式：默认设置
-                logger.info("使用平衡批处理模式")
+    #         else:  # balanced
+    #             # 平衡模式：默认设置
+    #             logger.info("使用平衡批处理模式")
                 
-        except Exception as e:
-            logger.warning(f"配置批处理模式失败: {e}")
+    #     except Exception as e:
+    #         logger.warning(f"配置批处理模式失败: {e}")
     
     def _simulate_batch_mesh(self, params: Optional[Dict[str, float]] = None) -> bool:
         """模拟批处理网格生成"""

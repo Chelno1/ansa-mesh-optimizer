@@ -252,8 +252,8 @@ class UnifiedParameterSpace:
             # 网格质量参数
             'distortion_distance': ParameterDefinition(
                 name='distortion_distance',
-                param_type=ParameterType.INTEGER,
-                bounds=(10, 30),
+                param_type=ParameterType.FLOAT,
+                bounds=(10.0, 30.0),
                 description='扭曲距离',
                 unit='%',
                 ansa_mapping='distortion-distance',

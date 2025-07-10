@@ -21,6 +21,9 @@ import tempfile
 import glob
 import time
 import random
+import shutil
+import json
+from datetime import datetime
 
 try:
     from config.config import UnifiedConfigManager
@@ -197,6 +200,12 @@ class AnsaMeshEvaluator(MeshEvaluator):
         self.config = config_manager.ansa_config
         self.param_mapping = config_manager.parameter_space.get_ansa_mapping()
         self.validator = ParameterValidator(config_manager.parameter_space)
+        
+        # 初始化参数替换策略管理器
+        from evaluators.parameter_replacement_strategies import ParameterReplacementManager, format_mpar_parameter_value
+        self.parameter_replacer = ParameterReplacementManager(config_manager)
+        self._format_parameter_value = format_mpar_parameter_value
+        
         self._validate_environment()
     
     
@@ -264,14 +273,20 @@ class AnsaMeshEvaluator(MeshEvaluator):
             return float('inf')
         
         try:
-            # 创建临时配置文件
-            config_file = self._create_temp_config(cleaned_params)
+            # 创建带时间戳的临时文件夹
+            temp_dir = self._create_timestamped_temp_dir()
             
-            # 处理参数文件替换
-            final_config_file = self._process_parameter_files(config_file, cleaned_params)
+            # 将*.ansa_mpar文件拷贝到临时文件夹
+            copied_mpar_files = self._copy_mpar_files_to_temp_dir(temp_dir)
+            
+            # 在临时文件夹中创建临时配置文件
+            config_file = self._create_temp_config_in_dir(temp_dir, cleaned_params)
+            
+            # 处理mpar参数文件替换（在临时文件夹中）
+            self._process_parameter_files_in_temp_dir(temp_dir, cleaned_params)
             
             # 运行Ansa批处理
-            bad_elements_count = self._run_ansa_batch(final_config_file)
+            bad_elements_count = self._run_ansa_batch(temp_dir)
             
             logger.info(f"网格评估完成: {bad_elements_count} 个不合格单元")
             return float(bad_elements_count)
@@ -281,35 +296,143 @@ class AnsaMeshEvaluator(MeshEvaluator):
             return float('inf')
         
         finally:
-            # 清理临时文件
-            self._cleanup_temp_files([
+            # 清理临时文件和文件夹
+            temp_files = [
                 locals().get('config_file'),
                 locals().get('final_config_file')
-            ])
-    
-    def _format_parameter_value(self, param_name: str, value: Any) -> str:
-        """
-        格式化参数值
-        
-        Args:
-            param_name: 参数名
-            value: 参数值
+            ]
+            temp_dir = locals().get('temp_dir')
             
-        Returns:
-            格式化后的参数值字符串
-        """
-        # 定义需要特殊格式化的参数
-        special_formatting = {
-            'distortion_distance': lambda v: f"{v}.%",
-            # 可以添加更多特殊格式化规则
-            # 'another_param': lambda v: f"{v}mm",
-        }
+            self._cleanup_temp_files(temp_files)
+            if temp_dir:
+                self._cleanup_temp_directory(temp_dir)
+    
+    # def _format_parameter_value(self, param_name: str, value: Any) -> str:
+    #     """
+    #     格式化参数值
         
-        if param_name in special_formatting:
-            return special_formatting[param_name](value)
-        else:
-            return str(value)
+    #     Args:
+    #         param_name: 参数名
+    #         value: 参数值
+            
+    #     Returns:
+    #         格式化后的参数值字符串
+    #     """
+    #     # 定义需要特殊格式化的参数
+    #     special_formatting = {
+    #         'distortion_distance': lambda v: f"{v}.%",
+    #         # 可以添加更多特殊格式化规则
+    #         # 'another_param': lambda v: f"{v}mm",
+    #     }
+        
+    #     if param_name in special_formatting:
+    #         return special_formatting[param_name](value)
+    #     else:
+    #         return str(value)
 
+    def _create_timestamped_temp_dir(self) -> str:
+        """创建带时间戳的临时文件夹"""
+        try:
+            # 生成时间戳
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # 毫秒精度
+            
+            # 创建临时目录名称
+            temp_dir_name = f"ansa_mesh_eval_{timestamp}"
+            temp_dir_path = os.path.join(tempfile.gettempdir(), temp_dir_name)
+            
+            # 创建目录
+            os.makedirs(temp_dir_path, exist_ok=True)
+            
+            logger.info(f"创建临时文件夹: {temp_dir_path}")
+            return temp_dir_path
+            
+        except Exception as e:
+            logger.error(f"创建临时文件夹失败: {e}")
+            # 如果创建失败，回退到系统临时目录
+            return tempfile.gettempdir()
+    
+    def _copy_mpar_files_to_temp_dir(self, temp_dir: str) -> str:
+        """将*.ansa_mpar文件拷贝到临时文件夹"""
+        try:
+            # 查找mpar文件
+            mpar_files = list(Path('.').glob(self.config.mpar_file_pattern))
+            
+            if not mpar_files:
+                logger.warning("未找到mpar文件，跳过文件拷贝")
+                return ""
+            
+            # 只取第一个mpar文件
+            mpar_file = mpar_files[0]
+            
+            # 构建目标文件路径
+            dest_file = os.path.join(temp_dir, mpar_file.name)
+            
+            # 拷贝文件
+            shutil.copy2(str(mpar_file), dest_file)
+            
+            logger.info(f"拷贝mpar文件: {mpar_file} -> {dest_file}")
+            return dest_file
+            
+        except Exception as e:
+            logger.error(f"拷贝mpar文件失败: {e}")
+            return ""
+    
+    def _create_temp_config_in_dir(self, temp_dir: str, params: Dict[str, float]) -> str:
+        """在指定目录中创建临时配置文件"""
+        try:
+            # 在临时目录中创建配置文件
+            config_file_path = os.path.join(temp_dir, "mesh_config.json")
+            
+            # 创建JSON格式的配置数据
+            config_data = {}
+            for key, value in params.items():
+                formatted_value = self._format_parameter_value(key, value)
+                config_data[key] = formatted_value
+            
+            with open(config_file_path, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, ensure_ascii=False, indent=2)
+            
+            logger.debug(f"在临时目录创建配置文件: {config_file_path}")
+            return config_file_path
+            
+        except Exception as e:
+            logger.error(f"在临时目录创建配置文件失败: {e}")
+            raise
+    
+    def _process_parameter_files_in_temp_dir(self, temp_dir: str, params: Dict[str, float]) -> None:
+        """在临时文件夹中处理参数文件替换"""
+        try:
+            # 在临时目录中查找mpar文件
+            temp_mpar_files = list(Path(temp_dir).glob("*.ansa_mpar"))
+            
+            if not temp_mpar_files:
+                logger.warning("临时目录中未找到mpar文件，跳过参数文件处理")
+                return
+            
+            # 只处理第一个mpar文件
+            mpar_file = temp_mpar_files[0]
+            logger.info(f"处理临时目录中的mpar文件: {mpar_file}")
+            
+            # 使用参数替换管理器处理参数
+            updated_file_path = self.parameter_replacer.process_parameter_replacements(str(mpar_file), params)
+            
+            # 如果创建了新文件，需要将内容复制回原文件并清理
+            if updated_file_path != str(mpar_file):
+                # 读取更新后的文件内容
+                with open(updated_file_path, 'r', encoding='utf-8') as f:
+                    updated_content = f.read()
+                
+                # 写入原文件
+                with open(mpar_file, 'w', encoding='utf-8') as f:
+                    f.write(updated_content)
+                
+                # 清理临时文件
+                Path(updated_file_path).unlink(missing_ok=True)
+                logger.info(f"已将更新内容复制回临时目录文件: {mpar_file}")
+                
+        except Exception as e:
+            logger.error(f"在临时目录处理参数文件失败: {e}")
+    
     def _create_temp_config(self, params: Dict[str, float]) -> str:
         """创建临时配置文件"""
         try:
@@ -326,220 +449,7 @@ class AnsaMeshEvaluator(MeshEvaluator):
             logger.error(f"创建临时配置文件失败: {e}")
             raise
     
-    def _process_parameter_files(self, config_file: str, params: Dict[str, float]) -> str:
-        """处理参数文件替换 - 更新mpar文件中的参数并保存"""
-        # 查找mpar文件
-        mpar_files = list(Path('.').glob(self.config.mpar_file_pattern))
-        
-        if not mpar_files:
-            logger.info("未找到mpar文件，使用原始配置")
-            return config_file
-        
-        mpar_file = mpar_files[0]
-        logger.info(f"使用mpar文件: {mpar_file}")
-        
-        try:
-            # 首先处理需要特殊策略的参数 (rule_fillet_width, rule_chamfer_width)
-            self._apply_special_parameter_strategies(mpar_file, params)
-            
-            # 然后处理其他简单参数
-            self._update_simple_mpar_parameters(mpar_file, params)
-            
-            # 返回原始配置文件
-            return config_file
-            
-        except Exception as e:
-            logger.error(f"处理参数文件失败: {e}")
-            return config_file
-    
-    def _apply_special_parameter_strategies(self, mpar_file: Path, params: Dict[str, float]) -> None:
-        """应用特殊参数替换策略 (rule_fillet, rule_chamfer等)"""
-        try:
-            from .parameter_replacement_strategies import ParameterReplacementManager
-            replacement_manager = ParameterReplacementManager()
-            
-            # 只处理需要特殊策略的参数
-            special_params = {}
-            special_param_prefixes = ['rule_fillet_width_', 'rule_chamfer_width_']
-            
-            for param_name, param_value in params.items():
-                if any(param_name.startswith(prefix) for prefix in special_param_prefixes):
-                    special_params[param_name] = param_value
-            
-            if special_params:
-                logger.info(f"应用特殊参数策略: {list(special_params.keys())}")
-                
-                # 使用策略替换器处理参数（会创建新的输出文件）
-                updated_mpar_file_path = replacement_manager.process_parameter_replacements(str(mpar_file), special_params)
-                
-                # 如果创建了新文件，需要将内容复制回原文件并清理
-                if updated_mpar_file_path != str(mpar_file):
-                    # 读取更新后的文件内容
-                    with open(updated_mpar_file_path, 'r', encoding='utf-8') as f:
-                        updated_content = f.read()
-                    
-                    # 写入原文件
-                    with open(mpar_file, 'w', encoding='utf-8') as f:
-                        f.write(updated_content)
-                    
-                    # 清理临时文件
-                    Path(updated_mpar_file_path).unlink(missing_ok=True)
-                    logger.info(f"已将更新内容复制回原文件: {mpar_file}")
-                
-        except Exception as e:
-            logger.error(f"应用特殊参数策略失败: {e}")
-    
-    def _update_simple_mpar_parameters(self, mpar_file: Path, params: Dict[str, float]) -> None:
-        """更新简单mpar文件参数 (非rule_fillet, rule_chamfer)"""
-        try:
-            # 读取mpar文件内容
-            with open(mpar_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            # 更新参数值
-            updated_content = content
-            updated_count = 0
-            
-            # 过滤掉需要特殊策略处理的参数
-            special_param_prefixes = ['rule_fillet_width_', 'rule_chamfer_width_']
-            simple_params = {k: v for k, v in params.items()
-                           if not any(k.startswith(prefix) for prefix in special_param_prefixes)}
-            
-            for param_name, param_value in simple_params.items():
-                # 根据参数名映射到mpar文件中的实际参数名
-                mpar_param_name = self._map_param_to_mpar_name(param_name)
-                
-                # 查找参数行的模式，支持多种格式:
-                # 1. PARAM_NAME = value
-                # 2. PARAM_NAME: value
-                # 3. PARAM_NAME value
-                patterns = [
-                    rf'^(\s*{re.escape(mpar_param_name)}\s*=\s*)[^\r\n]*',  # equals format
-                    rf'^(\s*{re.escape(mpar_param_name)}\s*:\s*)[^\r\n]*',  # colon format
-                    rf'^(\s*{re.escape(mpar_param_name)}\s+)[^\r\n]*',     # space format
-                ]
-                
-                param_found = False
-                for pattern in patterns:
-                    if re.search(pattern, content, flags=re.MULTILINE):
-                        # 格式化参数值
-                        formatted_value = self._format_mpar_parameter_value(param_name, param_value)
-                        replacement = rf'\g<1>{formatted_value}'
-                        updated_content = re.sub(pattern, replacement, updated_content, flags=re.MULTILINE)
-                        param_found = True
-                        updated_count += 1
-                        logger.debug(f"更新参数 {mpar_param_name} = {formatted_value}")
-                        break
-                
-                # 如果没有找到参数，记录警告
-                if not param_found:
-                    logger.warning(f"参数 {param_name} (映射为 {mpar_param_name}) 未在mpar文件中找到")
-            
-            # 保存更新后的内容到原文件
-            with open(mpar_file, 'w', encoding='utf-8') as f:
-                f.write(updated_content)
-            
-            logger.info(f"已更新{updated_count}个简单参数并保存到mpar文件: {mpar_file}")
-            
-        except Exception as e:
-            logger.error(f"更新简单mpar参数失败: {e}")
-            raise
-    
-    def _map_param_to_mpar_name(self, param_name: str) -> str:
-        """将参数名映射到mpar文件中的实际参数名"""
-        # 使用配置管理器的参数映射
-        if hasattr(self.config_manager, 'parameter_space'):
-            param_def = self.config_manager.parameter_space.get_parameter(param_name)
-            if param_def and param_def.ansa_mapping:
-                return param_def.ansa_mapping
-        
-        # 如果没有映射，返回原参数名
-        return param_name
-    
-    def _format_mpar_parameter_value(self, param_name: str, value: float) -> str:
-        """格式化mpar参数值"""
-        # 根据参数名进行特殊格式化
-        if param_name == 'distortion_distance':
-            # 扭曲距离需要加上%符号
-            return f"{value}%"
-        elif param_name == 'distortion_angle':
-            # 扭曲角度需要加上.符号
-            return f"{value}."
-        elif param_name == 'perimeter_distance':
-            # 周边距离需要加上*Lmin
-            return f"{value}*Lmin"
-        else:
-            # 其他参数直接返回数值
-            return str(value)
-
-    def _parse_mpar_file(self, mpar_file: Path) -> Dict[str, str]:
-        """解析mpar文件"""
-        params = {}
-        
-        try:
-            with open(mpar_file, 'r', encoding='utf-8') as f:
-                for line_num, line in enumerate(f, 1):
-                    line = line.strip()
-                    
-                    # 跳过空行和注释行
-                    if not line or line.startswith('#') or line.startswith('//'):
-                        continue
-                    
-                    if '=' in line:
-                        try:
-                            key, value = line.split('=', 1)
-                            params[key.strip()] = value.strip()
-                        except ValueError:
-                            logger.warning(f"无法解析第{line_num}行: {line}")
-            
-            logger.info(f"成功解析{mpar_file}，提取{len(params)}个参数")
-            return params
-            
-        except FileNotFoundError:
-            logger.error(f"mpar文件不存在: {mpar_file}")
-            return {}
-        except UnicodeDecodeError:
-            logger.error(f"mpar文件编码错误: {mpar_file}")
-            return {}
-        except Exception as e:
-            logger.error(f"解析mpar文件失败: {e}")
-            return {}
-    
-    def _replace_parameters(self, temp_file: str, mpar_params: Dict[str, str]) -> str:
-        """根据映射关系替换参数值"""
-        output_file = temp_file + "_updated"
-        
-        try:
-            updated_lines = []
-            
-            with open(temp_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    if '=' in line:
-                        key, current_value = line.split('=', 1)
-                        key = key.strip()
-                        
-                        # 查找映射关系
-                        if key in self.param_mapping:
-                            mpar_key = self.param_mapping[key]
-                            if mpar_key in mpar_params:
-                                updated_lines.append(f"{key} = {mpar_params[mpar_key]}\n")
-                                continue
-                    
-                    updated_lines.append(line)
-            
-            # 写入更新后的文件
-            with open(output_file, 'w', encoding='utf-8') as f:
-                f.writelines(updated_lines)
-            
-            logger.info(f"参数替换完成，结果保存至: {output_file}")
-            return output_file
-            
-        except Exception as e:
-            logger.error(f"参数替换失败: {e}")
-            return temp_file
-    
-    
-    def _run_ansa_batch(self, config_file: str) -> float:
+    def _run_ansa_batch(self, temp_dir: str) -> float:
         """运行Ansa批处理 - 改进的错误处理"""
         try:
             # 构建Ansa命令
@@ -547,7 +457,8 @@ class AnsaMeshEvaluator(MeshEvaluator):
                 self.config.ansa_executable,
                 '-b',
                 '-exec', str(self.config.script_dir / self.config.batch_script),
-                '-i', self.config.input_model
+                '-i', self.config.input_model,
+                '-changedir', temp_dir
             ]
             
             logger.info(f"执行Ansa命令: {' '.join(ansa_command)}")
@@ -570,7 +481,7 @@ class AnsaMeshEvaluator(MeshEvaluator):
                 capture_output=True,
                 text=True,
                 timeout=self.config.execution_timeout,
-                cwd=self.config.script_dir
+                cwd=temp_dir
             )
             
             # 具体的错误处理
@@ -661,6 +572,15 @@ class AnsaMeshEvaluator(MeshEvaluator):
                     logger.debug(f"删除临时文件: {file_path}")
                 except Exception as e:
                     logger.warning(f"删除临时文件失败: {e}")
+    
+    def _cleanup_temp_directory(self, temp_dir: str) -> None:
+        """清理临时目录"""
+        if temp_dir and os.path.exists(temp_dir):
+            try:
+                shutil.rmtree(temp_dir)
+                logger.debug(f"删除临时目录: {temp_dir}")
+            except Exception as e:
+                logger.warning(f"删除临时目录失败: {e}")
 
 class MockMeshEvaluator(MeshEvaluator):
     """模拟网格评估器（用于测试）- 改进版本"""

@@ -17,7 +17,7 @@ import json
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from evaluators.batch_mesh import (
+from batch_mesh import (
     AnsaBatchMeshRunner, AnsaBatchConfig, batch_mesh_with_params
 )
 

@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.cli.cli_main import main_cli, create_parser
 from core.ansa_mesh_optimizer import MeshOptimizer
-from evaluators.batch_mesh import AnsaBatchMeshRunner
+from batch_mesh import AnsaBatchMeshRunner
 
 class TestCLIIntegration(unittest.TestCase):
     """CLI集成测试类"""

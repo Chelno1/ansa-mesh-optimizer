@@ -25,7 +25,7 @@
     "output_dir": "output",
     "mpar_file_pattern": "*.ansa_mpar",
     "qual_file_pattern": "*.ansa_qual",
-    "batch_script": "batch_mesh_improved.py",
+    "batch_script": "batch_mesh.py",
     "execution_timeout": 300,
     "max_retries": 3,
     "retry_delay": 1.0,
@@ -37,7 +37,7 @@
   },
   "parameters": {
     "distortion_distance": {
-      "param_type": "integer",
+      "param_type": "float",
       "bounds": [
         10,
         30
@@ -45,7 +45,7 @@
       "description": "扭曲距离",
       "unit": "%",
       "ansa_mapping": "distortion-distance",
-      "default_value": 20
+      "default_value": 20.0
     },
     "rule_fillet_width_1": {
       "param_type": "float",
