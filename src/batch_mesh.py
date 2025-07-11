@@ -62,7 +62,7 @@ class AnsaBatchConfig:
         self.min_angle_quads = 60.0
         self.max_angle_quads = 120.0
         self.min_angle_trias = 30.0
-        self.max_angle_tirias = 120.0
+        self.max_angle_trias = 120.0
         self.aspect_ratio = 3.0
         self.skewness = 45.0
         self.warping = 12.5
@@ -77,14 +77,14 @@ class AnsaBatchConfig:
         self.quality_checks = {
             'min_length': True,
             'max_length': True,
-            'aspect_ratio': False,
-            'skewness': False,
+            'aspect_ratio': True,
+            'skewness': True,
             'jacobian': False,
-            'warping' : False,
-            'min_angle_quads' : False,
-            'max_angle_quads' : False,
-            'min_angle_trias' : False,
-            'max_angle_trias' : False
+            'warping' : True,
+            'min_angle_quads' : True,
+            'max_angle_quads' : True,
+            'min_angle_trias' : True,
+            'max_angle_trias' : True
         }
         
         # 批处理模式
@@ -418,15 +418,29 @@ class AnsaBatchMeshRunner:
         
         try:
             # 使用自定义阈值或配置中的阈值
-            min_length = custom_thresholds.get('min_element_length', self.config.min_length) if custom_thresholds else self.config.min_length
-            max_length = custom_thresholds.get('max_element_length', self.config.max_length) if custom_thresholds else self.config.max_length
+            min_length = custom_thresholds.get('min_length', self.config.min_length) if custom_thresholds else self.config.min_length
+            max_length = custom_thresholds.get('max_length', self.config.max_length) if custom_thresholds else self.config.max_length
+            aspect_ratio = custom_thresholds.get('aspect_ratio', self.config.aspect_ratio) if custom_thresholds else self.config.aspect_ratio
+            skewness = custom_thresholds.get('skewness', self.config.skewness) if custom_thresholds else self.config.skewness
+            warping = custom_thresholds.get('warping', self.config.warping) if custom_thresholds else self.config.warping
+            min_angle_quads = custom_thresholds.get('min_angle_quads', self.config.min_angle_quads) if custom_thresholds else self.config.min_angle_quads
+            max_angle_quads = custom_thresholds.get('max_angle_quads', self.config.max_angle_quads) if custom_thresholds else self.config.max_angle_quads
+            min_angle_trias = custom_thresholds.get('min_angle_trias', self.config.min_angle_trias) if custom_thresholds else self.config.min_angle_trias
+            max_angle_trias = custom_thresholds.get('max_angle_trias', self.config.max_angle_trias) if custom_thresholds else self.config.max_angle_trias
             
             results: Dict[str, Any] = {
                 'timestamp': time.time(),
                 'thresholds': {
                     'min_length': min_length,
-                    'max_length': max_length
-                },
+                    'max_length': max_length,
+                    'aspect_ratio': aspect_ratio,
+                    'skewness': skewness,
+                    'warping': warping,
+                    'min_angle_quads': min_angle_quads,
+                    'max_angle_quads': max_angle_quads,
+                    'min_angle_trias': min_angle_trias,
+                    'max_angle_trias': max_angle_trias
+                    },
                 'checks': {}
             }
             
@@ -436,6 +450,27 @@ class AnsaBatchMeshRunner:
             
             if self.config.quality_checks['max_length']:
                 results['checks']['max_length'] = self._check_shell_quality(max_length, 'max_length')
+
+            if self.config.quality_checks['aspect_ratio']:
+                results['checks']['aspect_ratio'] = self._check_shell_quality(aspect_ratio, 'aspect_ratio')
+
+            if self.config.quality_checks['skewness']:
+                results['checks']['skewness'] = self._check_shell_quality(skewness, 'skewness')
+
+            if self.config.quality_checks['warping']:
+                results['checks']['warping'] = self._check_shell_quality(warping, 'warping')
+
+            if self.config.quality_checks['min_angle_quads']:
+                results['checks']['min_angle_quads'] = self._check_shell_quality(min_angle_quads, 'min_angle_quads')
+
+            if self.config.quality_checks['max_angle_quads']:
+                results['checks']['max_angle_quads'] = self._check_shell_quality(max_angle_quads, 'max_angle_quads')
+
+            if self.config.quality_checks['min_angle_trias']:
+                results['checks']['min_angle_trias'] = self._check_shell_quality(min_angle_trias, 'min_angle_trias')
+
+            if self.config.quality_checks['max_angle_trias']:
+                results['checks']['max_angle_trias'] = self._check_shell_quality(max_angle_trias, 'max_angle_trias')
             
             # 统计总单元数
             all_elements = base.CollectEntitiesI(constants.LSDYNA, None, 'ELEMENT_SHELL')
@@ -494,6 +529,41 @@ class AnsaBatchMeshRunner:
             compare_func = lambda x: x >= threshold
             worst_func = max
             log_msg = "最大长度检查"
+        elif check_type == 'aspect_ratio':
+            quality_criteria = 'ASPECT'
+            compare_func = lambda x: x >= threshold
+            worst_func = max
+            log_msg = "长宽比检查"
+        elif check_type == 'skewness':
+            quality_criteria = 'SKEW'
+            compare_func = lambda x: x >= threshold
+            worst_func = max
+            log_msg = "偏斜度检查"
+        elif check_type == 'warping':
+            quality_criteria = 'WARP'
+            compare_func = lambda x: x >= threshold
+            worst_func = max
+            log_msg = "扭曲度检查"
+        elif check_type == 'min_angle_quads':
+            quality_criteria = 'MINANGLE'
+            compare_func = lambda x: x <= threshold
+            worst_func = min
+            log_msg = "最小四边形角度检查"
+        elif check_type == 'max_angle_quads':
+            quality_criteria = 'MAXANGLE'
+            compare_func = lambda x: x >= threshold
+            worst_func = max
+            log_msg = "最大四边形角度检查"
+        elif check_type == 'min_angle_trias':
+            quality_criteria = 'MINANGLE'
+            compare_func = lambda x: x <= threshold
+            worst_func = min
+            log_msg = "最小三角形角度检查"
+        elif check_type == 'max_angle_trias':
+            quality_criteria = 'MAXANGLE'
+            compare_func = lambda x: x >= threshold
+            worst_func = max
+            log_msg = "最大三角形角度检查"
         else:
             raise ValueError(f"不支持的检查类型: {check_type}")
         
@@ -512,13 +582,32 @@ class AnsaBatchMeshRunner:
             
             elements_list = list(elements)
             
-            for elem in elements_list:
-                quality = base.ElementQuality(elem, quality_criteria)
-                if quality != 'error' and quality != 0:
-                    quality_value = float(quality)
-                    if compare_func(quality_value):
-                        failed_elems.append(elem)
-                        failed_values.append(quality_value)
+            if check_type in ['min_angle_quads', 'max_angle_quads']:
+                for elem in elements_list:
+                    if base.GetEntityCardValues(constants.LSDYNA, elem, "__type__" ) == 'QUAD':
+                        quality = base.ElementQuality(elem, quality_criteria)
+                        if quality != 'error' and quality != 0:
+                            quality_value = float(quality)
+                            if compare_func(quality_value):
+                                failed_elems.append(elem)
+                                failed_values.append(quality_value)
+            elif check_type in ['min_angle_trias', 'max_angle_trias']:
+                for elem in elements_list:
+                    if base.GetEntityCardValues(constants.LSDYNA, elem, "__type__" ) == 'TRIA':
+                        quality = base.ElementQuality(elem, quality_criteria)
+                        if quality != 'error' and quality != 0:
+                            quality_value = float(quality)
+                            if compare_func(quality_value):
+                                failed_elems.append(elem)
+                                failed_values.append(quality_value)
+            else:
+                for elem in elements_list:
+                    quality = base.ElementQuality(elem, quality_criteria)
+                    if quality != 'error' and quality != 0:
+                        quality_value = float(quality)
+                        if compare_func(quality_value):
+                            failed_elems.append(elem)
+                            failed_values.append(quality_value)
             
             result = {
                 'status': 'OK' if not failed_elems else 'NOK',
