@@ -113,23 +113,14 @@ def import_core_modules():
         from core.ansa_mesh_optimizer import optimize_mesh_parameters, MeshOptimizer, check_dependencies
         from core.compare_optimizers import compare_optimizers
         
-        # 使用新的统一配置管理器类（不立即实例化）
+        # 使用新的统一配置管理器类
         from config.config import UnifiedConfigManager
         
         print("✅ 使用重构后的配置系统")
         return True, (optimize_mesh_parameters, MeshOptimizer, compare_optimizers, UnifiedConfigManager, check_dependencies)
     except ImportError as e:
         print(f"❌ 核心模块导入失败: {e}")
-        # 尝试回退到原始配置系统
-        try:
-            from core.ansa_mesh_optimizer import optimize_mesh_parameters, MeshOptimizer, check_dependencies
-            from core.compare_optimizers import compare_optimizers
-            from config.config import config_manager as legacy_config_manager
-            print("⚠️  回退到原始配置系统")
-            return True, (optimize_mesh_parameters, MeshOptimizer, compare_optimizers, legacy_config_manager, check_dependencies)
-        except ImportError as e2:
-            print(f"❌ 配置系统完全不可用: {e2}")
-            return False, None
+        return False, None
 
 def dispatch_command(args) -> int:
     """分发命令到对应的处理器"""

@@ -49,7 +49,7 @@ except ImportError:
 # 本地模块导入
 try:
     from src.core.ansa_mesh_optimizer import MeshOptimizer, optimize_mesh_parameters
-    from src.config.config import config_manager
+    from src.config.config import UnifiedConfigManager
     from src.utils.utils import performance_monitor, format_execution_time, calculate_statistics
     
     # 导入新的模块化组件
@@ -314,17 +314,23 @@ class OptimizationComparison:
                                extra_kwargs: Dict[str, Any]) -> Dict[str, Any]:
         """运行单次优化"""
         # 为每次运行设置不同的随机种子
-        run_config = config_manager.optimization_config
+        config_mgr = UnifiedConfigManager(config_file=None, require_config=False)
+        run_config = config_mgr.optimization_config
         original_seed = run_config.random_state
         run_config.random_state = original_seed + run_idx * 1000 + hash(optimizer) % 1000
         
         try:
             with performance_monitor(f"{optimizer} 优化 (运行 {run_idx + 1})"):
+                # 创建配置管理器包装器
+                from src.core.ansa_mesh_optimizer import ConfigManagerWrapper
+                config_wrapper = ConfigManagerWrapper(config_mgr)
+                
                 # 创建独立的优化器实例
                 mesh_optimizer = MeshOptimizer(
                     config=run_config,
                     evaluator_type=self.evaluator_type,
-                    use_cache=self.use_cache
+                    use_cache=self.use_cache,
+                    config_manager=config_wrapper
                 )
                 
                 # 执行优化

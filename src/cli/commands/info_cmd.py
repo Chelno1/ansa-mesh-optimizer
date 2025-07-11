@@ -33,18 +33,19 @@ def cmd_info(args, modules=None) -> int:
         print(f"\n🔍 依赖库检查:")
         print("-" * 30)
         
+        # 依赖配置：(显示名称, 导入名称, 描述, 是否必需)
         dependencies = [
-            ('numpy', '数值计算', True),
-            ('scikit-optimize', '贝叶斯优化', False),
-            ('matplotlib', '可视化', False),
-            ('pandas', '数据分析', False),
-            ('seaborn', '统计图表', False),
-            ('scipy', '科学计算', False),
+            ('numpy', 'numpy', '数值计算', True),
+            ('scikit-optimize', 'skopt', '贝叶斯优化', False),
+            ('matplotlib', 'matplotlib', '可视化', False),
+            ('pandas', 'pandas', '数据分析', False),
+            ('seaborn', 'seaborn', '统计图表', False),
+            ('scipy', 'scipy', '科学计算', False),
         ]
         
-        for lib_name, description, required in dependencies:
+        for display_name, import_name, description, required in dependencies:
             try:
-                __import__(lib_name)
+                __import__(import_name)
                 status = "✓ 已安装"
                 color = ""
             except ImportError:
@@ -52,7 +53,7 @@ def cmd_info(args, modules=None) -> int:
                 color = "" if not required else "❌ "
             
             req_text = "必需" if required else "可选"
-            print(f"   {color}{lib_name:<20} {description:<15} {status:<10} ({req_text})")
+            print(f"   {color}{display_name:<20} {description:<15} {status:<10} ({req_text})")
     
     # Ansa环境检查
     if args.check_ansa:
