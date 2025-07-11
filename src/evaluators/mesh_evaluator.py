@@ -304,8 +304,9 @@ class AnsaMeshEvaluator(MeshEvaluator):
             temp_dir = locals().get('temp_dir')
             
             self._cleanup_temp_files(temp_files)
-            if temp_dir:
-                self._cleanup_temp_directory(temp_dir)
+            # 不清理临时文件夹
+            # if temp_dir:
+            #     self._cleanup_temp_directory(temp_dir)
     
     # def _format_parameter_value(self, param_name: str, value: Any) -> str:
     #     """
