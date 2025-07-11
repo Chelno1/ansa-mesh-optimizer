@@ -432,14 +432,23 @@ class AnsaBatchMeshRunner:
             
             # 执行启用的质量检查
             if self.config.quality_checks['min_length']:
-                results['checks']['min_length'] = self._check_shell_min_length(min_length)
+                results['checks']['min_length'] = self._check_shell_quality(min_length, 'min_length')
             
             if self.config.quality_checks['max_length']:
-                results['checks']['max_length'] = self._check_shell_max_length(max_length)
+                results['checks']['max_length'] = self._check_shell_quality(max_length, 'max_length')
             
             # 统计总单元数
             all_elements = base.CollectEntitiesI(constants.LSDYNA, None, 'ELEMENT_SHELL')
-            results['total_elements'] = len(all_elements) if all_elements else 0
+            
+            # Add diagnostic logging and convert to list
+            logger.debug(f"CollectEntitiesI returned type: {type(all_elements)}")
+            
+            if all_elements:
+                all_elements_list = list(all_elements)
+                results['total_elements'] = len(all_elements_list)
+                logger.debug(f"Total elements found: {results['total_elements']}")
+            else:
+                results['total_elements'] = 0
             
             # 统计不合格单元数
             total_bad = 0
@@ -464,127 +473,79 @@ class AnsaBatchMeshRunner:
             logger.error(f"质量检查异常: {e}")
             return self._simulate_quality_check(custom_thresholds)
     
-    def _check_shell_min_length(self, min_len: float) -> Dict[str, Any]:
-        """检查壳单元最小尺寸 - 改进版本"""
+    def _check_shell_quality(self, threshold: float, check_type: str) -> Dict[str, Any]:
+        """检查壳单元质量
+        
+        Args:
+            threshold: 长度阈值
+            check_type: 检查类型 ('min_length' 或 'max_length')
+        """
         failed_elems = []
         failed_values = []
         
+        # 确定质量指标和比较操作
+        if check_type == 'min_length':
+            quality_criteria = 'MIN-LEN'
+            compare_func = lambda x: x <= threshold
+            worst_func = min
+            log_msg = "最小长度检查"
+        elif check_type == 'max_length':
+            quality_criteria = 'MAX-LEN'
+            compare_func = lambda x: x >= threshold
+            worst_func = max
+            log_msg = "最大长度检查"
+        else:
+            raise ValueError(f"不支持的检查类型: {check_type}")
+        
         try:
             elements = base.CollectEntitiesI(constants.LSDYNA, None, 'ELEMENT_SHELL')
+            
             if not elements:
                 logger.warning("未找到壳单元")
                 return {
                     'status': 'NO_ELEMENTS',
                     'failed_count': 0,
                     'failed_elements': [],
-                    'threshold': min_len,
-                    'check_type': 'min_length'
+                    'threshold': threshold,
+                    'check_type': check_type
                 }
             
-            for elem in elements:
-                try:
-                    quality = base.ElementQuality(elem, 'MIN-LEN')
-                    if quality == 'error':
-                        continue
-                    
+            elements_list = list(elements)
+            
+            for elem in elements_list:
+                quality = base.ElementQuality(elem, quality_criteria)
+                if quality != 'error' and quality != 0:
                     quality_value = float(quality)
-                    if quality_value <= min_len:
+                    if compare_func(quality_value):
                         failed_elems.append(elem)
                         failed_values.append(quality_value)
-                        
-                except (ValueError, TypeError):
-                    continue
-            
-            status = 'OK' if not failed_elems else 'NOK'
             
             result = {
-                'status': status,
+                'status': 'OK' if not failed_elems else 'NOK',
                 'failed_count': len(failed_elems),
                 'failed_elements': failed_elems,
                 'failed_values': failed_values,
-                'threshold': min_len,
-                'check_type': 'min_length',
-                'total_checked': len(elements)
+                'threshold': threshold,
+                'check_type': check_type,
+                'total_checked': len(elements_list)
             }
             
             if failed_values:
-                result['worst_value'] = min(failed_values)
+                result['worst_value'] = worst_func(failed_values)
                 result['avg_failed_value'] = sum(failed_values) / len(failed_values)
             
-            logger.info(f"最小长度检查: {len(failed_elems)} 个不合格单元 (阈值: {min_len})")
+            logger.info(f"{log_msg}: {len(failed_elems)} 个不合格单元 (阈值: {threshold})")
             
             return result
             
         except Exception as e:
-            logger.error(f"最小长度检查失败: {e}")
+            logger.error(f"{log_msg}失败: {e}")
             return {
                 'status': 'ERROR',
                 'failed_count': 0,
                 'failed_elements': [],
-                'threshold': min_len,
-                'check_type': 'min_length',
-                'error': str(e)
-            }
-    
-    def _check_shell_max_length(self, max_len: float) -> Dict[str, Any]:
-        """检查壳单元最大尺寸 - 改进版本"""
-        failed_elems = []
-        failed_values = []
-        
-        try:
-            elements = base.CollectEntitiesI(constants.LSDYNA, None, 'ELEMENT_SHELL')
-            if not elements:
-                logger.warning("未找到壳单元")
-                return {
-                    'status': 'NO_ELEMENTS',
-                    'failed_count': 0,
-                    'failed_elements': [],
-                    'threshold': max_len,
-                    'check_type': 'max_length'
-                }
-            
-            for elem in elements:
-                try:
-                    quality = base.ElementQuality(elem, 'MAX-LEN')
-                    if quality == 'error':
-                        continue
-                    
-                    quality_value = float(quality)
-                    if quality_value >= max_len:
-                        failed_elems.append(elem)
-                        failed_values.append(quality_value)
-                        
-                except (ValueError, TypeError):
-                    continue
-            
-            status = 'OK' if not failed_elems else 'NOK'
-            
-            result = {
-                'status': status,
-                'failed_count': len(failed_elems),
-                'failed_elements': failed_elems,
-                'failed_values': failed_values,
-                'threshold': max_len,
-                'check_type': 'max_length',
-                'total_checked': len(elements)
-            }
-            
-            if failed_values:
-                result['worst_value'] = max(failed_values)
-                result['avg_failed_value'] = sum(failed_values) / len(failed_values)
-            
-            logger.info(f"最大长度检查: {len(failed_elems)} 个不合格单元 (阈值: {max_len})")
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"最大长度检查失败: {e}")
-            return {
-                'status': 'ERROR',
-                'failed_count': 0,
-                'failed_elements': [],
-                'threshold': max_len,
-                'check_type': 'max_length',
+                'threshold': threshold,
+                'check_type': check_type,
                 'error': str(e)
             }
     
@@ -952,7 +913,7 @@ def check_shell_min_length(min_len: float) -> str:
         检查状态 ('OK' 或 'NOK')
     """
     runner = AnsaBatchMeshRunner()
-    result = runner._check_shell_min_length(min_len)
+    result = runner._check_shell_quality(min_len, 'min_length')
     
     # 输出不合格单元数（与原代码兼容）
     print(f'bad elements: {result["failed_count"]}')
@@ -970,7 +931,7 @@ def check_shell_max_length(max_len: float) -> str:
         检查状态 ('OK' 或 'NOK')
     """
     runner = AnsaBatchMeshRunner()
-    result = runner._check_shell_max_length(max_len)
+    result = runner._check_shell_quality(max_len, 'max_length')
     
     # 输出不合格单元数（与原代码兼容）
     print(f'bad elements: {result["failed_count"]}')
