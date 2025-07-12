@@ -173,7 +173,7 @@ class AnsaConfig:
     # 文件模式配置
     mpar_file_pattern: str = '*.ansa_mpar'
     qual_file_pattern: str = '*.ansa_qual'
-    batch_script: str = 'batch_mesh_improved.py'
+    batch_script: str = 'batch_mesh.py'
     
     # 执行配置
     execution_timeout: int = 300  # 5分钟

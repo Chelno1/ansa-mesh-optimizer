@@ -14,7 +14,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # 全局变量
-APP_VERSION = "1.3.0"
+APP_VERSION = "2.1.0"
 APP_NAME = "Ansa Mesh Optimizer"
 
 def setup_logging(verbose: bool = False, log_file: Optional[str] = None):

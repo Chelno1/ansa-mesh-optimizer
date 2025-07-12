@@ -147,7 +147,7 @@ def save_optimization_result(result, output_file: str, save_plots: bool = False)
     from pathlib import Path
     
     APP_NAME = "Ansa Mesh Optimizer"
-    APP_VERSION = "1.3.0"
+    APP_VERSION = "2.1.0"
     
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -200,6 +200,9 @@ class AnsaMeshEvaluator(MeshEvaluator):
         self.config = config_manager.ansa_config
         self.param_mapping = config_manager.parameter_space.get_ansa_mapping()
         self.validator = ParameterValidator(config_manager.parameter_space)
+        self.cwd_dir = Path.cwd().resolve()
+        self.criterion_dir = self.cwd_dir / 'criterion'
+
         
         # 初始化参数替换策略管理器
         from evaluators.parameter_replacement_strategies import ParameterReplacementManager, format_mpar_parameter_value
@@ -233,7 +236,7 @@ class AnsaMeshEvaluator(MeshEvaluator):
         except Exception as e:
             logger.warning(f"Ansa环境验证异常: {e}")
         
-        logger.info("将在需要时使用模拟模式")
+        # logger.info("将在需要时使用模拟模式")
     
     def validate_params(self, params: Dict[str, float]) -> bool:
         """验证参数有效性"""
@@ -339,7 +342,7 @@ class AnsaMeshEvaluator(MeshEvaluator):
             
             # 创建临时目录名称
             temp_dir_name = f"ansa_mesh_eval_{timestamp}"
-            temp_dir_path = os.path.join(tempfile.gettempdir(), temp_dir_name)
+            temp_dir_path = os.path.join(os.getcwd(), temp_dir_name)
             
             # 创建目录
             os.makedirs(temp_dir_path, exist_ok=True)
@@ -349,14 +352,14 @@ class AnsaMeshEvaluator(MeshEvaluator):
             
         except Exception as e:
             logger.error(f"创建临时文件夹失败: {e}")
-            # 如果创建失败，回退到系统临时目录
-            return tempfile.gettempdir()
+            # 如果创建失败，回退到当前目录
+            return os.getcwd()
     
     def _copy_mpar_files_to_temp_dir(self, temp_dir: str) -> str:
         """将*.ansa_mpar文件拷贝到临时文件夹"""
         try:
             # 查找mpar文件
-            mpar_files = list(Path('.').glob(self.config.mpar_file_pattern))
+            mpar_files = list(Path(self.criterion_dir).glob(self.config.mpar_file_pattern))
             
             if not mpar_files:
                 logger.warning("未找到mpar文件，跳过文件拷贝")
@@ -412,13 +415,18 @@ class AnsaMeshEvaluator(MeshEvaluator):
             
             # 只处理第一个mpar文件
             mpar_file = temp_mpar_files[0]
+            original_mpar_path = str(mpar_file)
             logger.info(f"处理临时目录中的mpar文件: {mpar_file}")
             
+            # 记录处理前临时目录中的所有文件，以便后续清理
+            temp_dir_path = Path(temp_dir)
+            files_before = set(temp_dir_path.iterdir())
+            
             # 使用参数替换管理器处理参数
-            updated_file_path = self.parameter_replacer.process_parameter_replacements(str(mpar_file), params)
+            updated_file_path = self.parameter_replacer.process_parameter_replacements(original_mpar_path, params)
             
             # 如果创建了新文件，需要将内容复制回原文件并清理
-            if updated_file_path != str(mpar_file):
+            if updated_file_path != original_mpar_path:
                 # 读取更新后的文件内容
                 with open(updated_file_path, 'r', encoding='utf-8') as f:
                     updated_content = f.read()
@@ -427,9 +435,29 @@ class AnsaMeshEvaluator(MeshEvaluator):
                 with open(mpar_file, 'w', encoding='utf-8') as f:
                     f.write(updated_content)
                 
-                # 清理临时文件
-                Path(updated_file_path).unlink(missing_ok=True)
-                logger.info(f"已将更新内容复制回临时目录文件: {mpar_file}")
+                # 清理所有在处理过程中创建的临时文件
+                files_after = set(temp_dir_path.iterdir())
+                temp_files_created = files_after - files_before
+                
+                cleaned_count = 0
+                for temp_file in temp_files_created:
+                    try:
+                        temp_file.unlink()
+                        cleaned_count += 1
+                        logger.debug(f"已清理临时文件: {temp_file}")
+                    except Exception as cleanup_error:
+                        logger.warning(f"清理临时文件失败 {temp_file}: {cleanup_error}")
+                
+                # 确保清理最终的更新文件（如果它不在上面的集合中）
+                if Path(updated_file_path).exists() and Path(updated_file_path) not in temp_files_created:
+                    try:
+                        Path(updated_file_path).unlink()
+                        cleaned_count += 1
+                        logger.debug(f"已清理最终更新文件: {updated_file_path}")
+                    except Exception as cleanup_error:
+                        logger.warning(f"清理最终更新文件失败 {updated_file_path}: {cleanup_error}")
+                
+                logger.info(f"已将更新内容复制回临时目录文件: {mpar_file}，并清理了 {cleaned_count} 个临时文件")
                 
         except Exception as e:
             logger.error(f"在临时目录处理参数文件失败: {e}")
@@ -457,8 +485,8 @@ class AnsaMeshEvaluator(MeshEvaluator):
             ansa_command = [
                 self.config.ansa_executable,
                 '-b',
-                '-exec', str(self.config.script_dir / self.config.batch_script),
-                '-i', self.config.input_model,
+                '-execpy', f"load_script: '{self.config.script_dir / self.config.batch_script}'",
+                '-i', f"{self.cwd_dir / self.config.input_model}",
                 '-changedir', temp_dir
             ]
             
