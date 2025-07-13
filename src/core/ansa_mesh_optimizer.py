@@ -154,9 +154,9 @@ class MeshOptimizer:
         else:
             self.early_stopping = None
         
-        # 创建可视化器和报告器
-        self.visualizer = OptimizationVisualizer()
-        self.reporter = OptimizationReporter()
+        # 延迟创建可视化器和报告器（避免创建不必要的空目录）
+        self.visualizer = None
+        self.reporter = None
         
         # 优化历史
         self.optimization_history: List[Dict[str, Any]] = []
@@ -223,9 +223,9 @@ class MeshOptimizer:
                 self.optimization_history = result.optimization_history
                 self.best_result = result
                 
-                # 生成报告
+                # 生成报告（传递原始result_dict以保留skopt_result）
                 try:
-                    report_dir = self._generate_optimization_report(result)
+                    report_dir = self._generate_optimization_report(result, result_dict)
                     logger.info(f"详细报告已保存到: {report_dir}")
                 except Exception as e:
                     logger.warning(f"报告生成失败: {e}")
@@ -259,7 +259,7 @@ class MeshOptimizer:
                     except Exception as e:
                         logger.warning(f"缓存保存失败: {e}")
     
-    def _generate_optimization_report(self, result: OptimizationResult) -> str:
+    def _generate_optimization_report(self, result: OptimizationResult, raw_result_dict: Optional[Dict[str, Any]] = None) -> str:
         """生成优化报告"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         optimizer_name = result.optimizer_name.replace(' ', '_')
@@ -280,10 +280,11 @@ class MeshOptimizer:
             early_stopping_info=self.early_stopping.get_best_result() if self.early_stopping else None
         )
         
-        # 使用可视化器生成图表
+        # 使用可视化器生成图表（传递原始result_dict以保留skopt_result）
         try:
+            visualization_result = raw_result_dict if raw_result_dict else result.to_dict()
             visualizer.generate_optimization_plots(
-                result=result.to_dict(),
+                result=visualization_result,
                 optimization_history=self.optimization_history,
                 early_stopping=self.early_stopping
             )
@@ -415,43 +416,43 @@ class MeshOptimizer:
         
         return summary
     
-    def save_best_params(self, filename: Optional[str] = None) -> str:
-        """
-        保存最佳参数到文件
+    # def save_best_params(self, filename: Optional[str] = None) -> str:
+    #     """
+    #     保存最佳参数到文件
         
-        Args:
-            filename: 保存文件名（可选）
+    #     Args:
+    #         filename: 保存文件名（可选）
             
-        Returns:
-            保存的文件路径
-        """
-        if self.best_result is None:
-            raise ValueError("没有可用的最佳参数，请先运行优化")
+    #     Returns:
+    #         保存的文件路径
+    #     """
+    #     if self.best_result is None:
+    #         raise ValueError("没有可用的最佳参数，请先运行优化")
         
-        if filename is None:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            optimizer_name = self.best_result.optimizer_name.replace(' ', '_').lower()
-            report_dir = Path(f"optimization_reports/{timestamp}_{optimizer_name}")
-            report_dir.mkdir(parents=True, exist_ok=True)
-            filename = str(report_dir / "best_parameters.txt")
+    #     if filename is None:
+    #         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    #         optimizer_name = self.best_result.optimizer_name.replace(' ', '_').lower()
+    #         report_dir = Path(f"optimization_reports/{timestamp}_{optimizer_name}")
+    #         report_dir.mkdir(parents=True, exist_ok=True)
+    #         filename = str(report_dir / "best_parameters.txt")
         
-        try:
-            with open(filename, 'w', encoding='utf-8') as f:
-                f.write(f"# Best Mesh Parameters - {self.best_result.optimizer_name}\n")
-                f.write(f"# Generated: {datetime.now().isoformat()}\n")
-                f.write(f"# Best Objective Value: {self.best_result.best_value:.6f}\n")
-                f.write(f"# Total Evaluations: {self.best_result.n_evaluations}\n")
-                f.write(f"# Execution Time: {self.best_result.execution_time:.2f}s\n\n")
+    #     try:
+    #         with open(filename, 'w', encoding='utf-8') as f:
+    #             f.write(f"# Best Mesh Parameters - {self.best_result.optimizer_name}\n")
+    #             f.write(f"# Generated: {datetime.now().isoformat()}\n")
+    #             f.write(f"# Best Objective Value: {self.best_result.best_value:.6f}\n")
+    #             f.write(f"# Total Evaluations: {self.best_result.n_evaluations}\n")
+    #             f.write(f"# Execution Time: {self.best_result.execution_time:.2f}s\n\n")
                 
-                for key, value in self.best_result.best_params.items():
-                    f.write(f"{key} = {value}\n")
+    #             for key, value in self.best_result.best_params.items():
+    #                 f.write(f"{key} = {value}\n")
             
-            logger.info(f"最佳参数已保存到: {filename}")
-            return filename
+    #         logger.info(f"最佳参数已保存到: {filename}")
+    #         return filename
             
-        except Exception as e:
-            logger.error(f"保存最佳参数失败: {e}")
-            raise
+    #     except Exception as e:
+    #         logger.error(f"保存最佳参数失败: {e}")
+    #         raise
 
 def optimize_mesh_parameters(
     n_calls: int = 20,
@@ -510,10 +511,10 @@ def optimize_mesh_parameters(
             logger.warning(f"敏感性分析失败: {e}")
     
     # 保存最佳参数
-    try:
-        mesh_optimizer.save_best_params()
-    except Exception as e:
-        logger.warning(f"保存最佳参数失败: {e}")
+    # try:
+    #     mesh_optimizer.save_best_params()
+    # except Exception as e:
+    #     logger.warning(f"保存最佳参数失败: {e}")
     
     return result
 

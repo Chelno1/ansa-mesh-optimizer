@@ -11,101 +11,56 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 def check_and_import_modules():
     """检查并导入必要模块 - 使用新的依赖管理系统"""
-    try:
-        # 使用新的统一依赖管理器
-        from utils.dependency_manager import dependency_manager
-        
-        print("🔍 使用统一依赖管理系统检查模块...")
-        
-        # 获取依赖状态
-        status = dependency_manager.get_dependency_status()
-        
-        # 统计依赖状态
-        available_count = sum(1 for s in status.values() if s['available'])
-        missing_count = sum(1 for s in status.values() if not s['available'])
-        required_missing = sum(1 for s in status.values() if not s['available'] and s['required'])
-        
-        # 显示检查结果
-        print(f"\n📊 依赖检查报告:")
-        print(f"   ✓ 可用依赖: {available_count}")
-        print(f"   ○ 缺失依赖: {missing_count}")
-        print(f"   ❌ 缺失必需依赖: {required_missing}")
-        
-        # 检查关键模块
-        required_modules = [
-            'config.config',
-            'evaluators.mesh_evaluator',
-            'utils.optimization_cache',
-            'core.early_stopping',
-            'core.genetic_optimizer',
-            'utils.utils'
-        ]
-        
-        missing_critical = []
-        for module_name in required_modules:
-            try:
-                __import__(module_name)
-            except ImportError as e:
-                missing_critical.append((module_name, str(e)))
-        
-        if missing_critical:
-            print(f"\n❌ 关键模块缺失:")
-            for module_name, error in missing_critical:
-                print(f"  - {module_name}: {error}")
-            return False, missing_critical, list(status.keys())
-        
-        print(f"\n✅ 所有关键模块已加载")
-        return True, [], [name for name, s in status.items() if s['available']]
-        
-    except ImportError as e:
-        print(f"❌ 依赖管理器不可用: {e}")
-        # 回退到原始检查方法
-        return check_modules_fallback()
-
-def check_modules_fallback():
-    """回退的模块检查方法"""
-    missing_modules = []
-    available_modules = []
+    #try:
+    # 使用新的统一依赖管理器
+    from utils.dependency_manager import dependency_manager
     
-    # 检查必需的本地模块
-    required_local_modules = [
-        'config',
-        'mesh_evaluator',
-        'optimization_cache',
-        'early_stopping',
-        'genetic_optimizer',
-        'utils'
+    print("🔍 使用统一依赖管理系统检查模块...")
+    
+    # 获取依赖状态
+    status = dependency_manager.get_dependency_status()
+    
+    # 统计依赖状态
+    available_count = sum(1 for s in status.values() if s['available'])
+    missing_count = sum(1 for s in status.values() if not s['available'])
+    required_missing = sum(1 for s in status.values() if not s['available'] and s['required'])
+    
+    # 显示检查结果
+    print(f"\n📊 依赖检查报告:")
+    print(f"   ✓ 可用依赖: {available_count}")
+    print(f"   ○ 缺失依赖: {missing_count}")
+    print(f"   ❌ 缺失必需依赖: {required_missing}")
+    
+    # 检查关键模块
+    required_modules = [
+        'config.config',
+        'evaluators.mesh_evaluator',
+        'utils.optimization_cache',
+        'core.early_stopping',
+        'core.genetic_optimizer',
+        'utils.utils'
     ]
     
-    print("回退检查本地模块...")
-    for module_name in required_local_modules:
+    missing_critical = []
+    for module_name in required_modules:
         try:
-            # 构造相对于main.py的导入路径
-            if module_name == 'config':
-                import_name = 'config.config'
-            elif module_name == 'mesh_evaluator':
-                import_name = 'evaluators.mesh_evaluator'
-            elif module_name == 'optimization_cache':
-                import_name = 'utils.optimization_cache'
-            elif module_name == 'utils':
-                import_name = 'utils.utils'
-            else:
-                import_name = f'core.{module_name}'
-            __import__(import_name)
-            available_modules.append(module_name)
-            print(f"  ✓ {module_name}")
+            __import__(module_name)
         except ImportError as e:
-            missing_modules.append((module_name, str(e)))
-            print(f"  ✗ {module_name}: {e}")
+            missing_critical.append((module_name, str(e)))
     
-    if missing_modules:
-        print(f"\n❌ 缺少必需模块:")
-        for module_name, error in missing_modules:
+    if missing_critical:
+        print(f"\n❌ 关键模块缺失:")
+        for module_name, error in missing_critical:
             print(f"  - {module_name}: {error}")
-        return False, missing_modules, available_modules
+        return False, missing_critical, list(status.keys())
     
-    print(f"\n✓ 所有必需模块已加载")
-    return True, [], available_modules
+    print(f"\n✅ 所有关键模块已加载")
+    return True, [], [name for name, s in status.items() if s['available']]
+        
+    # except ImportError as e:
+    #     print(f"❌ 依赖管理器不可用: {e}")
+    #     # 回退到原始检查方法
+    #     return check_modules_fallback()
 
 def import_core_modules():
     """导入核心模块 - 使用重构后的配置系统"""
