@@ -292,8 +292,11 @@ class OptimizationComparison:
                     self.results[optimizer].append(result)
                     self.execution_times[optimizer].append(result.get('execution_time', 0))
                     
-                    logger.info(f"运行完成: 最佳值={result['best_value']:.6f}, "
-                              f"时间={format_execution_time(result['execution_time'])}")
+                    # Handle both dictionary and object result formats
+                    best_value = result.best_score if hasattr(result, 'best_score') else result.get('best_value', float('inf')) if isinstance(result, dict) else result.fun
+                    execution_time = getattr(result, 'execution_time', 0) if hasattr(result, 'execution_time') else result.get('execution_time', 0) if isinstance(result, dict) else 0
+                    logger.info(f"运行完成: 最佳值={best_value:.6f}, "
+                              f"时间={format_execution_time(execution_time)}")
                     
                 except Exception as e:
                     logger.error(f"优化器 {optimizer} 运行 {run_idx + 1} 失败: {e}")

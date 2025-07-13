@@ -108,8 +108,15 @@ class OptimizationReporter:
             f.write("\n")
             
             # 收敛信息
-            if 'convergence_info' in result:
+            # Handle both dictionary and object result formats
+            if isinstance(result, dict) and 'convergence_info' in result:
                 conv_info = result['convergence_info']
+            elif hasattr(result, 'convergence_info'):
+                conv_info = getattr(result, 'convergence_info', None)
+            else:
+                conv_info = None
+            
+            if conv_info:
                 f.write("收敛信息:\n")
                 f.write(f"  最佳迭代: {conv_info.get('best_iteration', 'N/A')}\n")
                 f.write(f"  改进比例: {conv_info.get('improvement_ratio', 0.0):.2%}\n")

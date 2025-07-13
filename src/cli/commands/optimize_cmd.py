@@ -182,16 +182,21 @@ def save_optimization_result(result, output_file: str, save_plots: bool = False)
                 'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
                 'optimizer': result.get('optimizer', 'unknown')
             },
-            'best_params': result['best_params'],
-            'best_value': result['best_value'],
-            'execution_time': result.get('execution_time', 0),
+            'best_params': result.best_params if hasattr(result, 'best_params') else (result.get('best_params', {}) if isinstance(result, dict) else getattr(result, 'x', [])),
+            'best_value': getattr(result, 'best_score', None) or (result.get('best_value', float('inf')) if isinstance(result, dict) else getattr(result, 'fun', float('inf'))),
+            'execution_time': getattr(result, 'execution_time', 0) if hasattr(result, 'execution_time') else result.get('execution_time', 0) if isinstance(result, dict) else 0,
             'total_evaluations': result.get('total_evaluations', 0),
             'optimizer_name': result.get('optimizer_name', 'Unknown')
         }
         
         # 添加额外信息（如果可用）
-        if 'convergence_info' in result:
+        # Handle both dictionary and object result formats
+        if isinstance(result, dict) and 'convergence_info' in result:
             output_data['convergence_info'] = result['convergence_info']
+        elif 'convergence_info' in result:  # Use 'in' operator which works with our __contains__ method
+            output_data['convergence_info'] = result['convergence_info']
+        elif hasattr(result, 'convergence_info'):
+            output_data['convergence_info'] = getattr(result, 'convergence_info', None)
     
     # 保存JSON文件
     with open(output_path, 'w', encoding='utf-8') as f:

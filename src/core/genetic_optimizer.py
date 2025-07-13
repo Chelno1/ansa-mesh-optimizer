@@ -36,7 +36,7 @@ class OptimizationResult:
         self.parameter_ranges = parameter_ranges
         
         # Additional attributes for compatibility
-        self.best_params = best_params
+        self.best_params = {parameter_names[i]: best_params[i] for i in range(len(parameter_names))}
         self.best_score = best_score
         self.history = history
         self.n_calls = len(history)
@@ -46,6 +46,53 @@ class OptimizationResult:
         # Genetic algorithm specific attributes
         self.generation_stats = generation_stats or []
         self.convergence_info = convergence_info or {}
+        
+        # Dictionary compatibility for backward compatibility
+        self._dict_data = {
+            'best_params': self.best_params,
+            'best_value': self.best_score,
+            'optimizer_name': 'Genetic Algorithm',
+            'total_generations': len(self.generation_stats),
+            'total_evaluations': self.n_calls,
+            'execution_time': self.convergence_info.get('execution_time', 0) if self.convergence_info else 0,
+            'convergence_info': self.convergence_info,
+            'parameter_names': self.parameter_names,
+            'parameter_ranges': self.parameter_ranges,
+            'history': self.history,
+            'generation_stats': self.generation_stats
+        }
+    
+    def __getitem__(self, key):
+        """Support dictionary-style access for backward compatibility"""
+        if key in self._dict_data:
+            return self._dict_data[key]
+        elif hasattr(self, key):
+            return getattr(self, key)
+        else:
+            raise KeyError(f"Key '{key}' not found")
+    
+    def get(self, key, default=None):
+        """Support dict.get() style access"""
+        try:
+            return self[key]
+        except KeyError:
+            return default
+    
+    def __contains__(self, key):
+        """Support 'in' operator"""
+        return key in self._dict_data or hasattr(self, key)
+    
+    def keys(self):
+        """Support dict.keys() style access"""
+        return self._dict_data.keys()
+    
+    def values(self):
+        """Support dict.values() style access"""
+        return self._dict_data.values()
+    
+    def items(self):
+        """Support dict.items() style access"""
+        return self._dict_data.items()
 
 # 安全导入matplotlib和显示配置
 try:
@@ -333,7 +380,7 @@ class GeneticOptimizer:
         
         logger.info(f"遗传算法优化器初始化完成 - 种群大小: {self.genetic_config.population_size}")
     
-    def optimize(self, n_calls: int, **kwargs) -> Dict[str, Any]:
+    def optimize(self, n_calls: int, **kwargs) -> OptimizationResult:
         """
         执行遗传算法优化
         
@@ -949,10 +996,16 @@ if __name__ == "__main__":
     # 运行优化
     result = optimizer.optimize(n_calls=100)
     
-    print(f"最佳参数: {result['best_params']}")
-    print(f"最佳值: {result['best_value']:.6f}")
-    print(f"总代数: {result['total_generations']}")
-    print(f"重启次数: {result['restart_count']}")
+    # Handle both dictionary and object result formats
+    best_params = result.best_params if hasattr(result, 'best_params') else result.get('best_params', {}) if isinstance(result, dict) else result.x
+    best_value = result.best_score if hasattr(result, 'best_score') else result.get('best_value', float('inf')) if isinstance(result, dict) else result.fun
+    total_generations = getattr(result, 'total_generations', 0) if hasattr(result, 'total_generations') else result.get('total_generations', 0) if isinstance(result, dict) else 0
+    restart_count = getattr(result, 'restart_count', 0) if hasattr(result, 'restart_count') else result.get('restart_count', 0) if isinstance(result, dict) else 0
+    
+    print(f"最佳参数: {best_params}")
+    print(f"最佳值: {best_value:.6f}")
+    print(f"总代数: {total_generations}")
+    print(f"重启次数: {restart_count}")
     
     # 绘制进化过程
     optimizer.plot_evolution("test_evolution.png")

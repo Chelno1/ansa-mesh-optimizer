@@ -114,8 +114,12 @@ class OptimizationVisualizer:
                 from skopt.plots import plot_convergence
                 
                 plt.figure(figsize=(10, 6))
-                plot_convergence(result['skopt_result'])
-                plt.title(f"Convergence - {result.get('optimizer_name', 'Unknown')}")
+                # Handle both dictionary and object result formats
+                skopt_result = result.get('skopt_result') if isinstance(result, dict) else getattr(result, 'skopt_result', None)
+                optimizer_name = result.get('optimizer_name', 'Unknown') if isinstance(result, dict) else getattr(result, 'optimizer_name', 'Unknown')
+                if skopt_result:
+                    plot_convergence(skopt_result)
+                    plt.title(f"Convergence - {optimizer_name}")
                 plt.savefig(self.report_dir / "convergence.png", dpi=300, bbox_inches='tight')
                 safe_close()
                 
@@ -136,7 +140,10 @@ class OptimizationVisualizer:
                 from skopt.plots import plot_objective
                 
                 plt.figure(figsize=(12, 8))
-                plot_objective(result['skopt_result'])
+                # Handle both dictionary and object result formats
+                skopt_result = result.get('skopt_result') if isinstance(result, dict) else getattr(result, 'skopt_result', None)
+                if skopt_result:
+                    plot_objective(skopt_result)
                 plt.savefig(self.report_dir / "parameter_importance.png", dpi=300, bbox_inches='tight')
                 safe_close()
                 
