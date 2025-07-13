@@ -21,6 +21,32 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+class OptimizationResult:
+    """
+    Wrapper class to make genetic optimizer results compatible with scikit-optimize result format
+    """
+    def __init__(self, best_params: List[float], best_score: float, history: List[Tuple[List[float], float]],
+                 parameter_names: List[str], parameter_ranges: List[Tuple[float, float]],
+                 generation_stats: Optional[List[Dict]] = None, convergence_info: Optional[Dict] = None):
+        self.x = best_params  # Best parameters found
+        self.fun = best_score  # Best score (negative because we minimize)
+        self.x_iters = [params for params, _ in history]  # All parameter combinations tried
+        self.func_vals = [score for _, score in history]  # All scores
+        self.parameter_names = parameter_names
+        self.parameter_ranges = parameter_ranges
+        
+        # Additional attributes for compatibility
+        self.best_params = best_params
+        self.best_score = best_score
+        self.history = history
+        self.n_calls = len(history)
+        self.success = True
+        self.message = "Optimization completed successfully"
+        
+        # Genetic algorithm specific attributes
+        self.generation_stats = generation_stats or []
+        self.convergence_info = convergence_info or {}
+
 # 安全导入matplotlib和显示配置
 try:
     from utils.display_config import configure_matplotlib_for_display, safe_show, safe_close
@@ -391,7 +417,7 @@ class GeneticOptimizer:
             # 生成结果
             result = self._generate_result(generation + 1, total_evaluations, execution_time)
 
-            logger.info(f"遗传算法优化完成: 最佳适应度={result['best_value']:.6f}, "
+            logger.info(f"遗传算法优化完成: 最佳适应度={result.best_score:.6f}, "
                        f"总代数={generation + 1}, 总评估次数={total_evaluations}")
 
             return result
@@ -408,7 +434,7 @@ class GeneticOptimizer:
         # 使用拉丁超立方抽样初始化一部分个体
         try:
             from scipy.stats import qmc
-            sampler = qmc.LatinHypercube(d=len(self.bounds), seed=42)
+            sampler = qmc.LatinHypercube(d=len(self.bounds))
             lhs_samples = sampler.random(population_size // 2)
             
             # 缩放到参数边界
@@ -652,59 +678,71 @@ class GeneticOptimizer:
         
         return new_population
     
-    def _generate_result(self, total_generations: int, total_evaluations: int, execution_time: float) -> Dict[str, Any]:
-        """生成优化结果"""
+    def _generate_result(self, total_generations: int, total_evaluations: int, execution_time: float) -> OptimizationResult:
+        """生成优化结果 - 返回兼容的OptimizationResult对象"""
         if self.best_individual is None:
             logger.error("优化过程中未找到有效的最佳个体")
             # 创建一个默认的最佳结果
-            default_params = {}
-            param_names = self.param_names
-            bounds = self.bounds
+            default_genes = []
+            for low, high in self.bounds:
+                default_genes.append((low + high) / 2)  # 使用中点作为默认值
+            
+            # 创建默认历史记录
+            default_history = [(default_genes, float('inf'))]
+            
+            return OptimizationResult(
+                best_params=default_genes,
+                best_score=float('inf'),
+                history=default_history,
+                parameter_names=self.param_names,
+                parameter_ranges=self.bounds,
+                generation_stats=self.generation_stats,
+                convergence_info={
+                    'converged': False,
+                    'convergence_generation': -1,
+                    'final_diversity': 0.0,
+                    'error': 'No valid individuals found during optimization'
+                }
+            )
 
-            for i, name in enumerate(param_names):
-                low, high = bounds[i]
-                default_params[name] = (low + high) / 2  # 使用中点作为默认值
-
-            return {
-                'best_params': default_params,
-                'best_value': float('inf'),
-                'optimizer_name': 'Genetic Algorithm',
+        # 构建历史记录
+        history = []
+        if hasattr(self, 'generation_stats') and self.generation_stats:
+            # 从生成统计信息重建历史
+            for i, stats in enumerate(self.generation_stats):
+                if i < len(self.best_fitness_history):
+                    # 使用最佳个体的基因作为该代的参数
+                    history.append((self.best_individual.genes.copy(), self.best_fitness_history[i]))
+        else:
+            # 如果没有详细历史，至少包含最佳结果
+            history.append((self.best_individual.genes.copy(), self.best_individual.fitness))
+        
+        return OptimizationResult(
+            best_params=self.best_individual.genes.copy(),
+            best_score=self.best_individual.fitness if self.best_individual.fitness is not None else float('inf'),
+            history=history,
+            parameter_names=self.param_names,
+            parameter_ranges=self.bounds,
+            generation_stats=self.generation_stats,
+            convergence_info={
+                'converged': self.convergence_counter >= self.genetic_config.convergence_patience,
+                'convergence_generation': total_generations,
+                'final_diversity': self.diversity_history[-1] if self.diversity_history else 0.0,
                 'total_generations': total_generations,
                 'total_evaluations': total_evaluations,
                 'execution_time': execution_time,
-                'population_size': self.genetic_config.population_size,
-                'convergence_detected': False,
                 'restart_count': self.restart_count,
-                'improvement_ratio': 0.0,
-                'final_diversity': 0.0,
-                'genetic_result': self,
-                'error': 'No valid individuals found during optimization'
+                'improvement_ratio': self._calculate_improvement_ratio()
             }
-
-        best_params = self.best_individual.to_params(self.param_names)
-        
-        # 计算改进统计
+        )
+    
+    def _calculate_improvement_ratio(self) -> float:
+        """计算改进比率"""
         if len(self.best_fitness_history) > 1:
             initial_fitness = self.best_fitness_history[0]
             final_fitness = self.best_fitness_history[-1]
-            improvement = (initial_fitness - final_fitness) / initial_fitness if initial_fitness != 0 else 0
-        else:
-            improvement = 0
-        
-        return {
-            'best_params': best_params,
-            'best_value': self.best_individual.fitness,
-            'optimizer_name': 'Genetic Algorithm',
-            'total_generations': total_generations,
-            'total_evaluations': total_evaluations,
-            'execution_time': execution_time,
-            'population_size': self.genetic_config.population_size,
-            'convergence_detected': self.convergence_counter >= self.genetic_config.convergence_patience,
-            'restart_count': self.restart_count,
-            'improvement_ratio': improvement,
-            'final_diversity': self.diversity_history[-1] if self.diversity_history else 0,
-            'genetic_result': self  # 返回完整的遗传算法结果对象
-        }
+            return (initial_fitness - final_fitness) / initial_fitness if initial_fitness != 0 else 0
+        return 0.0
     
     @plotting_ready(backend='TkAgg', save_original=True)
     def plot_evolution(self, save_path: Optional[str] = None, show_diversity: bool = True) -> None:
