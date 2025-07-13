@@ -189,8 +189,8 @@ class AnsaConfig:
     max_memory_usage: float = 8.0  # GB
     temp_cleanup: bool = True
     
-    def __post_init__(self):
-        """确保输出目录存在"""
+    def ensure_output_dir(self):
+        """确保输出目录存在（按需创建）"""
         self.output_dir.mkdir(parents=True, exist_ok=True)
     
     @handle_exceptions()
