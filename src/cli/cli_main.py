@@ -110,27 +110,27 @@ def create_parser() -> argparse.ArgumentParser:
         ('test_cmd', 'register_test_command')
     ]
     
-    # 安全加载命令模块
+    # 安全加载命令模块 - 使用直接导入而不是文件路径
     for module_name, register_func in command_modules:
         try:
-            module_path = Path(__file__).parent / 'commands' / f'{module_name}.py'
-            logger.debug("Loading command module: %s", module_path)
+            logger.debug("Loading command module: %s", module_name)
             
-            if not module_path.exists():
-                logger.error("Command module not found: %s", module_path)
+            # 直接导入模块而不是使用文件路径
+            if module_name == 'optimize_cmd':
+                from .commands.optimize_cmd import register_optimize_command as register
+            elif module_name == 'compare_cmd':
+                from .commands.compare_cmd import register_compare_command as register
+            elif module_name == 'config_cmd':
+                from .commands.config_cmd import register_config_command as register
+            elif module_name == 'info_cmd':
+                from .commands.info_cmd import register_info_command as register
+            elif module_name == 'test_cmd':
+                from .commands.test_cmd import register_test_command as register
+            else:
+                logger.error("Unknown command module: %s", module_name)
                 continue
-                
-            # 动态导入模块
-            spec = importlib.util.spec_from_file_location(module_name, module_path)
-            if spec is None or spec.loader is None:
-                logger.error("Failed to load module spec: %s", module_name)
-                continue
-                
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
             
-            # 获取并执行注册函数
-            register = getattr(module, register_func)
+            # 执行注册函数
             register(subparsers)
             logger.debug("Successfully registered command: %s", module_name)
             
