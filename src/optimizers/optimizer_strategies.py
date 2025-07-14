@@ -356,6 +356,7 @@ class GeneticOptimizerStrategy(OptimizerStrategy):
         """执行遗传算法优化"""
         try:
             from core.genetic_optimizer import GeneticOptimizer
+            from datetime import datetime
             
             genetic_optimizer = GeneticOptimizer(
                 param_space=self.param_space,
@@ -365,11 +366,93 @@ class GeneticOptimizerStrategy(OptimizerStrategy):
             
             result = genetic_optimizer.optimize(n_calls, **kwargs)
             
-            # 更新历史记录
-            if hasattr(genetic_optimizer, 'optimization_history'):
-                self.optimization_history = getattr(genetic_optimizer, 'optimization_history', [])
+            # 构建标准格式的优化历史记录
+            self.optimization_history = []
             
-            return result
+            # 从遗传算法的历史记录构建标准格式
+            if hasattr(result, 'history') and result.history:
+                # result.history是[(params_list, score), ...]格式
+                for i, (params_list, score) in enumerate(result.history):
+                    # 将参数列表转换为参数字典
+                    param_names = self.param_space.get_param_names()
+                    params_dict = {}
+                    for j, name in enumerate(param_names):
+                        if j < len(params_list):
+                            params_dict[name] = params_list[j]
+                    
+                    # 添加到标准格式历史记录
+                    self.optimization_history.append({
+                        'params': params_dict,
+                        'result': float(score),
+                        'timestamp': datetime.now().isoformat(),
+                        'evaluation_count': i + 1
+                    })
+            
+            # 从generation_stats构建详细历史（如果可用且更详细）
+            elif hasattr(result, 'generation_stats') and result.generation_stats:
+                for i, gen_stat in enumerate(result.generation_stats):
+                    if 'params' in gen_stat and 'score' in gen_stat:
+                        self.optimization_history.append({
+                            'params': gen_stat['params'],
+                            'result': float(gen_stat['score']),
+                            'timestamp': datetime.now().isoformat(),
+                            'evaluation_count': i + 1
+                        })
+            
+            # 确保我们有历史记录，即使只是最佳结果
+            if not self.optimization_history and hasattr(result, 'best_params'):
+                best_params = result.best_params if hasattr(result, 'best_params') else result.get('best_params', {})
+                best_score = result.best_score if hasattr(result, 'best_score') else result.get('best_value', float('inf'))
+                
+                # 确保best_score不为None
+                if best_score is None:
+                    best_score = float('inf')
+                
+                self.optimization_history.append({
+                    'params': best_params or {},
+                    'result': float(best_score),
+                    'timestamp': datetime.now().isoformat(),
+                    'evaluation_count': 1
+                })
+            
+            # 提取最佳参数和值
+            if hasattr(result, 'best_params'):
+                best_params = result.best_params
+            elif hasattr(result, 'x'):
+                # 转换参数列表为字典
+                param_names = self.param_space.get_param_names()
+                best_params = {}
+                for i, name in enumerate(param_names):
+                    if i < len(result.x):
+                        best_params[name] = result.x[i]
+            else:
+                best_params = result.get('best_params', {}) if isinstance(result, dict) else {}
+            
+            # 确保best_params不为None
+            if best_params is None:
+                best_params = {}
+            
+            best_value = result.best_score if hasattr(result, 'best_score') else result.get('best_value', float('inf'))
+            
+            # 确保best_value不为None
+            if best_value is None:
+                best_value = float('inf')
+            
+            # 构建收敛信息
+            convergence_info = {}
+            if hasattr(result, 'convergence_info'):
+                convergence_info = result.convergence_info or {}
+            elif isinstance(result, dict) and 'convergence_info' in result:
+                convergence_info = result['convergence_info'] or {}
+            
+            return self._format_result(
+                best_params,
+                float(best_value),
+                {
+                    'genetic_result': result,  # 保留原始遗传算法结果
+                    'convergence_info': convergence_info
+                }
+            )
             
         except ImportError as e:
             logger.error(f"遗传算法模块导入失败: {e}")

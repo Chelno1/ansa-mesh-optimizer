@@ -756,17 +756,35 @@ class GeneticOptimizer:
                 }
             )
 
-        # 构建历史记录
+        # 构建详细的历史记录
         history = []
+        
+        # 尝试从generation_stats构建更详细的历史
         if hasattr(self, 'generation_stats') and self.generation_stats:
-            # 从生成统计信息重建历史
             for i, stats in enumerate(self.generation_stats):
-                if i < len(self.best_fitness_history):
-                    # 使用最佳个体的基因作为该代的参数
-                    history.append((self.best_individual.genes.copy(), self.best_fitness_history[i]))
-        else:
-            # 如果没有详细历史，至少包含最佳结果
+                # 使用每代的最佳个体信息
+                if 'params' in stats and stats['params']:
+                    # 如果stats中有参数信息，直接使用
+                    param_values = []
+                    for param_name in self.param_names:
+                        param_values.append(stats['params'].get(param_name, 0))
+                    history.append((param_values, stats.get('score', stats.get('best_fitness', float('inf')))))
+                elif i < len(self.best_fitness_history):
+                    # 否则使用最佳个体的基因
+                    best_genes = self.best_individual.genes.copy() if self.best_individual else []
+                    fitness = self.best_fitness_history[i]
+                    history.append((best_genes, fitness))
+        
+        # 如果没有从generation_stats构建历史记录，使用最佳个体
+        if not history and self.best_individual:
             history.append((self.best_individual.genes.copy(), self.best_individual.fitness))
+        
+        # 如果仍然没有历史记录，创建一个默认记录
+        if not history:
+            default_genes = []
+            for low, high in self.bounds:
+                default_genes.append((low + high) / 2)
+            history.append((default_genes, float('inf')))
         
         return OptimizationResult(
             best_params=self.best_individual.genes.copy(),
