@@ -618,6 +618,7 @@ class GeneticOptimizer:
         
         if fitness_values:
             diversity = self._calculate_population_diversity(population)
+            best_individual = min(population, key=lambda x: x.fitness if x.fitness is not None else float('inf'))
             
             stats = {
                 'generation': generation,
@@ -627,7 +628,10 @@ class GeneticOptimizer:
                 'std_fitness': np.std(fitness_values),
                 'diversity': diversity,
                 'population_size': len(population),
-                'convergence_counter': self.convergence_counter
+                'convergence_counter': self.convergence_counter,
+                # 添加可视化需要的字段
+                'score': min(fitness_values),  # 兼容可视化器
+                'params': best_individual.to_params(self.param_names) if best_individual and hasattr(best_individual, 'to_params') else {}  # 兼容可视化器
             }
             
             # 限制历史记录长度

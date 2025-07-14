@@ -63,16 +63,16 @@ class OptimizationVisualizer:
         self.report_dir.mkdir(parents=True, exist_ok=True)
     
     def generate_optimization_plots(self,
-                                  result: Dict[str, Any],
-                                  optimization_history: List[Dict[str, Any]],
+                                  result,
+                                  optimization_history=None,
                                   early_stopping=None) -> None:
         """
-        生成优化相关的所有图表
+        生成优化相关的所有图表 - 兼容多种数据格式
         
         Args:
-            result: 优化结果
-            optimization_history: 优化历史
-            early_stopping: 早停对象
+            result: 优化结果，可以是字典或OptimizationResult对象
+            optimization_history: 优化历史（可选）
+            early_stopping: 早停对象（可选）
         """
         if not VISUALIZATION_AVAILABLE:
             logger.warning("可视化库不可用，跳过图表生成")
@@ -85,29 +85,53 @@ class OptimizationVisualizer:
             
             plots_generated = 0
             
-            # 收敛图
-            if 'skopt_result' in result:
-                try:
-                    self._plot_convergence(result)
-                    plots_generated += 1
-                except Exception as e:
-                    logger.warning(f"收敛图生成失败: {e}")
-                
-                # 参数重要性图（如果数据足够）
-                if result.get('n_calls', 0) >= 20:
+            # 处理不同的数据格式
+            if isinstance(result, dict):
+                # 字典格式的结果
+                # 收敛图
+                if 'skopt_result' in result:
                     try:
-                        self._plot_parameter_importance(result)
+                        self._plot_convergence(result)
                         plots_generated += 1
                     except Exception as e:
-                        logger.warning(f"参数重要性图生成失败: {e}")
+                        logger.warning(f"收敛图生成失败: {e}")
+                    
+                    # 参数重要性图（如果数据足够）
+                    if result.get('n_calls', 0) >= 20:
+                        try:
+                            self._plot_parameter_importance(result)
+                            plots_generated += 1
+                        except Exception as e:
+                            logger.warning(f"参数重要性图生成失败: {e}")
+                
+                # 优化历史图
+                if optimization_history:
+                    try:
+                        self._plot_optimization_history(optimization_history)
+                        plots_generated += 1
+                    except Exception as e:
+                        logger.warning(f"优化历史图生成失败: {e}")
             
-            # 优化历史图
-            if optimization_history:
+            else:
+                # OptimizationResult对象或其他格式
+                # 使用新的可视化方法
                 try:
-                    self._plot_optimization_history(optimization_history)
+                    self.plot_optimization_history(result)
                     plots_generated += 1
                 except Exception as e:
                     logger.warning(f"优化历史图生成失败: {e}")
+                
+                try:
+                    self.plot_parameter_evolution(result)
+                    plots_generated += 1
+                except Exception as e:
+                    logger.warning(f"参数演化图生成失败: {e}")
+                
+                try:
+                    self.plot_parameter_distribution(result)
+                    plots_generated += 1
+                except Exception as e:
+                    logger.warning(f"参数分布图生成失败: {e}")
             
             # 早停历史图
             if early_stopping and hasattr(early_stopping, 'plot_history'):
@@ -382,11 +406,11 @@ class OptimizationVisualizer:
         except Exception as e:
             logger.warning(f"生成敏感性分析图表失败: {e}")
     
-    def plot_parameter_evolution(self, 
+    def plot_parameter_evolution_legacy(self,
                                optimization_history: List[Dict[str, Any]],
                                param_names: List[str]) -> None:
         """
-        绘制参数演化图
+        绘制参数演化图 - 传统版本
         
         Args:
             optimization_history: 优化历史
@@ -444,3 +468,386 @@ class OptimizationVisualizer:
             
         except Exception as e:
             logger.warning(f"生成参数演化图失败: {e}")
+    
+    @with_chinese_font
+    def plot_optimization_history(self, data, save_path=None):
+        """
+        绘制优化历史曲线 - 兼容遗传算法数据格式
+        
+        Args:
+            data: 优化数据，可以是OptimizationResult对象或包含history的字典
+            save_path: 保存路径
+        """
+        if not VISUALIZATION_AVAILABLE:
+            logger.warning("可视化库不可用，跳过优化历史图表生成")
+            return
+        
+        try:
+            # 处理不同的数据格式
+            if hasattr(data, 'generation_stats') and data.generation_stats:
+                # OptimizationResult对象，使用generation_stats
+                history = data.generation_stats
+                scores = [stat.get('best_fitness', 0) for stat in history]
+                generations = [stat.get('generation', i) for i, stat in enumerate(history)]
+            elif hasattr(data, 'history') and data.history:
+                # OptimizationResult对象，使用history
+                history = data.history
+                scores = [score for _, score in history]
+                generations = list(range(1, len(scores) + 1))
+            elif isinstance(data, dict) and 'history' in data:
+                # 字典格式
+                history = data['history']
+                scores = []
+                generations = []
+                for i, record in enumerate(history):
+                    if isinstance(record, dict):
+                        score = record.get('best_score') or record.get('score') or record.get('result')
+                        if score is not None:
+                            scores.append(score)
+                            generations.append(i + 1)
+            else:
+                logger.error("无法识别的数据格式")
+                return
+            
+            if not scores:
+                logger.warning("没有有效的得分数据")
+                return
+            
+            # 创建图表
+            plt.figure(figsize=(12, 8))
+            
+            # 绘制得分曲线
+            plt.plot(generations, scores, 'b-', linewidth=2, label='优化得分', marker='o', markersize=4)
+            
+            # 添加最佳得分线
+            best_score = min(scores) if scores else 0
+            plt.axhline(y=best_score, color='r', linestyle='--', alpha=0.7,
+                       label=f'最佳得分: {best_score:.4f}')
+            
+            plt.xlabel('迭代次数')
+            plt.ylabel('得分')
+            plt.title('优化历史曲线')
+            plt.grid(True, alpha=0.3)
+            plt.legend()
+            
+            # 设置坐标轴范围
+            if len(scores) > 1:
+                plt.xlim(0, max(generations) + 1)
+                score_range = max(scores) - min(scores)
+                if score_range > 0:
+                    plt.ylim(min(scores) - score_range * 0.1, max(scores) + score_range * 0.1)
+            
+            # 保存图表
+            if save_path:
+                plt.savefig(save_path, dpi=300, bbox_inches='tight')
+                logger.info(f"优化历史图表已保存至: {save_path}")
+            else:
+                plt.savefig(self.report_dir / "optimization_history.png", dpi=300, bbox_inches='tight')
+                logger.info(f"优化历史图表已保存至: {self.report_dir / 'optimization_history.png'}")
+            
+            safe_close()
+            
+        except Exception as e:
+            logger.error(f"绘制优化历史失败: {e}")
+            # 创建错误图表
+            try:
+                plt.figure(figsize=(12, 8))
+                plt.text(0.5, 0.5, f'图表生成失败\n错误: {str(e)}',
+                        horizontalalignment='center', verticalalignment='center',
+                        transform=plt.gca().transAxes, fontsize=14, color='red')
+                plt.title('优化历史曲线 (错误)')
+                if save_path:
+                    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+                safe_close()
+            except:
+                pass
+    
+    @with_chinese_font
+    def plot_parameter_evolution(self, data, save_path=None):
+        """
+        绘制参数演化图 - 兼容遗传算法数据格式
+        
+        Args:
+            data: 优化数据
+            save_path: 保存路径
+        """
+        if not VISUALIZATION_AVAILABLE:
+            logger.warning("可视化库不可用，跳过参数演化图表生成")
+            return
+        
+        try:
+            # 提取参数数据
+            params_data = {}
+            param_names = []
+            
+            if hasattr(data, 'generation_stats') and data.generation_stats:
+                # 从generation_stats提取参数（如果有的话）
+                # 这种情况下我们需要从best_individual获取参数
+                if hasattr(data, 'parameter_names'):
+                    param_names = data.parameter_names
+                    # 模拟参数演化（因为generation_stats可能不包含详细参数）
+                    for name in param_names:
+                        params_data[name] = []
+                    
+                    # 如果有最佳参数，至少显示最终值
+                    if hasattr(data, 'best_params') and isinstance(data.best_params, dict):
+                        for name, value in data.best_params.items():
+                            if name in params_data:
+                                # 为每一代创建一个值（简化处理）
+                                params_data[name] = [value] * len(data.generation_stats)
+            
+            elif hasattr(data, 'history') and data.history:
+                # 从history提取参数
+                if hasattr(data, 'parameter_names'):
+                    param_names = data.parameter_names
+                    for name in param_names:
+                        params_data[name] = []
+                    
+                    for params_list, _ in data.history:
+                        for i, value in enumerate(params_list):
+                            if i < len(param_names):
+                                params_data[param_names[i]].append(value)
+            
+            elif isinstance(data, dict) and 'history' in data:
+                # 字典格式
+                history = data['history']
+                for record in history:
+                    if isinstance(record, dict) and 'params' in record:
+                        params = record['params']
+                        if isinstance(params, dict):
+                            for param, value in params.items():
+                                if param not in params_data:
+                                    params_data[param] = []
+                                params_data[param].append(value)
+            
+            if not params_data:
+                logger.warning("没有参数演化数据")
+                return
+            
+            # 过滤掉空的参数
+            params_data = {k: v for k, v in params_data.items() if v}
+            
+            if not params_data:
+                logger.warning("所有参数数据都为空")
+                return
+            
+            # 创建子图
+            n_params = len(params_data)
+            fig, axes = plt.subplots(n_params, 1, figsize=(12, 4 * n_params))
+            if n_params == 1:
+                axes = [axes]
+            
+            for i, (param, values) in enumerate(params_data.items()):
+                generations = list(range(1, len(values) + 1))
+                
+                axes[i].plot(generations, values, 'g-', linewidth=2, marker='o', markersize=4)
+                axes[i].set_title(f'参数演化: {param}')
+                axes[i].set_xlabel('迭代次数')
+                axes[i].set_ylabel('参数值')
+                axes[i].grid(True, alpha=0.3)
+                
+                # 设置坐标轴范围
+                if len(values) > 1:
+                    axes[i].set_xlim(0, max(generations) + 1)
+                    value_range = max(values) - min(values)
+                    if value_range > 0:
+                        axes[i].set_ylim(min(values) - value_range * 0.1,
+                                       max(values) + value_range * 0.1)
+            
+            plt.tight_layout()
+            
+            # 保存图表
+            if save_path:
+                plt.savefig(save_path, dpi=300, bbox_inches='tight')
+                logger.info(f"参数演化图表已保存至: {save_path}")
+            else:
+                plt.savefig(self.report_dir / "parameter_evolution.png", dpi=300, bbox_inches='tight')
+                logger.info(f"参数演化图表已保存至: {self.report_dir / 'parameter_evolution.png'}")
+            
+            safe_close()
+            
+        except Exception as e:
+            logger.error(f"绘制参数演化失败: {e}")
+            # 创建错误图表
+            try:
+                plt.figure(figsize=(12, 8))
+                plt.text(0.5, 0.5, f'参数演化图生成失败\n错误: {str(e)}',
+                        horizontalalignment='center', verticalalignment='center',
+                        transform=plt.gca().transAxes, fontsize=14, color='red')
+                plt.title('参数演化图 (错误)')
+                if save_path:
+                    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+                safe_close()
+            except:
+                pass
+    
+    @with_chinese_font
+    def plot_parameter_distribution(self, data, save_path=None):
+        """
+        绘制参数分布图
+        
+        Args:
+            data: 优化数据
+            save_path: 保存路径
+        """
+        if not VISUALIZATION_AVAILABLE:
+            logger.warning("可视化库不可用，跳过参数分布图表生成")
+            return
+        
+        try:
+            # 收集所有参数值
+            all_params = {}
+            
+            if hasattr(data, 'history') and data.history:
+                # 从history提取参数
+                if hasattr(data, 'parameter_names'):
+                    param_names = data.parameter_names
+                    for name in param_names:
+                        all_params[name] = []
+                    
+                    for params_list, _ in data.history:
+                        for i, value in enumerate(params_list):
+                            if i < len(param_names):
+                                all_params[param_names[i]].append(value)
+            
+            elif isinstance(data, dict) and 'history' in data:
+                # 字典格式
+                history = data['history']
+                for record in history:
+                    if isinstance(record, dict) and 'params' in record:
+                        params = record['params']
+                        if isinstance(params, dict):
+                            for param, value in params.items():
+                                if isinstance(value, (int, float)):
+                                    if param not in all_params:
+                                        all_params[param] = []
+                                    all_params[param].append(value)
+            
+            if not all_params:
+                logger.warning("没有有效的参数数据用于分布图")
+                return
+            
+            # 创建子图
+            n_params = len(all_params)
+            fig, axes = plt.subplots(n_params, 1, figsize=(12, 4 * n_params))
+            if n_params == 1:
+                axes = [axes]
+            
+            for i, (param, values) in enumerate(all_params.items()):
+                if values:
+                    import numpy as np
+                    axes[i].hist(values, bins=min(20, len(set(values))), alpha=0.7,
+                               color='skyblue', edgecolor='black')
+                    axes[i].set_title(f'参数分布: {param}')
+                    axes[i].set_xlabel('参数值')
+                    axes[i].set_ylabel('频率')
+                    axes[i].grid(True, alpha=0.3)
+                    
+                    # 添加统计信息
+                    mean_val = np.mean(values)
+                    std_val = np.std(values)
+                    axes[i].axvline(mean_val, color='red', linestyle='--', alpha=0.7,
+                                  label=f'均值: {mean_val:.4f}')
+                    axes[i].legend()
+                    
+                    # 在图上显示统计信息
+                    axes[i].text(0.02, 0.98, f'均值: {mean_val:.4f}\n标准差: {std_val:.4f}\n样本数: {len(values)}',
+                               transform=axes[i].transAxes, verticalalignment='top',
+                               bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+            
+            plt.tight_layout()
+            
+            # 保存图表
+            if save_path:
+                plt.savefig(save_path, dpi=300, bbox_inches='tight')
+                logger.info(f"参数分布图已保存至: {save_path}")
+            else:
+                plt.savefig(self.report_dir / "parameter_distribution.png", dpi=300, bbox_inches='tight')
+                logger.info(f"参数分布图已保存至: {self.report_dir / 'parameter_distribution.png'}")
+            
+            safe_close()
+            
+        except Exception as e:
+            logger.error(f"绘制参数分布图失败: {e}")
+            # 创建错误图表
+            try:
+                plt.figure(figsize=(12, 8))
+                plt.text(0.5, 0.5, f'参数分布图生成失败\n错误: {str(e)}',
+                        horizontalalignment='center', verticalalignment='center',
+                        transform=plt.gca().transAxes, fontsize=14, color='red')
+                plt.title('参数分布图 (错误)')
+                if save_path:
+                    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+                safe_close()
+            except:
+                pass
+    
+    def generate_complete_visualization_report(self, data, output_dir=None):
+        """
+        生成完整的可视化报告 - 兼容多种数据格式
+        
+        Args:
+            data: 优化数据
+            output_dir: 输出目录
+        """
+        if output_dir is None:
+            output_dir = self.report_dir
+        else:
+            output_dir = Path(output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            plots_generated = 0
+            
+            # 生成优化历史图
+            try:
+                history_path = output_dir / "optimization_history.png"
+                self.plot_optimization_history(data, save_path=str(history_path))
+                if history_path.exists():
+                    plots_generated += 1
+            except Exception as e:
+                logger.warning(f"生成优化历史图失败: {e}")
+            
+            # 生成参数演化图
+            try:
+                evolution_path = output_dir / "parameter_evolution.png"
+                self.plot_parameter_evolution(data, save_path=str(evolution_path))
+                if evolution_path.exists():
+                    plots_generated += 1
+            except Exception as e:
+                logger.warning(f"生成参数演化图失败: {e}")
+            
+            # 生成参数分布图
+            try:
+                distribution_path = output_dir / "parameter_distribution.png"
+                self.plot_parameter_distribution(data, save_path=str(distribution_path))
+                if distribution_path.exists():
+                    plots_generated += 1
+            except Exception as e:
+                logger.warning(f"生成参数分布图失败: {e}")
+            
+            # 生成现有的优化图表（如果数据支持）
+            try:
+                if (not isinstance(data, dict) and hasattr(data, 'generation_stats')) or (isinstance(data, dict) and 'history' in data):
+                    # 转换数据格式以兼容现有方法
+                    if not isinstance(data, dict) and hasattr(data, 'generation_stats') and data.generation_stats:
+                        optimization_history = []
+                        for stat in data.generation_stats:
+                            optimization_history.append({
+                                'result': stat.get('best_fitness', 0),
+                                'params': {},  # 参数信息可能不在generation_stats中
+                                'timestamp': '',
+                                'evaluation_count': stat.get('generation', 0)
+                            })
+                        
+                        self.generate_optimization_plots(data, optimization_history)
+                        plots_generated += 1
+            except Exception as e:
+                logger.warning(f"生成现有优化图表失败: {e}")
+            
+            logger.info(f"可视化报告生成完成，共生成 {plots_generated} 个图表，保存至: {output_dir}")
+            return plots_generated > 0
+            
+        except Exception as e:
+            logger.error(f"生成完整可视化报告失败: {e}")
+            return False
