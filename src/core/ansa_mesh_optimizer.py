@@ -202,22 +202,24 @@ class MeshOptimizer:
                 )
                 
                 # 执行优化
-                result_dict = optimizer_strategy.optimize(n_calls, **kwargs)
+                result = optimizer_strategy.optimize(n_calls, **kwargs)
                 
                 # 计算执行时间
                 execution_time = time.time() - start_time
+                result.execution_time = execution_time
+                result.success = True
                 
                 # 创建优化结果对象
-                result = OptimizationResult(
-                    best_params=result_dict['best_params'],
-                    best_value=result_dict['best_value'],
-                    optimizer_name=result_dict['optimizer_name'],
-                    optimization_history=result_dict.get('optimization_history', []),
-                    convergence_info=result_dict.get('convergence_info'),
-                    execution_time=execution_time,
-                    n_evaluations=len(result_dict.get('optimization_history', [])),
-                    success=True
-                )
+                # result = OptimizationResult(
+                #     best_params=result_dict['best_params'],
+                #     best_value=result_dict['best_value'],
+                #     optimizer_name=result_dict['optimizer_name'],
+                #     optimization_history=result_dict.get('optimization_history', []),
+                #     convergence_info=result_dict.get('convergence_info'),
+                #     execution_time=execution_time,
+                #     n_evaluations=len(result_dict.get('optimization_history', [])),
+                #     success=True
+                # )
                 
                 # 更新历史记录
                 self.optimization_history = result.optimization_history
@@ -225,7 +227,7 @@ class MeshOptimizer:
                 
                 # 生成报告（传递原始result_dict以保留skopt_result）
                 try:
-                    report_dir = self._generate_optimization_report(result, result_dict)
+                    report_dir = self._generate_optimization_report(result)
                     logger.info(f"详细报告已保存到: {report_dir}")
                 except Exception as e:
                     logger.warning(f"报告生成失败: {e}")

@@ -8,8 +8,11 @@ import numpy as np
 import logging
 import multiprocessing as mp
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING
 from concurrent.futures import ProcessPoolExecutor, as_completed
+
+if TYPE_CHECKING:
+    from .optimizer_config import OptimizationResult
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +58,7 @@ class OptimizerStrategy(ABC):
         self.optimization_history = []
     
     @abstractmethod
-    def optimize(self, n_calls: int, **kwargs) -> Dict[str, Any]:
+    def optimize(self, n_calls: int, **kwargs) -> 'OptimizationResult':
         """
         执行优化
         
@@ -64,7 +67,7 @@ class OptimizerStrategy(ABC):
             **kwargs: 其他参数
             
         Returns:
-            优化结果字典
+            优化结果对象
         """
         pass
     
@@ -77,7 +80,7 @@ class OptimizerStrategy(ABC):
         """带历史记录的评估"""
         try:
             from datetime import datetime
-            from utils.parameter_validator import normalize_params, validate_param_types
+            from utils.utils import normalize_params, validate_param_types
             
             # 标准化参数
             normalized_params = normalize_params(params)
@@ -108,30 +111,52 @@ class OptimizerStrategy(ABC):
             logger.error(f"评估过程中发生错误: {e}")
             return float('inf')
     
-    def _format_result(self, best_params: Dict[str, Any], best_value: float, 
-                      additional_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _format_result(self, best_params: Dict[str, Any], best_value: float,
+                      additional_info: Optional[Dict[str, Any]] = None) -> 'OptimizationResult':
         """格式化优化结果"""
-        from utils.parameter_validator import normalize_params
+        from utils.utils import normalize_params
+        from .optimizer_config import OptimizationResult
         
         # 标准化最佳参数
         normalized_best_params = normalize_params(best_params)
         
-        result = {
+        # 准备基础参数
+        base_params = {
             'best_params': normalized_best_params,
             'best_value': float(best_value),
             'optimizer_name': self.get_name(),
             'optimization_history': self.optimization_history.copy()
         }
         
+        # 处理额外信息 - 只添加OptimizationResult支持的字段
         if additional_info:
-            result.update(additional_info)
+            supported_fields = {
+                'convergence_info', 'execution_time', 'n_evaluations',
+                'success', 'error_message', 'generation_stats',
+                'parameter_names', 'parameter_ranges'
+            }
+            for key, value in additional_info.items():
+                if key in supported_fields:
+                    base_params[key] = value
+        
+        # 创建OptimizationResult对象
+        result = OptimizationResult(**base_params)
+        
+        # 将不支持的额外信息添加到内部字典数据中
+        if additional_info:
+            for key, value in additional_info.items():
+                if key not in base_params and not hasattr(result, key):
+                    result._dict_data[key] = value
+        
+        # 更新字典数据
+        result.update_dict_data()
         
         return result
 
 class BayesianOptimizerStrategy(OptimizerStrategy):
     """贝叶斯优化策略"""
     
-    def optimize(self, n_calls: int, **kwargs) -> Dict[str, Any]:
+    def optimize(self, n_calls: int, **kwargs) -> 'OptimizationResult':
         """执行贝叶斯优化"""
         if not SKOPT_MODULES['available']:
             raise RuntimeError("贝叶斯优化需要安装scikit-optimize")
@@ -162,7 +187,7 @@ class BayesianOptimizerStrategy(OptimizerStrategy):
     def get_name(self) -> str:
         return "Bayesian Optimization"
     
-    def _format_skopt_result(self, result) -> Dict[str, Any]:
+    def _format_skopt_result(self, result) -> 'OptimizationResult':
         """格式化scikit-optimize结果"""
         param_names = self.param_space.get_param_names()
         
@@ -205,7 +230,7 @@ class BayesianOptimizerStrategy(OptimizerStrategy):
 class RandomOptimizerStrategy(OptimizerStrategy):
     """随机搜索优化策略"""
     
-    def optimize(self, n_calls: int, **kwargs) -> Dict[str, Any]:
+    def optimize(self, n_calls: int, **kwargs) -> 'OptimizationResult':
         """执行随机搜索优化"""
         if not SKOPT_MODULES['available']:
             raise RuntimeError("随机搜索需要安装scikit-optimize")
@@ -235,7 +260,7 @@ class RandomOptimizerStrategy(OptimizerStrategy):
     def get_name(self) -> str:
         return "Random Search"
     
-    def _format_skopt_result(self, result) -> Dict[str, Any]:
+    def _format_skopt_result(self, result) -> 'OptimizationResult':
         """格式化scikit-optimize结果"""
         param_names = self.param_space.get_param_names()
         
@@ -278,7 +303,7 @@ class RandomOptimizerStrategy(OptimizerStrategy):
 class ForestOptimizerStrategy(OptimizerStrategy):
     """森林优化策略"""
     
-    def optimize(self, n_calls: int, **kwargs) -> Dict[str, Any]:
+    def optimize(self, n_calls: int, **kwargs) -> 'OptimizationResult':
         """执行森林优化"""
         if not SKOPT_MODULES['available']:
             raise RuntimeError("森林优化需要安装scikit-optimize")
@@ -309,7 +334,7 @@ class ForestOptimizerStrategy(OptimizerStrategy):
     def get_name(self) -> str:
         return "Forest Optimization"
     
-    def _format_skopt_result(self, result) -> Dict[str, Any]:
+    def _format_skopt_result(self, result) -> 'OptimizationResult':
         """格式化scikit-optimize结果"""
         param_names = self.param_space.get_param_names()
         
@@ -352,11 +377,10 @@ class ForestOptimizerStrategy(OptimizerStrategy):
 class GeneticOptimizerStrategy(OptimizerStrategy):
     """遗传算法优化策略"""
     
-    def optimize(self, n_calls: int, **kwargs) -> Dict[str, Any]:
+    def optimize(self, n_calls: int, **kwargs) -> 'OptimizationResult':
         """执行遗传算法优化"""
         try:
             from optimizers.genetic_optimizer import GeneticOptimizer
-            from datetime import datetime
             
             genetic_optimizer = GeneticOptimizer(
                 param_space=self.param_space,
@@ -366,93 +390,11 @@ class GeneticOptimizerStrategy(OptimizerStrategy):
             
             result = genetic_optimizer.optimize(n_calls, **kwargs)
             
-            # 构建标准格式的优化历史记录
-            self.optimization_history = []
+            # 更新历史记录
+            if hasattr(genetic_optimizer, 'optimization_history'):
+                self.optimization_history = getattr(genetic_optimizer, 'optimization_history', [])
             
-            # 从遗传算法的历史记录构建标准格式
-            if hasattr(result, 'history') and result.history:
-                # result.history是[(params_list, score), ...]格式
-                for i, (params_list, score) in enumerate(result.history):
-                    # 将参数列表转换为参数字典
-                    param_names = self.param_space.get_param_names()
-                    params_dict = {}
-                    for j, name in enumerate(param_names):
-                        if j < len(params_list):
-                            params_dict[name] = params_list[j]
-                    
-                    # 添加到标准格式历史记录
-                    self.optimization_history.append({
-                        'params': params_dict,
-                        'result': float(score),
-                        'timestamp': datetime.now().isoformat(),
-                        'evaluation_count': i + 1
-                    })
-            
-            # 从generation_stats构建详细历史（如果可用且更详细）
-            elif hasattr(result, 'generation_stats') and result.generation_stats:
-                for i, gen_stat in enumerate(result.generation_stats):
-                    if 'params' in gen_stat and 'score' in gen_stat:
-                        self.optimization_history.append({
-                            'params': gen_stat['params'],
-                            'result': float(gen_stat['score']),
-                            'timestamp': datetime.now().isoformat(),
-                            'evaluation_count': i + 1
-                        })
-            
-            # 确保我们有历史记录，即使只是最佳结果
-            if not self.optimization_history and hasattr(result, 'best_params'):
-                best_params = result.best_params if hasattr(result, 'best_params') else result.get('best_params', {})
-                best_score = result.best_score if hasattr(result, 'best_score') else result.get('best_value', float('inf'))
-                
-                # 确保best_score不为None
-                if best_score is None:
-                    best_score = float('inf')
-                
-                self.optimization_history.append({
-                    'params': best_params or {},
-                    'result': float(best_score),
-                    'timestamp': datetime.now().isoformat(),
-                    'evaluation_count': 1
-                })
-            
-            # 提取最佳参数和值
-            if hasattr(result, 'best_params'):
-                best_params = result.best_params
-            elif hasattr(result, 'x'):
-                # 转换参数列表为字典
-                param_names = self.param_space.get_param_names()
-                best_params = {}
-                for i, name in enumerate(param_names):
-                    if i < len(result.x):
-                        best_params[name] = result.x[i]
-            else:
-                best_params = result.get('best_params', {}) if isinstance(result, dict) else {}
-            
-            # 确保best_params不为None
-            if best_params is None:
-                best_params = {}
-            
-            best_value = result.best_score if hasattr(result, 'best_score') else result.get('best_value', float('inf'))
-            
-            # 确保best_value不为None
-            if best_value is None:
-                best_value = float('inf')
-            
-            # 构建收敛信息
-            convergence_info = {}
-            if hasattr(result, 'convergence_info'):
-                convergence_info = result.convergence_info or {}
-            elif isinstance(result, dict) and 'convergence_info' in result:
-                convergence_info = result['convergence_info'] or {}
-            
-            return self._format_result(
-                best_params,
-                float(best_value),
-                {
-                    'genetic_result': result,  # 保留原始遗传算法结果
-                    'convergence_info': convergence_info
-                }
-            )
+            return result
             
         except ImportError as e:
             logger.error(f"遗传算法模块导入失败: {e}")
@@ -464,7 +406,7 @@ class GeneticOptimizerStrategy(OptimizerStrategy):
 class ParallelOptimizerStrategy(OptimizerStrategy):
     """并行随机搜索策略"""
     
-    def optimize(self, n_calls: int, **kwargs) -> Dict[str, Any]:
+    def optimize(self, n_calls: int, **kwargs) -> 'OptimizationResult':
         """执行并行随机搜索"""
         n_workers = kwargs.get('n_workers', min(mp.cpu_count(), 4))
         
@@ -544,7 +486,7 @@ class ParallelOptimizerStrategy(OptimizerStrategy):
     def _evaluate_params_safe(self, params: Dict[str, float]) -> float:
         """线程安全的参数评估"""
         try:
-            from utils.parameter_validator import normalize_params, validate_param_types
+            from utils.utils import normalize_params, validate_param_types
             
             # 标准化参数
             normalized_params = normalize_params(params)

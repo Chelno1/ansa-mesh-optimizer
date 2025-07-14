@@ -21,78 +21,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-class OptimizationResult:
-    """
-    Wrapper class to make genetic optimizer results compatible with scikit-optimize result format
-    """
-    def __init__(self, best_params: List[float], best_score: float, history: List[Tuple[List[float], float]],
-                 parameter_names: List[str], parameter_ranges: List[Tuple[float, float]],
-                 generation_stats: Optional[List[Dict]] = None, convergence_info: Optional[Dict] = None):
-        self.x = best_params  # Best parameters found
-        self.fun = best_score  # Best score (negative because we minimize)
-        self.x_iters = [params for params, _ in history]  # All parameter combinations tried
-        self.func_vals = [score for _, score in history]  # All scores
-        self.parameter_names = parameter_names
-        self.parameter_ranges = parameter_ranges
-        
-        # Additional attributes for compatibility
-        self.best_params = {parameter_names[i]: best_params[i] for i in range(len(parameter_names))}
-        self.best_score = best_score
-        self.history = history
-        self.n_calls = len(history)
-        self.success = True
-        self.message = "Optimization completed successfully"
-        
-        # Genetic algorithm specific attributes
-        self.generation_stats = generation_stats or []
-        self.convergence_info = convergence_info or {}
-        
-        # Dictionary compatibility for backward compatibility
-        self._dict_data = {
-            'best_params': self.best_params,
-            'best_value': self.best_score,
-            'optimizer_name': 'Genetic Algorithm',
-            'total_generations': len(self.generation_stats),
-            'total_evaluations': self.n_calls,
-            'execution_time': self.convergence_info.get('execution_time', 0) if self.convergence_info else 0,
-            'convergence_info': self.convergence_info,
-            'parameter_names': self.parameter_names,
-            'parameter_ranges': self.parameter_ranges,
-            'history': self.history,
-            'generation_stats': self.generation_stats
-        }
-    
-    def __getitem__(self, key):
-        """Support dictionary-style access for backward compatibility"""
-        if key in self._dict_data:
-            return self._dict_data[key]
-        elif hasattr(self, key):
-            return getattr(self, key)
-        else:
-            raise KeyError(f"Key '{key}' not found")
-    
-    def get(self, key, default=None):
-        """Support dict.get() style access"""
-        try:
-            return self[key]
-        except KeyError:
-            return default
-    
-    def __contains__(self, key):
-        """Support 'in' operator"""
-        return key in self._dict_data or hasattr(self, key)
-    
-    def keys(self):
-        """Support dict.keys() style access"""
-        return self._dict_data.keys()
-    
-    def values(self):
-        """Support dict.values() style access"""
-        return self._dict_data.values()
-    
-    def items(self):
-        """Support dict.items() style access"""
-        return self._dict_data.items()
+# 导入统一的OptimizationResult类
+from .optimizer_config import OptimizationResult
 
 # 安全导入matplotlib和显示配置
 try:
@@ -738,13 +668,19 @@ class GeneticOptimizer:
             for low, high in self.bounds:
                 default_genes.append((low + high) / 2)  # 使用中点作为默认值
             
-            # 创建默认历史记录
-            default_history = [(default_genes, float('inf'))]
+            # 创建默认历史记录，格式化为字典以匹配OptimizationResult.optimization_history
+            default_history = [{
+                'generation': 0,
+                'parameters': {self.param_names[i]: default_genes[i] for i in range(len(self.param_names))},
+                'result': float('inf'),
+                'fitness': float('inf'),
+                'stats': None
+            }]
             
-            return OptimizationResult(
+            return OptimizationResult.from_genetic_result(
                 best_params=default_genes,
-                best_score=float('inf'),
-                history=default_history,
+                best_value=float('inf'),
+                optimization_history=default_history,
                 parameter_names=self.param_names,
                 parameter_ranges=self.bounds,
                 generation_stats=self.generation_stats,
@@ -756,40 +692,34 @@ class GeneticOptimizer:
                 }
             )
 
-        # 构建详细的历史记录
+        # 构建历史记录
         history = []
-        
-        # 尝试从generation_stats构建更详细的历史
         if hasattr(self, 'generation_stats') and self.generation_stats:
+            # 从生成统计信息重建历史
             for i, stats in enumerate(self.generation_stats):
-                # 使用每代的最佳个体信息
-                if 'params' in stats and stats['params']:
-                    # 如果stats中有参数信息，直接使用
-                    param_values = []
-                    for param_name in self.param_names:
-                        param_values.append(stats['params'].get(param_name, 0))
-                    history.append((param_values, stats.get('score', stats.get('best_fitness', float('inf')))))
-                elif i < len(self.best_fitness_history):
-                    # 否则使用最佳个体的基因
-                    best_genes = self.best_individual.genes.copy() if self.best_individual else []
-                    fitness = self.best_fitness_history[i]
-                    history.append((best_genes, fitness))
+                if i < len(self.best_fitness_history):
+                    # 使用最佳个体的基因作为该代的参数，格式化为字典以匹配OptimizationResult.optimization_history
+                    history.append({
+                        'generation': i,
+                        'parameters': self.best_individual.to_params(self.param_names) if self.best_individual else {},
+                        'result': self.best_fitness_history[i],
+                        'fitness': self.best_fitness_history[i],
+                        'stats': stats
+                    })
+        # else:
+        #     # 如果没有详细历史，至少包含最佳结果，格式化为字典以匹配OptimizationResult.optimization_history
+        #     history.append({
+        #         'generation': 0,
+        #         'parameters': self.best_individual.to_params(self.param_names) if self.best_individual else {},
+        #         'result': self.best_individual.fitness if self.best_individual and self.best_individual.fitness is not None else float('inf'),
+        #         'fitness': self.best_individual.fitness if self.best_individual and self.best_individual.fitness is not None else float('inf'),
+        #         'stats': None
+        #     })
         
-        # 如果没有从generation_stats构建历史记录，使用最佳个体
-        if not history and self.best_individual:
-            history.append((self.best_individual.genes.copy(), self.best_individual.fitness))
-        
-        # 如果仍然没有历史记录，创建一个默认记录
-        if not history:
-            default_genes = []
-            for low, high in self.bounds:
-                default_genes.append((low + high) / 2)
-            history.append((default_genes, float('inf')))
-        
-        return OptimizationResult(
+        return OptimizationResult.from_genetic_result(
             best_params=self.best_individual.genes.copy(),
-            best_score=self.best_individual.fitness if self.best_individual.fitness is not None else float('inf'),
-            history=history,
+            best_value=self.best_individual.fitness if self.best_individual.fitness is not None else float('inf'),
+            optimization_history=history,
             parameter_names=self.param_names,
             parameter_ranges=self.bounds,
             generation_stats=self.generation_stats,

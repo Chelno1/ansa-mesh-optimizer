@@ -406,68 +406,68 @@ class OptimizationVisualizer:
         except Exception as e:
             logger.warning(f"生成敏感性分析图表失败: {e}")
     
-    def plot_parameter_evolution_legacy(self,
-                               optimization_history: List[Dict[str, Any]],
-                               param_names: List[str]) -> None:
-        """
-        绘制参数演化图 - 传统版本
+    # def plot_parameter_evolution_legacy(self,
+    #                            optimization_history: List[Dict[str, Any]],
+    #                            param_names: List[str]) -> None:
+    #     """
+    #     绘制参数演化图 - 传统版本
         
-        Args:
-            optimization_history: 优化历史
-            param_names: 参数名称列表
-        """
-        if not VISUALIZATION_AVAILABLE or not optimization_history:
-            return
+    #     Args:
+    #         optimization_history: 优化历史
+    #         param_names: 参数名称列表
+    #     """
+    #     if not VISUALIZATION_AVAILABLE or not optimization_history:
+    #         return
         
-        try:
-            n_params = len(param_names)
-            if n_params == 0:
-                return
+    #     try:
+    #         n_params = len(param_names)
+    #         if n_params == 0:
+    #             return
             
-            n_cols = min(3, n_params)
-            n_rows = (n_params + n_cols - 1) // n_cols
+    #         n_cols = min(3, n_params)
+    #         n_rows = (n_params + n_cols - 1) // n_cols
             
-            fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 4*n_rows))
+    #         fig, axes = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 4*n_rows))
             
-            # 正确处理axes的类型
-            if n_params == 1:
-                axes_list = [axes]
-            elif n_rows == 1:
-                axes_list = list(axes) if n_cols > 1 else [axes]
-            elif n_cols == 1:
-                axes_list = list(axes) if n_rows > 1 else [axes]
-            else:
-                axes_list = axes.flatten()
+    #         # 正确处理axes的类型
+    #         if n_params == 1:
+    #             axes_list = [axes]
+    #         elif n_rows == 1:
+    #             axes_list = list(axes) if n_cols > 1 else [axes]
+    #         elif n_cols == 1:
+    #             axes_list = list(axes) if n_rows > 1 else [axes]
+    #         else:
+    #             axes_list = axes.flatten()
             
-            iterations = list(range(1, len(optimization_history) + 1))
+    #         iterations = list(range(1, len(optimization_history) + 1))
             
-            for i, param_name in enumerate(param_names):
-                ax = axes_list[i]
+    #         for i, param_name in enumerate(param_names):
+    #             ax = axes_list[i]
                 
-                # 提取参数值
-                param_values = []
-                for entry in optimization_history:
-                    params = entry.get('params', {})
-                    param_values.append(params.get(param_name, 0))
+    #             # 提取参数值
+    #             param_values = []
+    #             for entry in optimization_history:
+    #                 params = entry.get('params', {})
+    #                 param_values.append(params.get(param_name, 0))
                 
-                ax.plot(iterations, param_values, 'o-', alpha=0.7)
-                ax.set_title(f'参数演化: {param_name}')
-                ax.set_xlabel('迭代次数')
-                ax.set_ylabel(param_name)
-                ax.grid(True, alpha=0.3)
+    #             ax.plot(iterations, param_values, 'o-', alpha=0.7)
+    #             ax.set_title(f'参数演化: {param_name}')
+    #             ax.set_xlabel('迭代次数')
+    #             ax.set_ylabel(param_name)
+    #             ax.grid(True, alpha=0.3)
             
-            # 隐藏多余的子图
-            for i in range(n_params, len(axes_list)):
-                axes_list[i].set_visible(False)
+    #         # 隐藏多余的子图
+    #         for i in range(n_params, len(axes_list)):
+    #             axes_list[i].set_visible(False)
             
-            plt.tight_layout()
-            plt.savefig(self.report_dir / "parameter_evolution.png", dpi=300, bbox_inches='tight')
-            safe_close()
+    #         plt.tight_layout()
+    #         plt.savefig(self.report_dir / "parameter_evolution.png", dpi=300, bbox_inches='tight')
+    #         safe_close()
             
-            logger.info(f"参数演化图已保存: {self.report_dir / 'parameter_evolution.png'}")
+    #         logger.info(f"参数演化图已保存: {self.report_dir / 'parameter_evolution.png'}")
             
-        except Exception as e:
-            logger.warning(f"生成参数演化图失败: {e}")
+    #     except Exception as e:
+    #         logger.warning(f"生成参数演化图失败: {e}")
     
     @with_chinese_font
     def plot_optimization_history(self, data, save_path=None):
