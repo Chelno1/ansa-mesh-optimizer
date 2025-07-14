@@ -20,9 +20,13 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# 导入统一的参数验证功能
+from .parameter_validator import normalize_params as _normalize_params
+
 def normalize_params(params: Dict[str, Any]) -> Dict[str, Union[int, float]]:
     """
     标准化参数字典，将numpy类型转换为Python原生类型
+    使用统一的参数验证器
     
     Args:
         params: 参数字典
@@ -30,29 +34,7 @@ def normalize_params(params: Dict[str, Any]) -> Dict[str, Union[int, float]]:
     Returns:
         标准化后的参数字典
     """
-    normalized = {}
-    
-    for key, value in params.items():
-        try:
-            if hasattr(value, 'item'):  # numpy标量类型
-                normalized[key] = value.item()
-            elif isinstance(value, (np.integer, np.floating)):
-                normalized[key] = value.item()
-            elif isinstance(value, np.ndarray):
-                if value.size == 1:
-                    normalized[key] = value.item()
-                else:
-                    normalized[key] = value.tolist()
-            elif isinstance(value, (list, tuple)) and len(value) == 1:
-                # 处理单元素序列
-                normalized[key] = normalize_params({'temp': value[0]})['temp']
-            else:
-                normalized[key] = value
-        except Exception as e:
-            logger.warning(f"Failed to normalize parameter {key}={value}: {e}")
-            normalized[key] = value
-    
-    return normalized
+    return _normalize_params(params)
 
 def safe_json_serialize(obj: Any) -> str:
     """
@@ -91,9 +73,13 @@ def safe_json_serialize(obj: Any) -> str:
         logger.error(f"JSON serialization failed: {e}")
         return json.dumps({"error": f"Serialization failed: {str(e)}"})
 
+# 导入统一的参数验证功能
+from .parameter_validator import validate_param_types as _validate_param_types
+
 def validate_param_types(params: Dict[str, Any], param_space) -> Dict[str, Union[int, float]]:
     """
     验证并转换参数类型
+    使用统一的参数验证器
     
     Args:
         params: 参数字典
@@ -102,62 +88,7 @@ def validate_param_types(params: Dict[str, Any], param_space) -> Dict[str, Union
     Returns:
         验证后的参数字典
     """
-    validated_params: Dict[str, Union[int, float]] = {}
-    
-    try:
-        param_types = param_space.get_param_types()
-        param_names = param_space.get_param_names()
-        bounds = param_space.get_bounds()
-        
-        for i, name in enumerate(param_names):
-            if name in params:
-                value = params[name]
-                expected_type = param_types[i]
-                low, high = bounds[i]
-                
-                # 转换numpy类型
-                if hasattr(value, 'item'):
-                    value = value.item()
-                
-                # 类型转换
-                try:
-                    if expected_type == int:
-                        converted_value: Union[int, float] = int(round(float(value)))
-                    elif expected_type == float:
-                        converted_value = float(value)
-                    else:
-                        converted_value = value
-                    
-                    # 边界检查
-                    if low <= converted_value <= high:
-                        validated_params[name] = converted_value
-                    else:
-                        logger.warning(f"Parameter {name}={converted_value} out of bounds [{low}, {high}]")
-                        # 截断到边界内
-                        validated_params[name] = max(low, min(high, converted_value))
-                        
-                except (ValueError, TypeError) as e:
-                    logger.error(f"Type conversion failed for {name}={value}: {e}")
-                    # 使用默认值（边界中点）
-                    default_value = (low + high) / 2
-                    if expected_type == int:
-                        default_value = int(round(default_value))
-                    validated_params[name] = default_value
-                    
-            else:
-                logger.warning(f"参数 {name} 缺失")
-                # 使用默认值
-                low, high = bounds[i]
-                default_value = (low + high) / 2
-                if param_types[i] == int:
-                    default_value = int(round(default_value))
-                validated_params[name] = default_value
-        
-    except Exception as e:
-        logger.error(f"Parameter validation failed: {e}")
-        raise ValueError(f"Parameter validation error: {e}")
-    
-    return validated_params
+    return _validate_param_types(params, param_space)
 
 def format_execution_time(seconds: float) -> str:
     """

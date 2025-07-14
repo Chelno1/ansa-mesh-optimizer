@@ -77,7 +77,7 @@ class OptimizerStrategy(ABC):
         """带历史记录的评估"""
         try:
             from datetime import datetime
-            from src.utils.utils import normalize_params, validate_param_types
+            from utils.parameter_validator import normalize_params, validate_param_types
             
             # 标准化参数
             normalized_params = normalize_params(params)
@@ -111,7 +111,7 @@ class OptimizerStrategy(ABC):
     def _format_result(self, best_params: Dict[str, Any], best_value: float, 
                       additional_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """格式化优化结果"""
-        from src.utils.utils import normalize_params
+        from utils.parameter_validator import normalize_params
         
         # 标准化最佳参数
         normalized_best_params = normalize_params(best_params)
@@ -544,7 +544,7 @@ class ParallelOptimizerStrategy(OptimizerStrategy):
     def _evaluate_params_safe(self, params: Dict[str, float]) -> float:
         """线程安全的参数评估"""
         try:
-            from src.utils.utils import normalize_params, validate_param_types
+            from utils.parameter_validator import normalize_params, validate_param_types
             
             # 标准化参数
             normalized_params = normalize_params(params)

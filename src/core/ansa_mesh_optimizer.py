@@ -79,22 +79,22 @@ try:
     logger.info("配置系统类已导入")
         
     # 导入重构后的模块
-    from src.evaluators.mesh_evaluator import create_mesh_evaluator, MeshEvaluator
-    from src.utils.optimization_cache import OptimizationCache, CachedEvaluator
-    from src.core.early_stopping import create_early_stopping, EarlyStopping
-    from src.utils.utils import normalize_params, validate_param_types, performance_monitor
+    from evaluators.mesh_evaluator import create_mesh_evaluator, MeshEvaluator
+    from utils.optimization_cache import OptimizationCache, CachedEvaluator
+    from core.early_stopping import create_early_stopping, EarlyStopping
+    from utils.utils import normalize_params, validate_param_types, performance_monitor
     
     # 导入新的优化器策略模块
-    from src.optimizers import (
-        OptimizerFactory, 
-        OptimizerConfig, 
+    from optimizers import (
+        OptimizerFactory,
+        OptimizerConfig,
         OptimizationResult,
         create_default_config
     )
     
     # 导入可视化和报告模块
-    from src.visualization.optimization_visualizer import OptimizationVisualizer
-    from src.reports.optimization_reporter import OptimizationReporter
+    from visualization.optimization_visualizer import OptimizationVisualizer
+    from reports.optimization_reporter import OptimizationReporter
     
 except ImportError as e:
     logger.error(f"本地模块导入失败: {e}")
@@ -524,7 +524,7 @@ def get_available_optimizers() -> List[str]:
 
 def check_dependencies() -> Dict[str, Any]:
     """检查依赖库状态"""
-    from src.optimizers.optimizer_strategies import SKOPT_MODULES
+    from optimizers.optimizer_strategies import SKOPT_MODULES
     
     result = {
         'available_optimizers': get_available_optimizers(),

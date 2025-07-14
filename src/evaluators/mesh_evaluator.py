@@ -28,8 +28,17 @@ from datetime import datetime
 try:
     from config.config import UnifiedConfigManager
 except ImportError:
-    # 如果从src目录运行，使用相对导入
-    from ..config.config import UnifiedConfigManager
+    # 如果从src目录运行，尝试不同的导入路径
+    try:
+        import sys
+        from pathlib import Path
+        # 添加src目录到路径
+        src_dir = Path(__file__).parent.parent
+        if str(src_dir) not in sys.path:
+            sys.path.insert(0, str(src_dir))
+        from config.config import UnifiedConfigManager
+    except ImportError as e:
+        raise ImportError(f"无法导入UnifiedConfigManager: {e}")
 
 logger = logging.getLogger(__name__)
 
@@ -87,108 +96,20 @@ class MeshEvaluator(ABC):
         """
         pass
 
-class ParameterValidator:
-    """参数验证器"""
-    
-    def __init__(self, param_space):
-        self.param_space = param_space
-        self.bounds = param_space.get_bounds()
-        self.param_names = param_space.get_parameter_names()
-        self.param_types = param_space.get_parameter_types()
-    
-    def validate_comprehensive(self, params: Dict[str, Any], allow_partial: bool = True) -> Tuple[bool, str, Dict[str, Any]]:
-        """
-        全面的参数验证
-        
-        Args:
-            params: 输入参数字典
-            allow_partial: 是否允许部分参数（缺失参数用默认值填充）
-        
-        Returns:
-            (is_valid, error_message, cleaned_params)
-        """
-        errors = []
-        cleaned_params = {}
-        
-        # 获取默认参数值
-        default_values = self._get_default_parameter_values()
-        
-        # 检查和处理参数
-        for name in self.param_names:
-            if name not in params:
-                if allow_partial and name in default_values:
-                    # 使用默认值填充缺失参数
-                    cleaned_params[name] = default_values[name]
-                    logger.debug(f"使用默认值填充参数 {name}: {default_values[name]}")
-                else:
-                    errors.append(f"缺少必需参数: {name}")
-                continue
-            
-            value = params[name]
-            
-            # 类型转换和验证
-            try:
-                cleaned_value = self._clean_and_validate_param(name, value)
-                cleaned_params[name] = cleaned_value
-            except ValueError as e:
-                errors.append(f"参数 {name} 验证失败: {e}")
-        
-        # 检查额外参数
-        extra_params = set(params.keys()) - set(self.param_names)
-        if extra_params:
-            logger.warning(f"忽略额外参数: {extra_params}")
-        
-        # 返回结果
-        is_valid = len(errors) == 0
-        error_message = "; ".join(errors) if errors else "验证通过"
-        
-        return is_valid, error_message, cleaned_params
-    
-    def _clean_and_validate_param(self, name: str, value: Any) -> Union[int, float]:
-        """清理和验证单个参数"""
-        param_index = self.param_names.index(name)
-        expected_type = self.param_types[param_index]
-        low, high = self.bounds[param_index]
-        
-        # 转换numpy类型
-        if hasattr(value, 'item'):
-            value = value.item()
-        
-        # 类型转换
-        try:
-            if expected_type == int:
-                cleaned_value: Union[int, float] = int(round(float(value)))
-            else:
-                cleaned_value = float(value)
-        except (ValueError, TypeError) as e:
-            raise ValueError(f"无法转换为{expected_type.__name__}: {value}")
-        
-        # 边界检查
-        if not (low <= cleaned_value <= high):
-            raise ValueError(f"值 {cleaned_value} 超出范围 [{low}, {high}]")
-        
-        return cleaned_value
-    
-    def _get_default_parameter_values(self) -> Dict[str, float]:
-        """获取默认参数值"""
-        try:
-            # 从配置管理器获取默认值
-            return self.param_space.get_default_values()
-        except AttributeError:
-            # 如果配置管理器没有默认值方法，使用硬编码默认值
-            return {
-                'distortion_distance': 20,
-                'rule_fillet_width_1': 3.0,
-                'rule_fillet_width_2': 10.0,
-                'rule_fillet_width_3': 20.0,
-                'rule_fillet_width_4': 30.0,
-                'recognize_chamfers_min_angle': 20.0,
-                'recognize_chamfers_max_angle': 70.0,
-                'recognize_chamfers_max_width': 20.0,
-                'rule_chamfer_width_1': 10.0,
-                'distortion_angle': 0.0,
-                'perimeter_distance': 0.667
-            }
+# 导入统一的参数验证器
+try:
+    from utils.parameter_validator import get_parameter_validator
+except ImportError:
+    # 如果导入失败，尝试添加路径
+    try:
+        import sys
+        from pathlib import Path
+        src_dir = Path(__file__).parent.parent
+        if str(src_dir) not in sys.path:
+            sys.path.insert(0, str(src_dir))
+        from utils.parameter_validator import get_parameter_validator
+    except ImportError as e:
+        raise ImportError(f"无法导入get_parameter_validator: {e}")
 
 class AnsaMeshEvaluator(MeshEvaluator):
     """Ansa网格评估器 - 改进版本"""
@@ -199,7 +120,7 @@ class AnsaMeshEvaluator(MeshEvaluator):
         self.config_manager = config_manager
         self.config = config_manager.ansa_config
         self.param_mapping = config_manager.parameter_space.get_ansa_mapping()
-        self.validator = ParameterValidator(config_manager.parameter_space)
+        self.validator = get_parameter_validator(config_manager.parameter_space)
         self.cwd_dir = Path.cwd().resolve()
         self.criterion_dir = self.cwd_dir / 'criterion'
 
@@ -622,7 +543,7 @@ class MockMeshEvaluator(MeshEvaluator):
         if config_manager is None:
             raise ValueError("MockMeshEvaluator requires a config_manager instance")
         self.config_manager = config_manager
-        self.validator = ParameterValidator(config_manager.parameter_space)
+        self.validator = get_parameter_validator(config_manager.parameter_space)
         
         # 设置随机种子以便可重现
         random.seed(42)

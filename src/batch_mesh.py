@@ -53,42 +53,74 @@ except ImportError as e:
     logger.info("将使用模拟模式运行")
 
 class AnsaBatchConfig:
-    """Ansa批处理配置类"""
+    """Ansa批处理配置类 - 重构版本"""
+    
+    # 默认配置常量
+    DEFAULT_THRESHOLDS = {
+        'min_length': 5.0,
+        'max_length': 15.0,
+        'min_angle_quads': 60.0,
+        'max_angle_quads': 120.0,
+        'min_angle_trias': 30.0,
+        'max_angle_trias': 120.0,
+        'aspect_ratio': 3.0,
+        'skewness': 45.0,
+        'warping': 12.5
+    }
+    
+    DEFAULT_EXECUTION = {
+        'timeout': 300,
+        'retry_attempts': 3,
+        'retry_delay': 1.0
+    }
+    
+    DEFAULT_FILES = {
+        'qual_file': '8mm_v23.ansa_qual',
+        'output_model': 'output_mesh.ansa'
+    }
+    
+    DEFAULT_QUALITY_CHECKS = {
+        'min_length': True,
+        'max_length': True,
+        'aspect_ratio': True,
+        'skewness': True,
+        'jacobian': False,
+        'warping': True,
+        'min_angle_quads': True,
+        'max_angle_quads': True,
+        'min_angle_trias': True,
+        'max_angle_trias': True
+    }
     
     def __init__(self, cwd_dir: Optional[Path] = None):
         self.cwd_dir = cwd_dir or Path.cwd().resolve()
-        self.min_length = 5.0
-        self.max_length = 15.0
-        self.min_angle_quads = 60.0
-        self.max_angle_quads = 120.0
-        self.min_angle_trias = 30.0
-        self.max_angle_trias = 120.0
-        self.aspect_ratio = 3.0
-        self.skewness = 45.0
-        self.warping = 12.5
+        
+        # 显式初始化所有属性以避免类型检查错误
+        # 阈值配置
+        self.min_length = self.DEFAULT_THRESHOLDS['min_length']
+        self.max_length = self.DEFAULT_THRESHOLDS['max_length']
+        self.min_angle_quads = self.DEFAULT_THRESHOLDS['min_angle_quads']
+        self.max_angle_quads = self.DEFAULT_THRESHOLDS['max_angle_quads']
+        self.min_angle_trias = self.DEFAULT_THRESHOLDS['min_angle_trias']
+        self.max_angle_trias = self.DEFAULT_THRESHOLDS['max_angle_trias']
+        self.aspect_ratio = self.DEFAULT_THRESHOLDS['aspect_ratio']
+        self.skewness = self.DEFAULT_THRESHOLDS['skewness']
+        self.warping = self.DEFAULT_THRESHOLDS['warping']
+        
+        # 执行配置
+        self.timeout = self.DEFAULT_EXECUTION['timeout']
+        self.retry_attempts = self.DEFAULT_EXECUTION['retry_attempts']
+        self.retry_delay = self.DEFAULT_EXECUTION['retry_delay']
+        
+        # 文件配置
+        self.qual_file = self.DEFAULT_FILES['qual_file']
+        self.output_model = self.DEFAULT_FILES['output_model']
+        
+        # 动态查找mpar文件
         self.mpar_file = self._find_mpar_file()
-        self.qual_file = '8mm_v23.ansa_qual'
-        self.output_model = 'output_mesh.ansa'
-        self.timeout = 300  # 5分钟超时
-        self.retry_attempts = 3
-        self.retry_delay = 1.0
         
-        # 质量检查配置
-        self.quality_checks = {
-            'min_length': True,
-            'max_length': True,
-            'aspect_ratio': True,
-            'skewness': True,
-            'jacobian': False,
-            'warping' : True,
-            'min_angle_quads' : True,
-            'max_angle_quads' : True,
-            'min_angle_trias' : True,
-            'max_angle_trias' : True
-        }
-        
-        # 批处理模式
-        # self.batch_mode = 'conservative'  # conservative, aggressive, balanced
+        # 初始化质量检查配置
+        self.quality_checks = self.DEFAULT_QUALITY_CHECKS.copy()
     
     def _find_mpar_file(self) -> str:
         """在当前工作目录下查找.ansa_mpar文件"""
@@ -417,60 +449,33 @@ class AnsaBatchMeshRunner:
             return self._simulate_quality_check(custom_thresholds)
         
         try:
-            # 使用自定义阈值或配置中的阈值
-            min_length = custom_thresholds.get('min_length', self.config.min_length) if custom_thresholds else self.config.min_length
-            max_length = custom_thresholds.get('max_length', self.config.max_length) if custom_thresholds else self.config.max_length
-            aspect_ratio = custom_thresholds.get('aspect_ratio', self.config.aspect_ratio) if custom_thresholds else self.config.aspect_ratio
-            skewness = custom_thresholds.get('skewness', self.config.skewness) if custom_thresholds else self.config.skewness
-            warping = custom_thresholds.get('warping', self.config.warping) if custom_thresholds else self.config.warping
-            min_angle_quads = custom_thresholds.get('min_angle_quads', self.config.min_angle_quads) if custom_thresholds else self.config.min_angle_quads
-            max_angle_quads = custom_thresholds.get('max_angle_quads', self.config.max_angle_quads) if custom_thresholds else self.config.max_angle_quads
-            min_angle_trias = custom_thresholds.get('min_angle_trias', self.config.min_angle_trias) if custom_thresholds else self.config.min_angle_trias
-            max_angle_trias = custom_thresholds.get('max_angle_trias', self.config.max_angle_trias) if custom_thresholds else self.config.max_angle_trias
+            # 使用自定义阈值或配置中的阈值 - 简化版本
+            thresholds = self._get_effective_thresholds(custom_thresholds)
             
             results: Dict[str, Any] = {
                 'timestamp': time.time(),
-                'thresholds': {
-                    'min_length': min_length,
-                    'max_length': max_length,
-                    'aspect_ratio': aspect_ratio,
-                    'skewness': skewness,
-                    'warping': warping,
-                    'min_angle_quads': min_angle_quads,
-                    'max_angle_quads': max_angle_quads,
-                    'min_angle_trias': min_angle_trias,
-                    'max_angle_trias': max_angle_trias
-                    },
+                'thresholds': thresholds,
                 'checks': {}
             }
             
-            # 执行启用的质量检查
-            if self.config.quality_checks['min_length']:
-                results['checks']['min_length'] = self._check_shell_quality(min_length, 'min_length')
+            # 执行启用的质量检查 - 简化版本
+            quality_check_mapping = {
+                'min_length': 'min_length',
+                'max_length': 'max_length',
+                'aspect_ratio': 'aspect_ratio',
+                'skewness': 'skewness',
+                'warping': 'warping',
+                'min_angle_quads': 'min_angle_quads',
+                'max_angle_quads': 'max_angle_quads',
+                'min_angle_trias': 'min_angle_trias',
+                'max_angle_trias': 'max_angle_trias'
+            }
             
-            if self.config.quality_checks['max_length']:
-                results['checks']['max_length'] = self._check_shell_quality(max_length, 'max_length')
-
-            if self.config.quality_checks['aspect_ratio']:
-                results['checks']['aspect_ratio'] = self._check_shell_quality(aspect_ratio, 'aspect_ratio')
-
-            if self.config.quality_checks['skewness']:
-                results['checks']['skewness'] = self._check_shell_quality(skewness, 'skewness')
-
-            if self.config.quality_checks['warping']:
-                results['checks']['warping'] = self._check_shell_quality(warping, 'warping')
-
-            if self.config.quality_checks['min_angle_quads']:
-                results['checks']['min_angle_quads'] = self._check_shell_quality(min_angle_quads, 'min_angle_quads')
-
-            if self.config.quality_checks['max_angle_quads']:
-                results['checks']['max_angle_quads'] = self._check_shell_quality(max_angle_quads, 'max_angle_quads')
-
-            if self.config.quality_checks['min_angle_trias']:
-                results['checks']['min_angle_trias'] = self._check_shell_quality(min_angle_trias, 'min_angle_trias')
-
-            if self.config.quality_checks['max_angle_trias']:
-                results['checks']['max_angle_trias'] = self._check_shell_quality(max_angle_trias, 'max_angle_trias')
+            for check_name, threshold_key in quality_check_mapping.items():
+                if self.config.quality_checks.get(check_name, False):
+                    results['checks'][check_name] = self._check_shell_quality(
+                        thresholds[threshold_key], check_name
+                    )
             
             # 统计总单元数
             all_elements = base.CollectEntitiesI(constants.LSDYNA, None, 'ELEMENT_SHELL')
@@ -508,64 +513,115 @@ class AnsaBatchMeshRunner:
             logger.error(f"质量检查异常: {e}")
             return self._simulate_quality_check(custom_thresholds)
     
+    def _get_effective_thresholds(self, custom_thresholds: Optional[Dict[str, float]] = None) -> Dict[str, float]:
+        """获取有效的质量阈值"""
+        default_thresholds = {
+            'min_length': self.config.min_length,
+            'max_length': self.config.max_length,
+            'aspect_ratio': self.config.aspect_ratio,
+            'skewness': self.config.skewness,
+            'warping': self.config.warping,
+            'min_angle_quads': self.config.min_angle_quads,
+            'max_angle_quads': self.config.max_angle_quads,
+            'min_angle_trias': self.config.min_angle_trias,
+            'max_angle_trias': self.config.max_angle_trias
+        }
+        
+        if custom_thresholds:
+            default_thresholds.update(custom_thresholds)
+        
+        return default_thresholds
+    
+    def _get_quality_check_config(self, check_type: str) -> Dict[str, Any]:
+        """获取质量检查配置，减少重复代码"""
+        config_map = {
+            'min_length': {
+                'criteria': 'MIN-LEN',
+                'compare_func': lambda x, t: x <= t,
+                'worst_func': min,
+                'log_msg': "最小长度检查",
+                'element_filter': None
+            },
+            'max_length': {
+                'criteria': 'MAX-LEN',
+                'compare_func': lambda x, t: x >= t,
+                'worst_func': max,
+                'log_msg': "最大长度检查",
+                'element_filter': None
+            },
+            'aspect_ratio': {
+                'criteria': 'ASPECT',
+                'compare_func': lambda x, t: x >= t,
+                'worst_func': max,
+                'log_msg': "长宽比检查",
+                'element_filter': None
+            },
+            'skewness': {
+                'criteria': 'SKEW',
+                'compare_func': lambda x, t: x >= t,
+                'worst_func': max,
+                'log_msg': "偏斜度检查",
+                'element_filter': None
+            },
+            'warping': {
+                'criteria': 'WARP',
+                'compare_func': lambda x, t: x >= t,
+                'worst_func': max,
+                'log_msg': "扭曲度检查",
+                'element_filter': None
+            },
+            'min_angle_quads': {
+                'criteria': 'MINANGLE',
+                'compare_func': lambda x, t: x <= t,
+                'worst_func': min,
+                'log_msg': "最小四边形角度检查",
+                'element_filter': 'QUAD'
+            },
+            'max_angle_quads': {
+                'criteria': 'MAXANGLE',
+                'compare_func': lambda x, t: x >= t,
+                'worst_func': max,
+                'log_msg': "最大四边形角度检查",
+                'element_filter': 'QUAD'
+            },
+            'min_angle_trias': {
+                'criteria': 'MINANGLE',
+                'compare_func': lambda x, t: x <= t,
+                'worst_func': min,
+                'log_msg': "最小三角形角度检查",
+                'element_filter': 'TRIA'
+            },
+            'max_angle_trias': {
+                'criteria': 'MAXANGLE',
+                'compare_func': lambda x, t: x >= t,
+                'worst_func': max,
+                'log_msg': "最大三角形角度检查",
+                'element_filter': 'TRIA'
+            }
+        }
+        
+        if check_type not in config_map:
+            raise ValueError(f"不支持的检查类型: {check_type}")
+        
+        return config_map[check_type]
+    
     def _check_shell_quality(self, threshold: float, check_type: str) -> Dict[str, Any]:
-        """检查壳单元质量
+        """检查壳单元质量 - 重构版本
         
         Args:
-            threshold: 长度阈值
-            check_type: 检查类型 ('min_length' 或 'max_length')
+            threshold: 质量阈值
+            check_type: 检查类型
         """
         failed_elems = []
         failed_values = []
         
-        # 确定质量指标和比较操作
-        if check_type == 'min_length':
-            quality_criteria = 'MIN-LEN'
-            compare_func = lambda x: x <= threshold
-            worst_func = min
-            log_msg = "最小长度检查"
-        elif check_type == 'max_length':
-            quality_criteria = 'MAX-LEN'
-            compare_func = lambda x: x >= threshold
-            worst_func = max
-            log_msg = "最大长度检查"
-        elif check_type == 'aspect_ratio':
-            quality_criteria = 'ASPECT'
-            compare_func = lambda x: x >= threshold
-            worst_func = max
-            log_msg = "长宽比检查"
-        elif check_type == 'skewness':
-            quality_criteria = 'SKEW'
-            compare_func = lambda x: x >= threshold
-            worst_func = max
-            log_msg = "偏斜度检查"
-        elif check_type == 'warping':
-            quality_criteria = 'WARP'
-            compare_func = lambda x: x >= threshold
-            worst_func = max
-            log_msg = "扭曲度检查"
-        elif check_type == 'min_angle_quads':
-            quality_criteria = 'MINANGLE'
-            compare_func = lambda x: x <= threshold
-            worst_func = min
-            log_msg = "最小四边形角度检查"
-        elif check_type == 'max_angle_quads':
-            quality_criteria = 'MAXANGLE'
-            compare_func = lambda x: x >= threshold
-            worst_func = max
-            log_msg = "最大四边形角度检查"
-        elif check_type == 'min_angle_trias':
-            quality_criteria = 'MINANGLE'
-            compare_func = lambda x: x <= threshold
-            worst_func = min
-            log_msg = "最小三角形角度检查"
-        elif check_type == 'max_angle_trias':
-            quality_criteria = 'MAXANGLE'
-            compare_func = lambda x: x >= threshold
-            worst_func = max
-            log_msg = "最大三角形角度检查"
-        else:
-            raise ValueError(f"不支持的检查类型: {check_type}")
+        # 获取质量检查配置
+        config = self._get_quality_check_config(check_type)
+        quality_criteria = config['criteria']
+        compare_func = config['compare_func']
+        worst_func = config['worst_func']
+        log_msg = config['log_msg']
+        element_filter = config['element_filter']
         
         try:
             elements = base.CollectEntitiesI(constants.LSDYNA, None, 'ELEMENT_SHELL')
@@ -582,32 +638,21 @@ class AnsaBatchMeshRunner:
             
             elements_list = list(elements)
             
-            if check_type in ['min_angle_quads', 'max_angle_quads']:
-                for elem in elements_list:
-                    if base.GetEntityCardValues(constants.LSDYNA, elem, "__type__" ) == 'QUAD':
-                        quality = base.ElementQuality(elem, quality_criteria)
-                        if quality != 'error' and quality != 0:
-                            quality_value = float(quality)
-                            if compare_func(quality_value):
-                                failed_elems.append(elem)
-                                failed_values.append(quality_value)
-            elif check_type in ['min_angle_trias', 'max_angle_trias']:
-                for elem in elements_list:
-                    if base.GetEntityCardValues(constants.LSDYNA, elem, "__type__" ) == 'TRIA':
-                        quality = base.ElementQuality(elem, quality_criteria)
-                        if quality != 'error' and quality != 0:
-                            quality_value = float(quality)
-                            if compare_func(quality_value):
-                                failed_elems.append(elem)
-                                failed_values.append(quality_value)
-            else:
-                for elem in elements_list:
-                    quality = base.ElementQuality(elem, quality_criteria)
-                    if quality != 'error' and quality != 0:
-                        quality_value = float(quality)
-                        if compare_func(quality_value):
-                            failed_elems.append(elem)
-                            failed_values.append(quality_value)
+            # 统一的元素处理逻辑
+            for elem in elements_list:
+                # 如果有元素类型过滤器，检查元素类型
+                if element_filter:
+                    elem_type = base.GetEntityCardValues(constants.LSDYNA, elem, "__type__")
+                    if elem_type != element_filter:
+                        continue
+                
+                # 获取质量值并检查
+                quality = base.ElementQuality(elem, quality_criteria)
+                if quality != 'error' and quality != 0:
+                    quality_value = float(quality)
+                    if compare_func(quality_value, threshold):
+                        failed_elems.append(elem)
+                        failed_values.append(quality_value)
             
             result = {
                 'status': 'OK' if not failed_elems else 'NOK',
@@ -645,8 +690,14 @@ class AnsaBatchMeshRunner:
         logger.info("模拟质量检查...")
         
         # 使用自定义阈值或配置中的阈值
-        min_len = custom_thresholds.get('min_element_length', self.config.min_length) if custom_thresholds else self.config.min_length
-        max_len = custom_thresholds.get('max_element_length', self.config.max_length) if custom_thresholds else self.config.max_length
+        min_len = (custom_thresholds.get('min_element_length', self.config.min_length)
+                  if custom_thresholds else self.config.min_length)
+        max_len = (custom_thresholds.get('max_element_length', self.config.max_length)
+                  if custom_thresholds else self.config.max_length)
+        
+        # 确保阈值不为None
+        min_len = min_len or self.config.min_length
+        max_len = max_len or self.config.max_length
         
         # 模拟结果
         total_elements = random.randint(1000, 10000)

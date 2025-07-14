@@ -7,11 +7,18 @@ CLI主模块 - 命令行接口核心功能
 import sys
 import argparse
 import logging
+import importlib.util
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Tuple
+
+logger = logging.getLogger(__name__)
 
 # 添加当前目录到Python路径
-sys.path.insert(0, str(Path(__file__).parent.parent))
+parent_dir = str(Path(__file__).parent.parent)
+logger.debug("Adding to Python path: %s", parent_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+    logger.debug("Updated Python path: %s", sys.path)
 
 # 全局变量
 APP_VERSION = "2.1.0"
@@ -94,18 +101,42 @@ def create_parser() -> argparse.ArgumentParser:
     # 创建子命令
     subparsers = parser.add_subparsers(dest='command', help='可用命令')
     
-    # 导入并注册各个命令
-    from .commands.optimize_cmd import register_optimize_command
-    from .commands.compare_cmd import register_compare_command
-    from .commands.config_cmd import register_config_command
-    from .commands.info_cmd import register_info_command
-    from .commands.test_cmd import register_test_command
+    # 定义要加载的命令模块
+    command_modules = [
+        ('optimize_cmd', 'register_optimize_command'),
+        ('compare_cmd', 'register_compare_command'),
+        ('config_cmd', 'register_config_command'),
+        ('info_cmd', 'register_info_command'),
+        ('test_cmd', 'register_test_command')
+    ]
     
-    register_optimize_command(subparsers)
-    register_compare_command(subparsers)
-    register_config_command(subparsers)
-    register_info_command(subparsers)
-    register_test_command(subparsers)
+    # 安全加载命令模块
+    for module_name, register_func in command_modules:
+        try:
+            module_path = Path(__file__).parent / 'commands' / f'{module_name}.py'
+            logger.debug("Loading command module: %s", module_path)
+            
+            if not module_path.exists():
+                logger.error("Command module not found: %s", module_path)
+                continue
+                
+            # 动态导入模块
+            spec = importlib.util.spec_from_file_location(module_name, module_path)
+            if spec is None or spec.loader is None:
+                logger.error("Failed to load module spec: %s", module_name)
+                continue
+                
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            
+            # 获取并执行注册函数
+            register = getattr(module, register_func)
+            register(subparsers)
+            logger.debug("Successfully registered command: %s", module_name)
+            
+        except Exception as e:
+            logger.exception("Failed to register command %s:", module_name)
+            print(f"⚠️ 警告: 无法加载命令 {module_name}: {e}")
     
     return parser
 
@@ -131,9 +162,12 @@ def main_cli() -> int:
         return 1
     
     # 导入命令处理器
-    from .commands.command_dispatcher import dispatch_command
-    
     try:
+        logger.debug("Importing command dispatcher...")
+        from .commands.command_dispatcher import dispatch_command
+        logger.debug("Successfully imported command dispatcher")
+        
+        logger.debug("Dispatching command: %s", args.command)
         return dispatch_command(args)
     except KeyboardInterrupt:
         print(f"\n⚠️  用户中断程序")
