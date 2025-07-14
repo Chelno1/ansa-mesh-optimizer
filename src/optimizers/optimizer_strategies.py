@@ -355,7 +355,7 @@ class GeneticOptimizerStrategy(OptimizerStrategy):
     def optimize(self, n_calls: int, **kwargs) -> Dict[str, Any]:
         """执行遗传算法优化"""
         try:
-            from core.genetic_optimizer import GeneticOptimizer
+            from optimizers.genetic_optimizer import GeneticOptimizer
             from datetime import datetime
             
             genetic_optimizer = GeneticOptimizer(

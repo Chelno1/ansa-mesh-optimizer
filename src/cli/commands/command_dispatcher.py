@@ -46,7 +46,7 @@ def check_and_import_modules() -> Tuple[bool, List[Tuple[str, str]], List[str]]:
             'evaluators.mesh_evaluator',
             'utils.optimization_cache',
             'core.early_stopping',
-            'core.genetic_optimizer',
+            'optimizers.genetic_optimizer',
             'utils.utils'
         ]
         
