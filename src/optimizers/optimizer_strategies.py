@@ -133,7 +133,8 @@ class OptimizerStrategy(ABC):
             supported_fields = {
                 'convergence_info', 'execution_time', 'n_evaluations',
                 'success', 'error_message', 'generation_stats',
-                'parameter_names', 'parameter_ranges'
+                'parameter_names', 'parameter_ranges',
+                'skopt_result'
             }
             for key, value in additional_info.items():
                 if key in supported_fields:

@@ -85,53 +85,66 @@ class OptimizationVisualizer:
             
             plots_generated = 0
             
-            # 处理不同的数据格式
-            if isinstance(result, dict):
+            # 统一处理数据格式 - 将OptimizationResult对象转换为字典
+            if hasattr(result, 'to_dict'):
+                # OptimizationResult对象
+                result_dict = result.to_dict()
+                # 检查是否有skopt_result属性
+                if hasattr(result, 'skopt_result'):
+                    result_dict['skopt_result'] = getattr(result, 'skopt_result', None)
+                # 使用对象的optimization_history如果没有单独传递
+                if optimization_history is None and hasattr(result, 'optimization_history'):
+                    optimization_history = result.optimization_history
+            elif isinstance(result, dict):
                 # 字典格式的结果
-                # 收敛图
-                if 'skopt_result' in result:
-                    try:
-                        self._plot_convergence(result)
-                        plots_generated += 1
-                    except Exception as e:
-                        logger.warning(f"收敛图生成失败: {e}")
-                    
-                    # 参数重要性图（如果数据足够）
-                    if result.get('n_calls', 0) >= 20:
-                        try:
-                            self._plot_parameter_importance(result)
-                            plots_generated += 1
-                        except Exception as e:
-                            logger.warning(f"参数重要性图生成失败: {e}")
-                
-                # 优化历史图
-                if optimization_history:
-                    try:
-                        self._plot_optimization_history(optimization_history)
-                        plots_generated += 1
-                    except Exception as e:
-                        logger.warning(f"优化历史图生成失败: {e}")
-            
+                result_dict = result
             else:
-                # OptimizationResult对象或其他格式
-                # 使用新的可视化方法
+                # 其他格式，尝试转换
+                logger.warning(f"未知的结果格式: {type(result)}")
+                result_dict = {}
+            
+            # 生成收敛图（如果有skopt_result）
+            if 'skopt_result' in result_dict and result_dict['skopt_result'] is not None:
                 try:
-                    self.plot_optimization_history(result)
+                    self._plot_convergence(result_dict)
+                    plots_generated += 1
+                except Exception as e:
+                    logger.warning(f"收敛图生成失败: {e}")
+                
+                # 参数重要性图（如果数据足够）
+                if result_dict.get('n_calls', result_dict.get('n_evaluations', 0)) >= 20:
+                    try:
+                        self._plot_parameter_importance(result_dict)
+                        plots_generated += 1
+                    except Exception as e:
+                        logger.warning(f"参数重要性图生成失败: {e}")
+            
+            # 生成优化历史图
+            if optimization_history:
+                try:
+                    self._plot_optimization_history(optimization_history)
                     plots_generated += 1
                 except Exception as e:
                     logger.warning(f"优化历史图生成失败: {e}")
-                
-                try:
-                    self.plot_parameter_evolution(result)
-                    plots_generated += 1
-                except Exception as e:
-                    logger.warning(f"参数演化图生成失败: {e}")
-                
-                try:
-                    self.plot_parameter_distribution(result)
-                    plots_generated += 1
-                except Exception as e:
-                    logger.warning(f"参数分布图生成失败: {e}")
+            
+            # 使用新的可视化方法（适用于所有类型的结果）
+            try:
+                self.plot_optimization_history(result)
+                plots_generated += 1
+            except Exception as e:
+                logger.warning(f"新版优化历史图生成失败: {e}")
+            
+            try:
+                self.plot_parameter_evolution(result)
+                plots_generated += 1
+            except Exception as e:
+                logger.warning(f"参数演化图生成失败: {e}")
+            
+            try:
+                self.plot_parameter_distribution(result)
+                plots_generated += 1
+            except Exception as e:
+                logger.warning(f"参数分布图生成失败: {e}")
             
             # 早停历史图
             if early_stopping and hasattr(early_stopping, 'plot_history'):
@@ -148,6 +161,8 @@ class OptimizationVisualizer:
             
         except Exception as e:
             logger.warning(f"生成优化图表失败: {e}")
+            import traceback
+            logger.debug(f"详细错误信息: {traceback.format_exc()}")
     
     def _plot_convergence(self, result: Dict[str, Any]) -> None:
         """绘制收敛图"""
@@ -707,8 +722,8 @@ class OptimizationVisualizer:
                     
                     for params_list, _ in data.history:
                         for i, value in enumerate(params_list):
-                            if i < len(param_names):
-                                all_params[param_names[i]].append(value)
+                            if i < len(param_names) and isinstance(value, (int, float)):
+                                all_params[param_names[i]].append(float(value))
             
             elif isinstance(data, dict) and 'history' in data:
                 # 字典格式
@@ -721,7 +736,7 @@ class OptimizationVisualizer:
                                 if isinstance(value, (int, float)):
                                     if param not in all_params:
                                         all_params[param] = []
-                                    all_params[param].append(value)
+                                    all_params[param].append(float(value))  # 确保转换为float类型
             
             if not all_params:
                 logger.warning("没有有效的参数数据用于分布图")

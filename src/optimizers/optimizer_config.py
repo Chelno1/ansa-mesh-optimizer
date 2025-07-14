@@ -218,6 +218,7 @@ class OptimizationResult:
     n_evaluations: Optional[int] = None
     success: bool = True
     error_message: Optional[str] = None
+    skopt_result: Optional[Dict[str, Any]] = None
     
     # 遗传算法特定属性
     generation_stats: Optional[List[Dict]] = None

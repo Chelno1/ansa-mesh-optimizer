@@ -261,7 +261,7 @@ class MeshOptimizer:
                     except Exception as e:
                         logger.warning(f"缓存保存失败: {e}")
     
-    def _generate_optimization_report(self, result: OptimizationResult, raw_result_dict: Optional[Dict[str, Any]] = None) -> str:
+    def _generate_optimization_report(self, result: OptimizationResult) -> str:
         """生成优化报告"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         optimizer_name = result.optimizer_name.replace(' ', '_')
@@ -284,7 +284,7 @@ class MeshOptimizer:
         
         # 使用可视化器生成图表（传递原始result_dict以保留skopt_result）
         try:
-            visualization_result = raw_result_dict if raw_result_dict else result.to_dict()
+            visualization_result = result
             visualizer.generate_optimization_plots(
                 result=visualization_result,
                 optimization_history=self.optimization_history,
