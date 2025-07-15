@@ -515,6 +515,69 @@ class SimpleConfigManager:
         except Exception as e:
             logger.error(f"保存配置失败: {e}")
     
+    def create_example_config(self, config_file: str):
+        """创建示例配置文件"""
+        try:
+            # 创建一个示例配置，使用不同的参数值
+            example_optimization_config = SimpleOptimizationConfig(
+                n_calls=50,
+                n_initial_points=10,
+                optimizer="genetic",
+                early_stopping=True,
+                patience=8,
+                sensitivity_analysis=True
+            )
+            
+            example_ansa_config = SimpleAnsaConfig(
+                ansa_executable='ansa',
+                input_model='example_model.ansa',
+                execution_timeout=600,
+                quality_check_enabled=True
+            )
+            
+            # 选择部分参数作为示例
+            example_param_names = [
+                'distortion_distance',
+                'rule_fillet_width_1',
+                'rule_fillet_width_2',
+                'recognize_chamfers_min_angle',
+                'perimeter_distance'
+            ]
+            
+            example_param_space = SimpleParameterSpace(example_param_names)
+            
+            config_data = {
+                'optimization': example_optimization_config.__dict__,
+                'ansa': {
+                    key: str(value) if isinstance(value, Path) else value
+                    for key, value in example_ansa_config.__dict__.items()
+                },
+                'parameters': {
+                    name: {
+                        'param_type': param.param_type.value,
+                        'bounds': list(param.bounds),
+                        'description': param.description,
+                        'unit': param.unit,
+                        'ansa_mapping': param.ansa_mapping,
+                        'default_value': param.default_value
+                    }
+                    for name, param in example_param_space.parameters.items()
+                },
+                'metadata': {
+                    'version': '2.0.0',
+                    'created_by': 'SimpleConfigManager',
+                    'description': 'Example Ansa mesh optimizer configuration with selected parameters'
+                }
+            }
+            
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"示例配置已保存到 {config_file}")
+            
+        except Exception as e:
+            logger.error(f"创建示例配置失败: {e}")
+    
     def get_config_summary(self) -> Dict[str, Any]:
         """获取配置摘要"""
         return {

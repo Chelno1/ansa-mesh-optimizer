@@ -29,9 +29,12 @@ def register_config_command(subparsers):
 def cmd_config(args, modules) -> int:
     """执行配置命令"""
     logger = logging.getLogger(__name__)
-    optimize_mesh_parameters, MeshOptimizer, compare_optimizers, config_manager, check_dependencies = modules
+    optimize_mesh_parameters, MeshOptimizer, compare_optimizers, ConfigManagerClass, check_dependencies = modules
     
     try:
+        # 创建配置管理器实例
+        config_manager = ConfigManagerClass()
+        
         if args.config_action == 'generate':
             output_file = args.output
             
@@ -49,11 +52,12 @@ def cmd_config(args, modules) -> int:
             
         elif args.config_action == 'validate':
             try:
-                config_manager.load_config(args.config_file)
+                # 为验证操作创建新的配置管理器实例
+                validate_manager = ConfigManagerClass(config_file=args.config_file, require_config=True)
                 print(f"✓ 配置文件 {args.config_file} 验证通过")
                 
                 # 显示配置摘要
-                summary = config_manager.get_config_summary()
+                summary = validate_manager.get_config_summary()
                 print(f"\n📊 配置摘要:")
                 for section, info in summary.items():
                     print(f"   {section}:")
@@ -65,6 +69,7 @@ def cmd_config(args, modules) -> int:
                 return 1
         
         elif args.config_action == 'show':
+            # 为显示操作使用默认配置管理器
             summary = config_manager.get_config_summary()
             
             if args.section:
