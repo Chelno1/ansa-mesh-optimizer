@@ -419,6 +419,107 @@ class GeneticOptimizerStrategy(OptimizerStrategy):
     def get_name(self) -> str:
         return "Genetic Algorithm"
 
+class ParallelGeneticOptimizerStrategy(OptimizerStrategy):
+    """并行遗传算法优化策略"""
+    
+    def optimize(self, n_calls: int, **kwargs) -> 'OptimizationResult':
+        """执行并行遗传算法优化"""
+        from .parallel_genetic_optimizer import ParallelGeneticOptimizer, ParallelGeneticConfig
+        
+        # 创建并行遗传算法配置
+        parallel_config = ParallelGeneticConfig(
+            # 基础遗传算法参数
+            population_size=getattr(self.config, 'population_size', 50),
+            max_generations=getattr(self.config, 'n_generations', 100),
+            crossover_rate=getattr(self.config, 'crossover_rate', 0.8),
+            mutation_rate=getattr(self.config, 'mutation_rate', 0.1),
+            elite_size=max(1, int(getattr(self.config, 'population_size', 50) * getattr(self.config, 'elitism_ratio', 0.1))),
+            tournament_size=getattr(self.config, 'tournament_size', 3),
+            
+            # 并行配置
+            n_workers=getattr(self.config, 'n_workers', 4),
+            use_multiprocessing=getattr(self.config, 'use_multiprocessing', True),
+            parallel_evaluation=True,
+            parallel_diversity=True,
+            parallel_evolution=True,
+            
+            # 批处理配置
+            evaluation_batch_size=max(1, getattr(self.config, 'n_workers', 4) * 2),
+            evolution_batch_size=max(1, getattr(self.config, 'n_workers', 4) * 4),
+            auto_batch_size=True,
+            
+            # 性能优化
+            vectorized_operations=True,
+            cache_evaluations=True,
+            lazy_evaluation=True,
+            
+            # 内存管理
+            max_memory_usage=0.8,
+            memory_monitoring=True,
+            
+            # 容错配置
+            fault_tolerance=True,
+            max_retries=3,
+            timeout_seconds=300,
+            
+            # 性能监控
+            performance_monitoring=True,
+            log_performance=getattr(self.config, 'verbose', True),
+            
+            # 收敛配置
+            convergence_threshold=getattr(self.config, 'convergence_threshold', 1e-6),
+            max_stagnation_iterations=getattr(self.config, 'max_stagnation_iterations', 20),
+            early_stopping=getattr(self.config, 'early_stopping', True),
+            
+            # 多样性保持
+            diversity_preservation=True,
+            
+            # 随机种子
+            random_state=getattr(self.config, 'random_state', 42)
+        )
+        
+        # 创建并行遗传算法优化器
+        parallel_optimizer = ParallelGeneticOptimizer(
+            param_space=self.param_space,
+            evaluator=self.evaluator,
+            parallel_config=parallel_config
+        )
+        
+        logger.info(f"开始并行遗传算法优化: 工作进程数={parallel_config.n_workers}, 种群大小={parallel_config.population_size}")
+        
+        # 执行优化
+        result = parallel_optimizer.optimize(n_calls, **kwargs)
+        
+        # 更新历史记录
+        if hasattr(parallel_optimizer, 'optimization_history'):
+            self.optimization_history = getattr(parallel_optimizer, 'optimization_history', [])
+        
+        # 添加并行特定信息
+        if hasattr(result, '_dict_data'):
+            result._dict_data.update({
+                'parallel_config': {
+                    'n_workers': parallel_config.n_workers,
+                    'parallel_evaluation': parallel_config.parallel_evaluation,
+                    'parallel_diversity': parallel_config.parallel_diversity,
+                    'vectorized_operations': parallel_config.vectorized_operations,
+                    'cache_evaluations': parallel_config.cache_evaluations
+                }
+            })
+        
+        # 获取性能摘要
+        if hasattr(parallel_optimizer, 'performance_monitor'):
+            performance_summary = parallel_optimizer.performance_monitor.get_performance_summary()
+            logger.info(f"并行遗传算法性能摘要: {performance_summary}")
+            
+            if hasattr(result, '_dict_data'):
+                result._dict_data['performance_summary'] = performance_summary
+        
+        return result
+    
+    def get_name(self) -> str:
+        return "Parallel Genetic Algorithm"
+
+
 class ParallelOptimizerStrategy(OptimizerStrategy):
     """并行随机搜索策略"""
     
@@ -531,6 +632,8 @@ class OptimizerFactory:
         'forest': ForestOptimizerStrategy,
         'genetic': GeneticOptimizerStrategy,
         'ga': GeneticOptimizerStrategy,  # 别名
+        'parallel_genetic': ParallelGeneticOptimizerStrategy,
+        'parallel_ga': ParallelGeneticOptimizerStrategy,  # 别名
         'parallel': ParallelOptimizerStrategy
     }
     
@@ -564,7 +667,7 @@ class OptimizerFactory:
     @classmethod
     def get_available_optimizers(cls) -> List[str]:
         """获取可用的优化器列表"""
-        available = ['genetic', 'parallel']  # 这些总是可用的
+        available = ['genetic', 'parallel_genetic', 'parallel']  # 这些总是可用的
         
         if SKOPT_MODULES['available']:
             available.extend(['bayesian', 'random', 'forest'])
