@@ -186,6 +186,7 @@ class OptimizationVisualizer:
             import traceback
             logger.debug(f"详细错误信息: {traceback.format_exc()}")
     
+    @with_chinese_font
     def _plot_convergence(self, result) -> None:
         """绘制收敛图"""
         if not VISUALIZATION_AVAILABLE:
@@ -221,14 +222,6 @@ class OptimizationVisualizer:
                     plt.title(f"贝叶斯优化收敛图 - {optimizer_name}")
                     plt.xlabel('迭代次数')
                     plt.ylabel('目标函数值')
-                    
-                    # 应用中文字体配置
-                    try:
-                        from utils.font_config import apply_chinese_font_settings
-                        apply_chinese_font_settings()
-                    except ImportError:
-                        logger.debug("中文字体配置不可用")
-                    
                     plt.tight_layout()
                     convergence_path = self.report_dir / "convergence.png"
                     plt.savefig(convergence_path, dpi=300, bbox_inches='tight')
@@ -253,6 +246,7 @@ class OptimizationVisualizer:
             except Exception as e2:
                 logger.error(f"生成自定义收敛图也失败: {e2}")
     
+    @with_chinese_font
     def _plot_custom_convergence(self, result) -> None:
         """绘制自定义收敛图（当scikit-optimize不可用时）"""
         try:
@@ -305,7 +299,8 @@ class OptimizationVisualizer:
             logger.error(f"生成自定义收敛图失败: {e}")
             import traceback
             logger.debug(f"详细错误信息: {traceback.format_exc()}")
-    
+
+    @with_chinese_font
     def _plot_parameter_importance(self, result) -> None:
         """绘制参数重要性图"""
         if not VISUALIZATION_AVAILABLE:
@@ -313,58 +308,183 @@ class OptimizationVisualizer:
             return
         
         try:
-            # Handle both dictionary and object result formats
+            # 提取skopt结果和遗传算法结果
             skopt_result = getattr(result, 'skopt_result', None)
+            generation_stats = getattr(result, 'generation_stats', None)
             optimizer_name = getattr(result, 'optimizer_name', 'Unknown')
             
-            if skopt_result is None:
-                logger.warning("没有skopt_result，跳过参数重要性图生成")
+            # 优先使用skopt_result（贝叶斯优化）
+            if skopt_result is not None:
+                logger.info(f"开始生成参数重要性图，skopt_result类型: {type(skopt_result)}")
+                
+                # 尝试导入scikit-optimize的绘图函数
+                try:
+                    from skopt.plots import plot_objective
+                    
+                    # 验证skopt_result是否有效且有space信息
+                    if (hasattr(skopt_result, 'space') and
+                        skopt_result.space is not None and
+                        hasattr(skopt_result.space, 'n_dims') and
+                        skopt_result.space.n_dims > 0):
+                        
+                        logger.info(f"space维度: {skopt_result.space.n_dims}")
+                        
+                        plt.figure(figsize=(12, 8))
+                        plot_objective(skopt_result)
+                        plt.suptitle(f"参数重要性 - {optimizer_name}")
+                        plt.tight_layout()
+                        importance_path = self.report_dir / "parameter_importance.png"
+                        plt.savefig(importance_path, dpi=300, bbox_inches='tight')
+                        logger.info(f"参数重要性图已保存: {importance_path}")
+                        safe_close()
+                        return
+                        
+                    else:
+                        logger.warning("skopt_result缺少space信息，尝试使用其他数据源")
+                    
+                except ImportError:
+                    logger.warning("scikit-optimize不可用，尝试使用其他数据源")
+                    
+                except Exception as e:
+                    logger.error(f"使用skopt生成参数重要性图失败: {e}")
+                    import traceback
+                    logger.debug(f"详细错误信息: {traceback.format_exc()}")
+            
+            # 如果skopt_result不可用，尝试使用generation_stats（遗传算法）
+            if generation_stats is not None and len(generation_stats) > 0:
+                logger.info(f"使用generation_stats生成自定义参数重要性图，数据长度: {len(generation_stats)}")
+                self._plot_custom_parameter_importance_from_genetic(result)
                 return
             
-            logger.info(f"开始生成参数重要性图，skopt_result类型: {type(skopt_result)}")
-            
-            # 尝试导入scikit-optimize的绘图函数
-            try:
-                from skopt.plots import plot_objective
-                
-                # 验证skopt_result是否有效且有space信息
-                if (hasattr(skopt_result, 'space') and
-                    skopt_result.space is not None and
-                    hasattr(skopt_result.space, 'n_dims') and
-                    skopt_result.space.n_dims > 0):
-                    
-                    logger.info(f"space维度: {skopt_result.space.n_dims}")
-                    
-                    plt.figure(figsize=(12, 8))
-                    plot_objective(skopt_result)
-                    plt.suptitle(f"参数重要性 - {optimizer_name}")
-                    
-                    # 应用中文字体配置
-                    try:
-                        from utils.font_config import apply_chinese_font_settings
-                        apply_chinese_font_settings()
-                    except ImportError:
-                        logger.debug("中文字体配置不可用")
-                    
-                    plt.tight_layout()
-                    importance_path = self.report_dir / "parameter_importance.png"
-                    plt.savefig(importance_path, dpi=300, bbox_inches='tight')
-                    logger.info(f"参数重要性图已保存: {importance_path}")
-                    safe_close()
-                    
-                else:
-                    logger.warning("skopt_result缺少space信息，无法生成参数重要性图")
-                
-            except ImportError:
-                logger.warning("scikit-optimize不可用，无法生成参数重要性图")
-                
-            except Exception as e:
-                logger.error(f"生成参数重要性图失败: {e}")
-                import traceback
-                logger.debug(f"详细错误信息: {traceback.format_exc()}")
+            # 如果都没有，记录警告
+            logger.warning("没有可用的数据源（skopt_result或generation_stats），跳过参数重要性图生成")
                 
         except Exception as e:
             logger.error(f"生成参数重要性图失败: {e}")
+            import traceback
+            logger.debug(f"详细错误信息: {traceback.format_exc()}")
+    
+    @with_chinese_font
+    def _plot_custom_parameter_importance_from_genetic(self, result) -> None:
+        """基于遗传算法结果生成自定义参数重要性图"""
+        try:
+            generation_stats = getattr(result, 'generation_stats', None)
+            best_params = getattr(result, 'best_params', {})
+            parameter_names = getattr(result, 'parameter_names', None)
+            optimization_history = getattr(result, 'optimization_history', [])
+            optimizer_name = getattr(result, 'optimizer_name', 'Genetic Algorithm')
+            
+            logger.info(f"遗传算法参数重要性分析 - generation_stats: {len(generation_stats) if generation_stats else 0}, "
+                       f"best_params: {len(best_params) if best_params else 0}, "
+                       f"parameter_names: {parameter_names}, "
+                       f"optimization_history: {len(optimization_history)}")
+            
+            if not generation_stats and not optimization_history:
+                logger.warning("缺少generation_stats和optimization_history，无法生成参数重要性图")
+                return
+            
+            if not best_params:
+                logger.warning("缺少best_params，无法生成参数重要性图")
+                return
+            
+            # 计算参数的变异性和重要性
+            param_importance = {}
+            param_names = parameter_names if parameter_names else list(best_params.keys())
+            
+            logger.info(f"使用参数名称: {param_names}")
+            
+            # 尝试从optimization_history提取参数演化数据
+            if optimization_history:
+                param_values = {name: [] for name in param_names}
+                
+                logger.info(f"从optimization_history提取参数数据，历史长度: {len(optimization_history)}")
+                
+                # 从历史数据中提取参数值
+                for entry in optimization_history:
+                    if isinstance(entry, dict):
+                        # 检查不同的参数存储格式
+                        params_data = entry.get('parameters', entry.get('params', {}))
+                        
+                        if isinstance(params_data, dict):
+                            # 参数以字典形式存储
+                            for name in param_names:
+                                if name in params_data:
+                                    param_values[name].append(params_data[name])
+                        elif isinstance(params_data, list) and len(params_data) == len(param_names):
+                            # 参数以列表形式存储
+                            for i, name in enumerate(param_names):
+                                param_values[name].append(params_data[i])
+                
+                # 计算每个参数的方差（作为重要性指标）
+                import numpy as np
+                for name, values in param_values.items():
+                    if len(values) > 1:
+                        param_importance[name] = np.var(values)
+                        logger.debug(f"参数 {name}: {len(values)} 个值, 方差 = {param_importance[name]:.6f}")
+                    else:
+                        param_importance[name] = 0.0
+                        logger.debug(f"参数 {name}: 数据不足 ({len(values)} 个值)")
+            
+            # 如果从历史数据无法获得足够信息，使用简化的重要性计算
+            if not any(param_importance.values()):
+                logger.info("历史数据不足，使用基于参数值的简化重要性计算")
+                # 基于参数值的相对大小
+                max_val = max(abs(v) for v in best_params.values()) if best_params.values() else 1.0
+                for name, value in best_params.items():
+                    if isinstance(value, (int, float)):
+                        param_importance[name] = abs(value) / max_val if max_val > 0 else 0.0
+                    else:
+                        param_importance[name] = 0.0
+            
+            if not param_importance or all(v == 0 for v in param_importance.values()):
+                logger.warning("无法计算有效的参数重要性")
+                return
+            
+            # 创建参数重要性图
+            plt.figure(figsize=(12, 8))
+            
+            # 排序参数（按重要性降序）
+            sorted_params = sorted(param_importance.items(), key=lambda x: x[1], reverse=True)
+            param_names_sorted = [item[0] for item in sorted_params]
+            importance_values = [item[1] for item in sorted_params]
+            
+            logger.info(f"参数重要性排序: {[(name, val) for name, val in sorted_params]}")
+            
+            # 创建条形图
+            bars = plt.bar(range(len(param_names_sorted)), importance_values,
+                          color='skyblue', alpha=0.7, edgecolor='navy')
+            
+            # 设置标签和标题
+            plt.xlabel('参数')
+            plt.ylabel('重要性指标')
+            plt.title(f'参数重要性分析 - {optimizer_name}')
+            plt.xticks(range(len(param_names_sorted)), param_names_sorted, rotation=45, ha='right')
+            
+            # 添加数值标签
+            max_importance = max(importance_values) if importance_values else 1.0
+            for i, (bar, value) in enumerate(zip(bars, importance_values)):
+                plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max_importance*0.01,
+                        f'{value:.4f}', ha='center', va='bottom', fontsize=10)
+            
+            # 添加网格
+            plt.grid(True, alpha=0.3, axis='y')
+            
+            # 添加说明文本
+            final_fitness = generation_stats[-1].get("best_fitness", "N/A") if generation_stats else "N/A"
+            plt.figtext(0.02, 0.02,
+                       f'重要性指标基于参数变异性计算\n'
+                       f'数据来源: {len(generation_stats) if generation_stats else len(optimization_history)} 代遗传算法结果\n'
+                       f'最佳适应度: {final_fitness}',
+                       fontsize=9, alpha=0.7)
+            
+            plt.tight_layout()
+            importance_path = self.report_dir / "parameter_importance.png"
+            plt.savefig(importance_path, dpi=300, bbox_inches='tight')
+            logger.info(f"自定义参数重要性图已保存: {importance_path}")
+            safe_close()
+            
+        except Exception as e:
+            logger.error(f"生成自定义参数重要性图失败: {e}")
             import traceback
             logger.debug(f"详细错误信息: {traceback.format_exc()}")
     
@@ -683,29 +803,42 @@ class OptimizationVisualizer:
                                 # 为每一代创建一个值（简化处理）
                                 params_data[name] = [value] * len(data.generation_stats)
             
-            elif hasattr(data, 'history') and data.history:
-                # 从history提取参数
-                if hasattr(data, 'parameter_names'):
-                    param_names = data.parameter_names
-                    for name in param_names:
-                        params_data[name] = []
-                    
-                    for params_list, _ in data.history:
-                        for i, value in enumerate(params_list):
-                            if i < len(param_names):
-                                params_data[param_names[i]].append(value)
+            elif hasattr(data, 'optimization_history') and data.optimization_history:
+                # 从optimization_history提取参数
+                logger.info(f"从optimization_history提取参数演化数据，数据长度: {len(data.optimization_history)}")
+                
+                for entry in data.optimization_history:
+                    if isinstance(entry, dict):
+                        # 检查不同的参数存储格式
+                        params_entry = entry.get('parameters', entry.get('params', {}))
+                        
+                        if isinstance(params_entry, dict):
+                            for param_name, value in params_entry.items():
+                                if isinstance(value, (int, float)):
+                                    if param_name not in params_data:
+                                        params_data[param_name] = []
+                                    params_data[param_name].append(value)
+                        elif isinstance(params_entry, list) and hasattr(data, 'parameter_names'):
+                            # 参数以列表形式存储
+                            param_names = data.parameter_names
+                            for i, value in enumerate(params_entry):
+                                if i < len(param_names) and isinstance(value, (int, float)):
+                                    param_name = param_names[i]
+                                    if param_name not in params_data:
+                                        params_data[param_name] = []
+                                    params_data[param_name].append(value)
             
-            elif isinstance(data, dict) and 'history' in data:
-                # 字典格式
-                history = data['history']
-                for record in history:
-                    if isinstance(record, dict) and 'params' in record:
-                        params = record['params']
-                        if isinstance(params, dict):
-                            for param, value in params.items():
-                                if param not in params_data:
-                                    params_data[param] = []
-                                params_data[param].append(value)
+            # elif isinstance(data, dict) and 'history' in data:
+            #     # 字典格式
+            #     history = data['history']
+            #     for record in history:
+            #         if isinstance(record, dict) and 'params' in record:
+            #             params = record['params']
+            #             if isinstance(params, dict):
+            #                 for param, value in params.items():
+            #                     if param not in params_data:
+            #                         params_data[param] = []
+            #                     params_data[param].append(value)
             
             if not params_data:
                 logger.warning("没有参数演化数据")
@@ -785,34 +918,83 @@ class OptimizationVisualizer:
             # 收集所有参数值
             all_params = {}
             
-            if hasattr(data, 'history') and data.history:
-                # 从history提取参数
-                if hasattr(data, 'parameter_names'):
-                    param_names = data.parameter_names
-                    for name in param_names:
-                        all_params[name] = []
-                    
-                    for params_list, _ in data.history:
-                        for i, value in enumerate(params_list):
-                            if i < len(param_names) and isinstance(value, (int, float)):
-                                all_params[param_names[i]].append(float(value))
-            
-            elif isinstance(data, dict) and 'history' in data:
-                # 字典格式
-                history = data['history']
-                for record in history:
-                    if isinstance(record, dict) and 'params' in record:
-                        params = record['params']
+            # 方法1: 从generation_stats提取参数（遗传算法）
+            if hasattr(data, 'generation_stats') and data.generation_stats:
+                logger.info(f"从generation_stats提取参数数据，数据长度: {len(data.generation_stats)}")
+                
+                # 从generation_stats中提取参数
+                for stat in data.generation_stats:
+                    if isinstance(stat, dict) and 'params' in stat:
+                        params = stat['params']
                         if isinstance(params, dict):
-                            for param, value in params.items():
+                            for param_name, value in params.items():
                                 if isinstance(value, (int, float)):
-                                    if param not in all_params:
-                                        all_params[param] = []
-                                    all_params[param].append(float(value))  # 确保转换为float类型
+                                    if param_name not in all_params:
+                                        all_params[param_name] = []
+                                    all_params[param_name].append(float(value))
+                
+                # 如果generation_stats中没有params，尝试从optimization_history提取
+                if not all_params and hasattr(data, 'optimization_history') and data.optimization_history:
+                    logger.info(f"从optimization_history提取参数数据，数据长度: {len(data.optimization_history)}")
+                    
+                    for entry in data.optimization_history:
+                        if isinstance(entry, dict):
+                            # 检查不同的参数存储格式
+                            params_data = entry.get('parameters', entry.get('params', {}))
+                            
+                            if isinstance(params_data, dict):
+                                for param_name, value in params_data.items():
+                                    if isinstance(value, (int, float)):
+                                        if param_name not in all_params:
+                                            all_params[param_name] = []
+                                        all_params[param_name].append(float(value))
+            
+            # 方法2: 从optimization_history提取参数（其他优化器）
+            elif hasattr(data, 'optimization_history') and data.optimization_history:
+                logger.info(f"从optimization_history提取参数数据，数据长度: {len(data.optimization_history)}")
+                
+                for entry in data.optimization_history:
+                    if isinstance(entry, dict):
+                        # 检查不同的参数存储格式
+                        params_data = entry.get('parameters', entry.get('params', {}))
+                        
+                        if isinstance(params_data, dict):
+                            for param_name, value in params_data.items():
+                                if isinstance(value, (int, float)):
+                                    if param_name not in all_params:
+                                        all_params[param_name] = []
+                                    all_params[param_name].append(float(value))
+                        elif isinstance(params_data, list) and hasattr(data, 'parameter_names'):
+                            # 参数以列表形式存储
+                            param_names = data.parameter_names
+                            for i, value in enumerate(params_data):
+                                if i < len(param_names) and isinstance(value, (int, float)):
+                                    param_name = param_names[i]
+                                    if param_name not in all_params:
+                                        all_params[param_name] = []
+                                    all_params[param_name].append(float(value))
+            
+            # 方法3: 如果有skopt_result，从中提取参数
+            elif hasattr(data, 'skopt_result') and data.skopt_result is not None:
+                logger.info("从skopt_result提取参数数据")
+                skopt_result = data.skopt_result
+                
+                if hasattr(skopt_result, 'x_iters') and hasattr(data, 'parameter_names'):
+                    param_names = data.parameter_names
+                    for param_name in param_names:
+                        all_params[param_name] = []
+                    
+                    for x_iter in skopt_result.x_iters:
+                        if isinstance(x_iter, list) and len(x_iter) == len(param_names):
+                            for i, value in enumerate(x_iter):
+                                if isinstance(value, (int, float)):
+                                    all_params[param_names[i]].append(float(value))
             
             if not all_params:
                 logger.warning("没有有效的参数数据用于分布图")
                 return
+            
+            logger.info(f"成功提取参数数据: {list(all_params.keys())}, 数据量: {[len(v) for v in all_params.values()]}")
             
             # 创建子图
             n_params = len(all_params)
@@ -823,24 +1005,56 @@ class OptimizationVisualizer:
             for i, (param, values) in enumerate(all_params.items()):
                 if values:
                     import numpy as np
-                    axes[i].hist(values, bins=min(20, len(set(values))), alpha=0.7,
-                               color='skyblue', edgecolor='black')
-                    axes[i].set_title(f'参数分布: {param}')
-                    axes[i].set_xlabel('参数值')
-                    axes[i].set_ylabel('频率')
+                    
+                    # 处理单值或少量值的情况
+                    unique_values = list(set(values))
+                    
+                    if len(unique_values) == 1:
+                        # 单一值，显示为垂直线
+                        axes[i].axvline(unique_values[0], color='blue', linewidth=3, alpha=0.7)
+                        axes[i].set_title(f'参数分布: {param} (常数值)')
+                        axes[i].set_xlabel('参数值')
+                        axes[i].set_ylabel('频率')
+                        axes[i].text(0.5, 0.5, f'常数值: {unique_values[0]:.4f}\n样本数: {len(values)}',
+                                   transform=axes[i].transAxes, ha='center', va='center',
+                                   bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+                    elif len(unique_values) <= 5:
+                        # 少量离散值，使用条形图
+                        value_counts = {val: values.count(val) for val in unique_values}
+                        axes[i].bar(list(value_counts.keys()), list(value_counts.values()),
+                                  alpha=0.7, color='skyblue', edgecolor='black')
+                        axes[i].set_title(f'参数分布: {param} (离散值)')
+                        axes[i].set_xlabel('参数值')
+                        axes[i].set_ylabel('频率')
+                        
+                        # 添加统计信息
+                        mean_val = np.mean(values)
+                        std_val = np.std(values)
+                        axes[i].text(0.02, 0.98, f'均值: {mean_val:.4f}\n标准差: {std_val:.4f}\n样本数: {len(values)}',
+                                   transform=axes[i].transAxes, verticalalignment='top',
+                                   bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+                    else:
+                        # 正常的直方图
+                        n_bins = min(20, max(5, len(unique_values)))
+                        axes[i].hist(values, bins=n_bins, alpha=0.7,
+                                   color='skyblue', edgecolor='black')
+                        axes[i].set_title(f'参数分布: {param}')
+                        axes[i].set_xlabel('参数值')
+                        axes[i].set_ylabel('频率')
+                        
+                        # 添加统计信息
+                        mean_val = np.mean(values)
+                        std_val = np.std(values)
+                        axes[i].axvline(mean_val, color='red', linestyle='--', alpha=0.7,
+                                      label=f'均值: {mean_val:.4f}')
+                        axes[i].legend()
+                        
+                        # 在图上显示统计信息
+                        axes[i].text(0.02, 0.98, f'均值: {mean_val:.4f}\n标准差: {std_val:.4f}\n样本数: {len(values)}',
+                                   transform=axes[i].transAxes, verticalalignment='top',
+                                   bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+                    
                     axes[i].grid(True, alpha=0.3)
-                    
-                    # 添加统计信息
-                    mean_val = np.mean(values)
-                    std_val = np.std(values)
-                    axes[i].axvline(mean_val, color='red', linestyle='--', alpha=0.7,
-                                  label=f'均值: {mean_val:.4f}')
-                    axes[i].legend()
-                    
-                    # 在图上显示统计信息
-                    axes[i].text(0.02, 0.98, f'均值: {mean_val:.4f}\n标准差: {std_val:.4f}\n样本数: {len(values)}',
-                               transform=axes[i].transAxes, verticalalignment='top',
-                               bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
             
             plt.tight_layout()
             
