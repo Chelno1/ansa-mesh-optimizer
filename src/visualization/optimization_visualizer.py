@@ -60,7 +60,10 @@ class OptimizationVisualizer:
             report_dir = Path(f"optimization_reports/{timestamp}_visualization")
         
         self.report_dir = Path(report_dir)
+        self.output_dir = self.report_dir  # 兼容属性
         self.report_dir.mkdir(parents=True, exist_ok=True)
+        
+        logger.info(f"初始化可视化器，输出目录: {self.report_dir}")
     
     def generate_optimization_plots(self,
                                   result,
@@ -88,10 +91,10 @@ class OptimizationVisualizer:
             # 统一处理数据格式 - 将OptimizationResult对象转换为字典
             if hasattr(result, 'to_dict'):
                 # OptimizationResult对象
-                result_dict = result.to_dict()
+                # result_dict = result.to_dict()
                 # 检查是否有skopt_result属性
-                if hasattr(result, 'skopt_result'):
-                    result_dict['skopt_result'] = getattr(result, 'skopt_result', None)
+                # if hasattr(result, 'skopt_result'):
+                #     result_dict['skopt_result'] = getattr(result, 'skopt_result', None)
                 # 使用对象的optimization_history如果没有单独传递
                 if optimization_history is None and hasattr(result, 'optimization_history'):
                     optimization_history = result.optimization_history
@@ -101,23 +104,42 @@ class OptimizationVisualizer:
             else:
                 # 其他格式，尝试转换
                 logger.warning(f"未知的结果格式: {type(result)}")
-                result_dict = {}
+                # result_dict = {}
             
             # 生成收敛图（如果有skopt_result）
-            if 'skopt_result' in result_dict and result_dict['skopt_result'] is not None:
+            logger.info(f"检查skopt_result: hasattr={hasattr(result, 'skopt_result')}, "
+                       f"skopt_result={getattr(result, 'skopt_result', None) is not None}")
+            
+            if hasattr(result, 'skopt_result') and result.skopt_result is not None:
                 try:
-                    self._plot_convergence(result_dict)
+                    logger.info("开始生成收敛图...")
+                    self._plot_convergence(result)
                     plots_generated += 1
                 except Exception as e:
                     logger.warning(f"收敛图生成失败: {e}")
+                    import traceback
+                    logger.debug(f"收敛图生成详细错误: {traceback.format_exc()}")
+            else:
+                logger.warning("跳过收敛图生成：skopt_result不存在或为None")
+            
+            # 参数重要性图（如果有skopt_result且数据足够）
+            if hasattr(result, 'skopt_result') and result.skopt_result is not None:
+                n_calls = getattr(result, 'n_calls', getattr(result, 'n_evaluations', 0))
+                if n_calls == 0 and hasattr(result.skopt_result, 'func_vals'):
+                    n_calls = len(result.skopt_result.func_vals)
                 
-                # 参数重要性图（如果数据足够）
-                if result_dict.get('n_calls', result_dict.get('n_evaluations', 0)) >= 20:
+                logger.info(f"检查参数重要性图条件: n_calls={n_calls}")
+                
+                if n_calls >= 10:  # 降低阈值，10次评估就足够生成参数重要性图
                     try:
-                        self._plot_parameter_importance(result_dict)
+                        self._plot_parameter_importance(result)
                         plots_generated += 1
                     except Exception as e:
                         logger.warning(f"参数重要性图生成失败: {e}")
+                        import traceback
+                        logger.debug(f"参数重要性图生成详细错误: {traceback.format_exc()}")
+                else:
+                    logger.info(f"数据不足以生成参数重要性图 (需要>=10次评估，当前有{n_calls}次)")
             
             # 生成优化历史图
             if optimization_history:
@@ -164,19 +186,23 @@ class OptimizationVisualizer:
             import traceback
             logger.debug(f"详细错误信息: {traceback.format_exc()}")
     
-    def _plot_convergence(self, result: Dict[str, Any]) -> None:
+    def _plot_convergence(self, result) -> None:
         """绘制收敛图"""
         if not VISUALIZATION_AVAILABLE:
+            logger.warning("可视化库不可用，跳过收敛图生成")
             return
         
         try:
             # Handle both dictionary and object result formats
-            skopt_result = result.get('skopt_result') if isinstance(result, dict) else getattr(result, 'skopt_result', None)
-            optimizer_name = result.get('optimizer_name', 'Unknown') if isinstance(result, dict) else getattr(result, 'optimizer_name', 'Unknown')
+            skopt_result = getattr(result, 'skopt_result', None)
+            optimizer_name = getattr(result, 'optimizer_name', 'Unknown')
             
             if skopt_result is None:
-                logger.debug("没有skopt_result，跳过收敛图生成")
+                logger.warning("没有skopt_result，跳过收敛图生成")
                 return
+            
+            # logger.info(f"skopt_result类型: {type(skopt_result)}")
+            # logger.info(f"skopt_result属性: {dir(skopt_result)}")
             
             # 尝试导入scikit-optimize的绘图函数
             try:
@@ -186,87 +212,116 @@ class OptimizationVisualizer:
                 
                 # 验证skopt_result是否有效且来自真实的scikit-optimize
                 if (hasattr(skopt_result, 'func_vals') and
-                    hasattr(skopt_result, 'x_iters') and
-                    hasattr(skopt_result, '__class__') and
-                    'skopt' in str(skopt_result.__class__.__module__)):
+                    hasattr(skopt_result, 'x_iters')):
+                    
+                    # logger.info(f"func_vals长度: {len(skopt_result.func_vals)}")
+                    # logger.info(f"x_iters长度: {len(skopt_result.x_iters)}")
                     
                     plot_convergence(skopt_result)
-                    plt.title(f"Convergence - {optimizer_name}")
-                    plt.savefig(self.report_dir / "convergence.png", dpi=300, bbox_inches='tight')
-                    logger.info(f"收敛图已保存: {self.report_dir / 'convergence.png'}")
-                # else:
-                #     # 创建自定义收敛图
-                #     self._plot_custom_convergence(result)
+                    plt.title(f"贝叶斯优化收敛图 - {optimizer_name}")
+                    plt.xlabel('迭代次数')
+                    plt.ylabel('目标函数值')
                     
-                safe_close()
-                
+                    # 应用中文字体配置
+                    try:
+                        from utils.font_config import apply_chinese_font_settings
+                        apply_chinese_font_settings()
+                    except ImportError:
+                        logger.debug("中文字体配置不可用")
+                    
+                    plt.tight_layout()
+                    convergence_path = self.report_dir / "convergence.png"
+                    plt.savefig(convergence_path, dpi=300, bbox_inches='tight')
+                    logger.info(f"收敛图已保存: {convergence_path}")
+                    
+                    safe_close()
+                else:
+                    logger.warning("skopt_result缺少必要的属性(func_vals, x_iters)")
+                    self._plot_custom_convergence(result)
+                    
             except ImportError:
-                logger.warning("scikit-optimize不可用")
-            #     self._plot_custom_convergence(result)
+                logger.warning("scikit-optimize不可用，尝试生成自定义收敛图")
+                self._plot_custom_convergence(result)
                 
         except Exception as e:
-            logger.warning(f"生成收敛图失败: {e}")
-        #     # 尝试生成自定义收敛图作为备选
-        #     try:
-        #         self._plot_custom_convergence(result)
-        #     except Exception as e2:
-        #         logger.warning(f"生成自定义收敛图也失败: {e2}")
+            logger.error(f"生成收敛图失败: {e}")
+            import traceback
+            logger.debug(f"详细错误信息: {traceback.format_exc()}")
+            # 尝试生成自定义收敛图作为备选
+            try:
+                self._plot_custom_convergence(result)
+            except Exception as e2:
+                logger.error(f"生成自定义收敛图也失败: {e2}")
     
-    # def _plot_custom_convergence(self, result: Dict[str, Any]) -> None:
-    #     """绘制自定义收敛图（当scikit-optimize不可用时）"""
-    #     try:
-    #         optimizer_name = result.get('optimizer_name', 'Unknown') if isinstance(result, dict) else getattr(result, 'optimizer_name', 'Unknown')
+    def _plot_custom_convergence(self, result) -> None:
+        """绘制自定义收敛图（当scikit-optimize不可用时）"""
+        try:
+            optimizer_name = getattr(result, 'optimizer_name', 'Unknown')
             
-    #         # 尝试从skopt_result获取数据
-    #         skopt_result = result.get('skopt_result') if isinstance(result, dict) else getattr(result, 'skopt_result', None)
+            # 尝试从skopt_result获取数据
+            skopt_result = getattr(result, 'skopt_result', None)
             
-    #         if skopt_result and hasattr(skopt_result, 'func_vals'):
-    #             func_vals = skopt_result.func_vals
-    #         else:
-    #             # 如果没有skopt_result，尝试从其他地方获取数据
-    #             logger.warning("无法获取收敛数据，跳过收敛图生成")
-    #             return
+            if skopt_result and hasattr(skopt_result, 'func_vals'):
+                func_vals = skopt_result.func_vals
+            else:
+                # 如果没有skopt_result，尝试从optimization_history获取数据
+                optimization_history = getattr(result, 'optimization_history', [])
+                if optimization_history:
+                    func_vals = [entry.get('result', float('inf')) for entry in optimization_history]
+                else:
+                    logger.warning("无法获取收敛数据，跳过收敛图生成")
+                    return
             
-    #         plt.figure(figsize=(10, 6))
+            plt.figure(figsize=(10, 6))
             
-    #         # 计算最佳值序列
-    #         best_so_far = []
-    #         current_best = float('inf')
-    #         for val in func_vals:
-    #             if val < current_best:
-    #                 current_best = val
-    #             best_so_far.append(current_best)
+            # 计算最佳值序列
+            best_so_far = []
+            current_best = float('inf')
+            for val in func_vals:
+                if val < current_best:
+                    current_best = val
+                best_so_far.append(current_best)
             
-    #         iterations = list(range(1, len(func_vals) + 1))
+            iterations = list(range(1, len(func_vals) + 1))
             
-    #         # 绘制收敛曲线
-    #         plt.plot(iterations, best_so_far, 'r-', linewidth=2, label='Best Value So Far')
-    #         plt.scatter(iterations, func_vals, alpha=0.6, s=30, label='Function Evaluations')
+            # 绘制收敛曲线
+            plt.plot(iterations, best_so_far, 'r-', linewidth=2, label='最佳值')
+            plt.scatter(iterations, func_vals, alpha=0.6, s=30, label='函数评估')
             
-    #         plt.xlabel('Iteration')
-    #         plt.ylabel('Objective Value')
-    #         plt.title(f"Convergence - {optimizer_name}")
-    #         plt.legend()
-    #         plt.grid(True, alpha=0.3)
+            plt.xlabel('迭代次数')
+            plt.ylabel('目标函数值')
+            plt.title(f"收敛图 - {optimizer_name}")
+            plt.legend()
+            plt.grid(True, alpha=0.3)
             
-    #         plt.savefig(self.report_dir / "convergence.png", dpi=300, bbox_inches='tight')
-    #         logger.info(f"自定义收敛图已保存: {self.report_dir / 'convergence.png'}")
+            plt.tight_layout()
+            convergence_path = self.report_dir / "convergence.png"
+            plt.savefig(convergence_path, dpi=300, bbox_inches='tight')
+            logger.info(f"自定义收敛图已保存: {convergence_path}")
             
-    #     except Exception as e:
-    #         logger.warning(f"生成自定义收敛图失败: {e}")
+            safe_close()
+            
+        except Exception as e:
+            logger.error(f"生成自定义收敛图失败: {e}")
+            import traceback
+            logger.debug(f"详细错误信息: {traceback.format_exc()}")
     
-    def _plot_parameter_importance(self, result: Dict[str, Any]) -> None:
+    def _plot_parameter_importance(self, result) -> None:
         """绘制参数重要性图"""
         if not VISUALIZATION_AVAILABLE:
+            logger.warning("可视化库不可用，跳过参数重要性图生成")
             return
         
         try:
             # Handle both dictionary and object result formats
-            skopt_result = result.get('skopt_result') if isinstance(result, dict) else getattr(result, 'skopt_result', None)
+            skopt_result = getattr(result, 'skopt_result', None)
+            optimizer_name = getattr(result, 'optimizer_name', 'Unknown')
             
             if skopt_result is None:
-                logger.debug("没有skopt_result，跳过参数重要性图生成")
+                logger.warning("没有skopt_result，跳过参数重要性图生成")
                 return
+            
+            logger.info(f"开始生成参数重要性图，skopt_result类型: {type(skopt_result)}")
             
             # 尝试导入scikit-optimize的绘图函数
             try:
@@ -276,25 +331,42 @@ class OptimizationVisualizer:
                 if (hasattr(skopt_result, 'space') and
                     skopt_result.space is not None and
                     hasattr(skopt_result.space, 'n_dims') and
-                    skopt_result.space.n_dims > 0 and
-                    hasattr(skopt_result, '__class__') and
-                    'skopt' in str(skopt_result.__class__.__module__)):
+                    skopt_result.space.n_dims > 0):
+                    
+                    logger.info(f"space维度: {skopt_result.space.n_dims}")
                     
                     plt.figure(figsize=(12, 8))
                     plot_objective(skopt_result)
-                    plt.savefig(self.report_dir / "parameter_importance.png", dpi=300, bbox_inches='tight')
-                    logger.info(f"参数重要性图已保存: {self.report_dir / 'parameter_importance.png'}")
+                    plt.suptitle(f"参数重要性 - {optimizer_name}")
+                    
+                    # 应用中文字体配置
+                    try:
+                        from utils.font_config import apply_chinese_font_settings
+                        apply_chinese_font_settings()
+                    except ImportError:
+                        logger.debug("中文字体配置不可用")
+                    
+                    plt.tight_layout()
+                    importance_path = self.report_dir / "parameter_importance.png"
+                    plt.savefig(importance_path, dpi=300, bbox_inches='tight')
+                    logger.info(f"参数重要性图已保存: {importance_path}")
                     safe_close()
+                    
                 else:
-                    logger.debug("skopt_result缺少space信息，跳过参数重要性图生成")
+                    logger.warning("skopt_result缺少space信息，无法生成参数重要性图")
                 
             except ImportError:
-                logger.warning("scikit-optimize不可用，跳过参数重要性图生成")
+                logger.warning("scikit-optimize不可用，无法生成参数重要性图")
+                
             except Exception as e:
-                logger.warning(f"无法生成参数重要性图: {e}")
+                logger.error(f"生成参数重要性图失败: {e}")
+                import traceback
+                logger.debug(f"详细错误信息: {traceback.format_exc()}")
                 
         except Exception as e:
-            logger.warning(f"生成参数重要性图失败: {e}")
+            logger.error(f"生成参数重要性图失败: {e}")
+            import traceback
+            logger.debug(f"详细错误信息: {traceback.format_exc()}")
     
     @with_chinese_font
     def _plot_optimization_history(self, optimization_history: List[Dict[str, Any]]) -> None:
@@ -504,22 +576,22 @@ class OptimizationVisualizer:
                 history = data.generation_stats
                 scores = [stat.get('best_fitness', 0) for stat in history]
                 generations = [stat.get('generation', i) for i, stat in enumerate(history)]
-            elif hasattr(data, 'history') and data.history:
-                # OptimizationResult对象，使用history
-                history = data.history
-                scores = [score for _, score in history]
-                generations = list(range(1, len(scores) + 1))
-            elif isinstance(data, dict) and 'history' in data:
-                # 字典格式
-                history = data['history']
-                scores = []
-                generations = []
-                for i, record in enumerate(history):
-                    if isinstance(record, dict):
-                        score = record.get('best_score') or record.get('score') or record.get('result')
-                        if score is not None:
-                            scores.append(score)
-                            generations.append(i + 1)
+            # elif hasattr(data, 'history') and data.history:
+            #     # OptimizationResult对象，使用history
+            #     history = data.history
+            #     scores = [score for _, score in history]
+            #     generations = list(range(1, len(scores) + 1))
+            # elif isinstance(data, dict) and 'history' in data:
+            #     # 字典格式
+            #     history = data['history']
+            #     scores = []
+            #     generations = []
+            #     for i, record in enumerate(history):
+            #         if isinstance(record, dict):
+            #             score = record.get('best_score') or record.get('score') or record.get('result')
+            #             if score is not None:
+            #                 scores.append(score)
+            #                 generations.append(i + 1)
             else:
                 logger.error("无法识别的数据格式")
                 return

@@ -205,14 +205,25 @@ class BayesianOptimizerStrategy(OptimizerStrategy):
             'improvement_ratio': self._calculate_improvement_ratio(result.func_vals)
         }
         
-        return self._format_result(
-            best_params, 
+        logger.info(f"格式化贝叶斯优化结果，skopt_result类型: {type(result)}")
+        logger.info(f"skopt_result属性: func_vals={hasattr(result, 'func_vals')}, x_iters={hasattr(result, 'x_iters')}, space={hasattr(result, 'space')}")
+        if hasattr(result, 'space') and result.space:
+            logger.info(f"space维度: {result.space.n_dims}")
+        
+        optimization_result = self._format_result(
+            best_params,
             float(result.fun) if hasattr(result.fun, 'item') else result.fun,
             {
                 'skopt_result': result,
                 'convergence_info': convergence_info
             }
         )
+        
+        logger.info(f"创建的OptimizationResult有skopt_result: {hasattr(optimization_result, 'skopt_result')}")
+        if hasattr(optimization_result, 'skopt_result'):
+            logger.info(f"skopt_result是否为None: {optimization_result.skopt_result is None}")
+        
+        return optimization_result
     
     def _calculate_improvement_ratio(self, func_vals: List[float]) -> float:
         """计算改进比例"""
@@ -277,16 +288,18 @@ class RandomOptimizerStrategy(OptimizerStrategy):
             'best_iteration': int(np.argmin(result.func_vals)),
             'improvement_ratio': self._calculate_improvement_ratio(result.func_vals)
         }
-        
-        return self._format_result(
-            best_params, 
+
+        optimization_result = self._format_result(
+            best_params,
             float(result.fun) if hasattr(result.fun, 'item') else result.fun,
             {
                 'skopt_result': result,
                 'convergence_info': convergence_info
             }
         )
-    
+
+        return optimization_result
+
     def _calculate_improvement_ratio(self, func_vals: List[float]) -> float:
         """计算改进比例"""
         if len(func_vals) < 2:
@@ -352,14 +365,16 @@ class ForestOptimizerStrategy(OptimizerStrategy):
             'improvement_ratio': self._calculate_improvement_ratio(result.func_vals)
         }
         
-        return self._format_result(
-            best_params, 
+        optimization_result = self._format_result(
+            best_params,
             float(result.fun) if hasattr(result.fun, 'item') else result.fun,
             {
                 'skopt_result': result,
                 'convergence_info': convergence_info
             }
         )
+
+        return optimization_result
     
     def _calculate_improvement_ratio(self, func_vals: List[float]) -> float:
         """计算改进比例"""
