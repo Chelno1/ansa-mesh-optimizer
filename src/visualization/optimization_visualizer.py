@@ -70,7 +70,7 @@ class OptimizationVisualizer:
         生成优化相关的所有图表 - 兼容多种数据格式
         
         Args:
-            result: 优化结果，可以是字典或OptimizationResult对象
+            result: 优化结果，OptimizationResult对象
             optimization_history: 优化历史（可选）
             early_stopping: 早停对象（可选）
         """
@@ -95,9 +95,9 @@ class OptimizationVisualizer:
                 # 使用对象的optimization_history如果没有单独传递
                 if optimization_history is None and hasattr(result, 'optimization_history'):
                     optimization_history = result.optimization_history
-            elif isinstance(result, dict):
-                # 字典格式的结果
-                result_dict = result
+            # elif isinstance(result, dict):
+            #     # 字典格式的结果
+            #     result_dict = result
             else:
                 # 其他格式，尝试转换
                 logger.warning(f"未知的结果格式: {type(result)}")
@@ -194,66 +194,66 @@ class OptimizationVisualizer:
                     plt.title(f"Convergence - {optimizer_name}")
                     plt.savefig(self.report_dir / "convergence.png", dpi=300, bbox_inches='tight')
                     logger.info(f"收敛图已保存: {self.report_dir / 'convergence.png'}")
-                else:
-                    # 创建自定义收敛图
-                    self._plot_custom_convergence(result)
+                # else:
+                #     # 创建自定义收敛图
+                #     self._plot_custom_convergence(result)
                     
                 safe_close()
                 
             except ImportError:
-                logger.warning("scikit-optimize不可用，使用自定义收敛图")
-                self._plot_custom_convergence(result)
+                logger.warning("scikit-optimize不可用")
+            #     self._plot_custom_convergence(result)
                 
         except Exception as e:
             logger.warning(f"生成收敛图失败: {e}")
-            # 尝试生成自定义收敛图作为备选
-            try:
-                self._plot_custom_convergence(result)
-            except Exception as e2:
-                logger.warning(f"生成自定义收敛图也失败: {e2}")
+        #     # 尝试生成自定义收敛图作为备选
+        #     try:
+        #         self._plot_custom_convergence(result)
+        #     except Exception as e2:
+        #         logger.warning(f"生成自定义收敛图也失败: {e2}")
     
-    def _plot_custom_convergence(self, result: Dict[str, Any]) -> None:
-        """绘制自定义收敛图（当scikit-optimize不可用时）"""
-        try:
-            optimizer_name = result.get('optimizer_name', 'Unknown') if isinstance(result, dict) else getattr(result, 'optimizer_name', 'Unknown')
+    # def _plot_custom_convergence(self, result: Dict[str, Any]) -> None:
+    #     """绘制自定义收敛图（当scikit-optimize不可用时）"""
+    #     try:
+    #         optimizer_name = result.get('optimizer_name', 'Unknown') if isinstance(result, dict) else getattr(result, 'optimizer_name', 'Unknown')
             
-            # 尝试从skopt_result获取数据
-            skopt_result = result.get('skopt_result') if isinstance(result, dict) else getattr(result, 'skopt_result', None)
+    #         # 尝试从skopt_result获取数据
+    #         skopt_result = result.get('skopt_result') if isinstance(result, dict) else getattr(result, 'skopt_result', None)
             
-            if skopt_result and hasattr(skopt_result, 'func_vals'):
-                func_vals = skopt_result.func_vals
-            else:
-                # 如果没有skopt_result，尝试从其他地方获取数据
-                logger.warning("无法获取收敛数据，跳过收敛图生成")
-                return
+    #         if skopt_result and hasattr(skopt_result, 'func_vals'):
+    #             func_vals = skopt_result.func_vals
+    #         else:
+    #             # 如果没有skopt_result，尝试从其他地方获取数据
+    #             logger.warning("无法获取收敛数据，跳过收敛图生成")
+    #             return
             
-            plt.figure(figsize=(10, 6))
+    #         plt.figure(figsize=(10, 6))
             
-            # 计算最佳值序列
-            best_so_far = []
-            current_best = float('inf')
-            for val in func_vals:
-                if val < current_best:
-                    current_best = val
-                best_so_far.append(current_best)
+    #         # 计算最佳值序列
+    #         best_so_far = []
+    #         current_best = float('inf')
+    #         for val in func_vals:
+    #             if val < current_best:
+    #                 current_best = val
+    #             best_so_far.append(current_best)
             
-            iterations = list(range(1, len(func_vals) + 1))
+    #         iterations = list(range(1, len(func_vals) + 1))
             
-            # 绘制收敛曲线
-            plt.plot(iterations, best_so_far, 'r-', linewidth=2, label='Best Value So Far')
-            plt.scatter(iterations, func_vals, alpha=0.6, s=30, label='Function Evaluations')
+    #         # 绘制收敛曲线
+    #         plt.plot(iterations, best_so_far, 'r-', linewidth=2, label='Best Value So Far')
+    #         plt.scatter(iterations, func_vals, alpha=0.6, s=30, label='Function Evaluations')
             
-            plt.xlabel('Iteration')
-            plt.ylabel('Objective Value')
-            plt.title(f"Convergence - {optimizer_name}")
-            plt.legend()
-            plt.grid(True, alpha=0.3)
+    #         plt.xlabel('Iteration')
+    #         plt.ylabel('Objective Value')
+    #         plt.title(f"Convergence - {optimizer_name}")
+    #         plt.legend()
+    #         plt.grid(True, alpha=0.3)
             
-            plt.savefig(self.report_dir / "convergence.png", dpi=300, bbox_inches='tight')
-            logger.info(f"自定义收敛图已保存: {self.report_dir / 'convergence.png'}")
+    #         plt.savefig(self.report_dir / "convergence.png", dpi=300, bbox_inches='tight')
+    #         logger.info(f"自定义收敛图已保存: {self.report_dir / 'convergence.png'}")
             
-        except Exception as e:
-            logger.warning(f"生成自定义收敛图失败: {e}")
+    #     except Exception as e:
+    #         logger.warning(f"生成自定义收敛图失败: {e}")
     
     def _plot_parameter_importance(self, result: Dict[str, Any]) -> None:
         """绘制参数重要性图"""

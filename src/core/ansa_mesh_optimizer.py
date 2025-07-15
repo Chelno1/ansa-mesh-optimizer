@@ -282,11 +282,11 @@ class MeshOptimizer:
             early_stopping_info=self.early_stopping.get_best_result() if self.early_stopping else None
         )
         
-        # 使用可视化器生成图表（传递原始result_dict以保留skopt_result）
+        # 使用可视化器生成图表
         try:
-            visualization_result = result
+            # visualization_result = result
             visualizer.generate_optimization_plots(
-                result=visualization_result,
+                result=result,
                 optimization_history=self.optimization_history,
                 early_stopping=self.early_stopping
             )

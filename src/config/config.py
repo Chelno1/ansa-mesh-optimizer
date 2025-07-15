@@ -405,14 +405,14 @@ class SimpleConfigManager:
         if require_config and config_file and not Path(config_file).exists():
             raise ValueError(f"配置文件不存在: {config_file}")
         
+        # 先初始化配置对象
+        self.optimization_config = SimpleOptimizationConfig()
+        self.ansa_config = SimpleAnsaConfig()
+        
         # 加载配置文件（如果提供）
         config_params = None
         if config_file and Path(config_file).exists():
             config_params = self._load_config_file(config_file)
-        
-        # 初始化配置对象
-        self.optimization_config = SimpleOptimizationConfig()
-        self.ansa_config = SimpleAnsaConfig()
         
         # 初始化参数空间
         self.parameter_space = SimpleParameterSpace(config_params)
