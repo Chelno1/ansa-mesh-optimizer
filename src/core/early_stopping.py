@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 # 安全导入matplotlib和显示配置
 try:
     import matplotlib.pyplot as plt
-    from utils.display_config import safe_show, safe_close, configure_matplotlib_for_display
+    from src.utils.display_config import safe_show, safe_close, configure_matplotlib_for_display
     MATPLOTLIB_AVAILABLE = True
     # 配置matplotlib显示设置
     configure_matplotlib_for_display()
@@ -40,7 +40,7 @@ except ImportError:
 
 # 尝试导入字体装饰器
 try:
-    from utils.font_decorator import with_chinese_font, plotting_ready
+    from src.utils.font_decorator import with_chinese_font, plotting_ready
     DECORATOR_AVAILABLE = True
 except ImportError:
     logger.warning("字体装饰器模块未找到")

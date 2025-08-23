@@ -25,7 +25,7 @@ except ImportError:
 
 # 导入工具函数
 try:
-    from utils.utils import format_execution_time
+    from src.utils.utils import format_execution_time
 except ImportError:
     def format_execution_time(seconds):
         """备用时间格式化函数"""
@@ -326,7 +326,7 @@ class ComparisonReporter:
             摘要统计列表
         """
         try:
-            from utils.utils import calculate_statistics
+            from src.utils.utils import calculate_statistics
         except ImportError:
             # 备用统计计算函数
             def calculate_statistics(values):

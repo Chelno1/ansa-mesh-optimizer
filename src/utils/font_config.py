@@ -14,7 +14,7 @@ import subprocess
 
 # 导入显示配置
 try:
-    from utils.display_config import safe_show, safe_close, configure_matplotlib_for_display
+    from src.utils.display_config import safe_show, safe_close, configure_matplotlib_for_display
     # 配置matplotlib显示设置
     configure_matplotlib_for_display()
 except ImportError:

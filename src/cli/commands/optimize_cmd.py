@@ -45,7 +45,7 @@ def cmd_optimize(args, modules) -> int:
     try:
         # 设置无头模式（必须在任何matplotlib导入之前）
         if hasattr(args, 'no_display') and args.no_display:
-            from utils.display_config import set_no_display_mode
+            from src.utils.display_config import set_no_display_mode
             set_no_display_mode(True)
             print("🖼️  已启用无头模式 - 图表将保存但不显示")
         
@@ -88,7 +88,7 @@ def cmd_optimize(args, modules) -> int:
         config.sensitivity_analysis = not args.no_sensitivity
         
         # 创建配置管理器包装器
-        from core.ansa_mesh_optimizer import ConfigManagerWrapper
+        from src.core.ansa_mesh_optimizer import ConfigManagerWrapper
         config_wrapper = ConfigManagerWrapper(config_manager)
         
         # 执行优化

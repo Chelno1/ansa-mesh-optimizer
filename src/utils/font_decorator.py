@@ -28,7 +28,7 @@ def with_chinese_font(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
-            from utils.font_config import apply_chinese_font_settings, FONT_CONFIGURED
+            from src.utils.font_config import apply_chinese_font_settings, FONT_CONFIGURED
             if FONT_CONFIGURED:
                 apply_chinese_font_settings()
                 logger.debug(f"已为函数 {func.__name__} 应用中文字体设置")
@@ -79,7 +79,7 @@ def with_chinese_font_context(save_original=True):
                     }
                 
                 # 应用中文字体设置
-                from utils.font_config import apply_chinese_font_settings
+                from src.utils.font_config import apply_chinese_font_settings
                 apply_chinese_font_settings()
                 
                 # 执行原函数

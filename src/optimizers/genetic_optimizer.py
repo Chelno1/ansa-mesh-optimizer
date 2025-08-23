@@ -26,7 +26,7 @@ from .optimizer_config import OptimizationResult
 
 # 安全导入matplotlib和显示配置
 try:
-    from utils.display_config import configure_matplotlib_for_display, safe_show, safe_close
+    from src.utils.display_config import configure_matplotlib_for_display, safe_show, safe_close
     configure_matplotlib_for_display()
     import matplotlib.pyplot as plt
     MATPLOTLIB_AVAILABLE = True
@@ -38,7 +38,7 @@ except ImportError:
 
 # 尝试导入字体装饰器模块
 try:
-    from utils.font_decorator import with_chinese_font, plotting_ready
+    from src.utils.font_decorator import with_chinese_font, plotting_ready
     DECORATOR_AVAILABLE = True
 except ImportError:
     logger.warning("字体装饰器模块未找到")

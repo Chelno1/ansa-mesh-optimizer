@@ -13,13 +13,6 @@ from typing import Optional, List, Tuple
 
 logger = logging.getLogger(__name__)
 
-# 添加当前目录到Python路径
-parent_dir = str(Path(__file__).parent.parent)
-logger.debug("Adding to Python path: %s", parent_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-    logger.debug("Updated Python path: %s", sys.path)
-
 # 全局变量
 APP_VERSION = "2.1.0"
 APP_NAME = "Ansa Mesh Optimizer"
@@ -117,15 +110,15 @@ def create_parser() -> argparse.ArgumentParser:
             
             # 直接导入模块而不是使用文件路径
             if module_name == 'optimize_cmd':
-                from .commands.optimize_cmd import register_optimize_command as register
+                from src.cli.commands.optimize_cmd import register_optimize_command as register
             elif module_name == 'compare_cmd':
-                from .commands.compare_cmd import register_compare_command as register
+                from src.cli.commands.compare_cmd import register_compare_command as register
             elif module_name == 'config_cmd':
-                from .commands.config_cmd import register_config_command as register
+                from src.cli.commands.config_cmd import register_config_command as register
             elif module_name == 'info_cmd':
-                from .commands.info_cmd import register_info_command as register
+                from src.cli.commands.info_cmd import register_info_command as register
             elif module_name == 'test_cmd':
-                from .commands.test_cmd import register_test_command as register
+                from src.cli.commands.test_cmd import register_test_command as register
             else:
                 logger.error("Unknown command module: %s", module_name)
                 continue
@@ -164,7 +157,7 @@ def main_cli() -> int:
     # 导入命令处理器
     try:
         logger.debug("Importing command dispatcher...")
-        from .commands.command_dispatcher import dispatch_command
+        from src.cli.commands.command_dispatcher import dispatch_command
         logger.debug("Successfully imported command dispatcher")
         
         logger.debug("Dispatching command: %s", args.command)

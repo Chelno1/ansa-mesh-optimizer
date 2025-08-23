@@ -93,7 +93,7 @@ def run_basic_tests(modules, evaluator_type: str, n_iterations: int, verbose: bo
         print(f"\n2️⃣  测试评估器...")
         
         # 测试评估器
-        from evaluators.mesh_evaluator import create_mesh_evaluator
+        from src.evaluators.mesh_evaluator import create_mesh_evaluator
         evaluator = create_mesh_evaluator(evaluator_type, config_manager=config_manager)
         
         test_params = {

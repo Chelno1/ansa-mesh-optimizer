@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # 安全导入字体配置模块
 try:
-    from utils.font_decorator import with_chinese_font
+    from src.utils.font_decorator import with_chinese_font
     DECORATOR_AVAILABLE = True
 except ImportError:
     logger.warning("字体装饰器模块未找到")
@@ -30,7 +30,7 @@ except ImportError:
 VISUALIZATION_AVAILABLE = False
 try:
     import matplotlib.pyplot as plt
-    from utils.display_config import configure_matplotlib_for_display, safe_show, safe_close
+    from src.utils.display_config import configure_matplotlib_for_display, safe_show, safe_close
     configure_matplotlib_for_display()
     VISUALIZATION_AVAILABLE = True
     logger.info("可视化库加载成功")
@@ -83,7 +83,7 @@ class OptimizationVisualizer:
         
         try:
             # 确保matplotlib配置正确
-            from utils.display_config import configure_matplotlib_for_display
+            from src.utils.display_config import configure_matplotlib_for_display
             configure_matplotlib_for_display()
             
             plots_generated = 0

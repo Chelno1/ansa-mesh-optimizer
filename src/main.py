@@ -11,16 +11,11 @@ Ansa网格优化器主程序 - 重构版本
 """
 
 import sys
-from pathlib import Path
-
-# 添加当前目录到Python路径
-current_dir = str(Path(__file__).parent)
-sys.path.insert(0, current_dir)
 
 def main() -> int:
     """主函数 - 改进的错误处理"""
     try:
-        from cli.cli_main import main_cli
+        from src.cli.cli_main import main_cli
         return main_cli()
     except ImportError as e:
         print(f"❌ CLI模块导入失败: {e}")

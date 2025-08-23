@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # 安全导入字体配置模块
 try:
-    from utils.font_decorator import with_chinese_font
+    from src.utils.font_decorator import with_chinese_font
     DECORATOR_AVAILABLE = True
 except ImportError:
     logger.warning("字体装饰器模块未找到")
@@ -33,7 +33,7 @@ try:
     import numpy as np
     import matplotlib.pyplot as plt
     import seaborn as sns
-    from utils.display_config import safe_show, safe_close, configure_matplotlib_for_display
+    from src.utils.display_config import safe_show, safe_close, configure_matplotlib_for_display
     ANALYSIS_LIBS_AVAILABLE = True
     # 配置matplotlib显示设置
     configure_matplotlib_for_display()

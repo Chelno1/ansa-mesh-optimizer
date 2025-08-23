@@ -22,8 +22,8 @@ try:
     from ..utils.dependency_manager import is_available
 except ImportError:
     try:
-        from utils.exceptions import ConfigurationError, ValidationError, handle_exceptions
-        from utils.dependency_manager import is_available
+        from src.utils.exceptions import ConfigurationError, ValidationError, handle_exceptions
+        from src.utils.dependency_manager import is_available
     except ImportError:
         # 提供基础异常类作为备选
         class ConfigurationError(Exception):

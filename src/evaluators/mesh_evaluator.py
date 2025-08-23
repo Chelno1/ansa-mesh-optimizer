@@ -26,7 +26,7 @@ import json
 from datetime import datetime
 
 try:
-    from config.config import UnifiedConfigManager
+    from src.config.config import UnifiedConfigManager
 except ImportError:
     # 如果从src目录运行，尝试不同的导入路径
     try:
@@ -36,7 +36,7 @@ except ImportError:
         src_dir = Path(__file__).parent.parent
         if str(src_dir) not in sys.path:
             sys.path.insert(0, str(src_dir))
-        from config.config import UnifiedConfigManager
+        from src.config.config import UnifiedConfigManager
     except ImportError as e:
         raise ImportError(f"无法导入UnifiedConfigManager: {e}")
 
@@ -98,7 +98,7 @@ class MeshEvaluator(ABC):
 
 # 导入统一的参数验证器
 try:
-    from utils.parameter_validator import get_parameter_validator
+    from src.utils.parameter_validator import get_parameter_validator
 except ImportError:
     # 如果导入失败，尝试添加路径
     try:
@@ -107,7 +107,7 @@ except ImportError:
         src_dir = Path(__file__).parent.parent
         if str(src_dir) not in sys.path:
             sys.path.insert(0, str(src_dir))
-        from utils.parameter_validator import get_parameter_validator
+        from src.utils.parameter_validator import get_parameter_validator
     except ImportError as e:
         raise ImportError(f"无法导入get_parameter_validator: {e}")
 
@@ -126,7 +126,7 @@ class AnsaMeshEvaluator(MeshEvaluator):
 
         
         # 初始化参数替换策略管理器
-        from evaluators.parameter_replacement_strategies import ParameterReplacementManager, format_mpar_parameter_value
+        from src.evaluators.parameter_replacement_strategies import ParameterReplacementManager, format_mpar_parameter_value
         self.parameter_replacer = ParameterReplacementManager(config_manager)
         self._format_parameter_value = format_mpar_parameter_value
         
