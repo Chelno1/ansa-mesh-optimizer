@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-统一错误处理模块
+错误处理工具模块
 
 作者: Chel
 创建日期: 2025-07-14
-版本: 1.0.0
-功能: 提供统一的错误处理和日志记录
+更新日期: 2025-08-23
+版本: 2.0.0
+功能: 提供统一的错误处理装饰器和工具函数
 """
 
 import logging
@@ -15,77 +16,18 @@ import functools
 from typing import Any, Callable, Optional, Type, Union
 from pathlib import Path
 
+# 从exceptions.py导入异常类
+from .exceptions import (
+    AnsaMeshOptimizerError as MeshOptimizerError,
+    ConfigurationError,
+    ValidationError,
+    OptimizationError,
+    EvaluationError,
+    FileOperationError,
+    DependencyError
+)
+
 logger = logging.getLogger(__name__)
-
-
-class MeshOptimizerError(Exception):
-    """网格优化器基础异常"""
-    
-    def __init__(self, message: str, error_code: Optional[str] = None, 
-                 details: Optional[dict] = None):
-        super().__init__(message)
-        self.message = message
-        self.error_code = error_code
-        self.details = details or {}
-    
-    def __str__(self) -> str:
-        if self.error_code:
-            return f"[{self.error_code}] {self.message}"
-        return self.message
-
-
-class ConfigurationError(MeshOptimizerError):
-    """配置错误"""
-    
-    def __init__(self, message: str, config_key: Optional[str] = None, **kwargs):
-        super().__init__(message, error_code="CONFIG_ERROR", **kwargs)
-        self.config_key = config_key
-
-
-class ValidationError(MeshOptimizerError):
-    """验证错误"""
-    
-    def __init__(self, message: str, field: Optional[str] = None, 
-                 value: Optional[Any] = None, **kwargs):
-        super().__init__(message, error_code="VALIDATION_ERROR", **kwargs)
-        self.field = field
-        self.value = value
-
-
-class OptimizationError(MeshOptimizerError):
-    """优化过程错误"""
-    
-    def __init__(self, message: str, optimizer_type: Optional[str] = None, 
-                 iteration: Optional[int] = None, **kwargs):
-        super().__init__(message, error_code="OPTIMIZATION_ERROR", **kwargs)
-        self.optimizer_type = optimizer_type
-        self.iteration = iteration
-
-
-class EvaluationError(MeshOptimizerError):
-    """评估过程错误"""
-    
-    def __init__(self, message: str, evaluator_type: Optional[str] = None, **kwargs):
-        super().__init__(message, error_code="EVALUATION_ERROR", **kwargs)
-        self.evaluator_type = evaluator_type
-
-
-class FileOperationError(MeshOptimizerError):
-    """文件操作错误"""
-    
-    def __init__(self, message: str, file_path: Optional[str] = None, 
-                 operation: Optional[str] = None, **kwargs):
-        super().__init__(message, error_code="FILE_ERROR", **kwargs)
-        self.file_path = file_path
-        self.operation = operation
-
-
-class DependencyError(MeshOptimizerError):
-    """依赖错误"""
-    
-    def __init__(self, message: str, dependency: Optional[str] = None, **kwargs):
-        super().__init__(message, error_code="DEPENDENCY_ERROR", **kwargs)
-        self.dependency = dependency
 
 
 def safe_execute(func: Callable, *args, default_return=None, 
@@ -157,7 +99,7 @@ def handle_exceptions(
                 if exception_type in exception_map:
                     custom_exception = exception_map[exception_type]
                     mapped_exc = custom_exception(
-                        str(e), 
+                        str(e),
                         details={'original_exception': str(e)}
                     )
                     if return_none_on_error:

@@ -50,6 +50,37 @@ from .utils import (
     PATTERNS
 )
 
+# 从异常模块导入
+from .exceptions import (
+    AnsaMeshOptimizerError,
+    ConfigurationError,
+    ValidationError,
+    OptimizationError,
+    EvaluationError,
+    FileOperationError,
+    DependencyError,
+    ResourceError,
+    TimeoutError,
+    ConvergenceError,
+    ParameterError,
+    handle_exceptions,
+    ErrorCodes
+)
+
+# 从错误处理模块导入
+from .error_handler import (
+    safe_execute,
+    handle_exceptions as handle_exceptions_decorator,
+    validate_file_path as validate_file_path_error_handler,
+    ensure_directory,
+    log_function_call,
+    retry_on_failure,
+    ErrorContext,
+    create_error_context,
+    format_error_message,
+    setup_global_error_handler
+)
+
 # 定义公开的API
 __all__ = [
     # 序列化相关
@@ -90,6 +121,33 @@ __all__ = [
     'extract_numbers_from_text',
     'setup_numpy_print_options',
     
+    # 异常类
+    'AnsaMeshOptimizerError',
+    'ConfigurationError',
+    'ValidationError',
+    'OptimizationError',
+    'EvaluationError',
+    'FileOperationError',
+    'DependencyError',
+    'ResourceError',
+    'TimeoutError',
+    'ConvergenceError',
+    'ParameterError',
+    'ErrorCodes',
+    
+    # 错误处理工具
+    'safe_execute',
+    'handle_exceptions',
+    'handle_exceptions_decorator',
+    'validate_file_path_error_handler',
+    'ensure_directory',
+    'log_function_call',
+    'retry_on_failure',
+    'ErrorContext',
+    'create_error_context',
+    'format_error_message',
+    'setup_global_error_handler',
+    
     # 常量
     'PATTERNS'
 ]
@@ -102,5 +160,7 @@ __author__ = 'Chel'
 __doc_modules__ = {
     'serialization': '序列化和配置文件处理',
     'formatting': '时间、表格、数字格式化',
-    'utils': '通用工具函数和性能监控'
+    'utils': '通用工具函数和性能监控',
+    'exceptions': '自定义异常类定义',
+    'error_handler': '错误处理装饰器和工具函数'
 }
