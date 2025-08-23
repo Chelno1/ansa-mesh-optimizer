@@ -20,11 +20,13 @@ from datetime import datetime
 from typing import Dict, List, Optional, Union, Any, Callable
 from pathlib import Path
 
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# 导入统一的日志配置
+from src.utils.logging_config import setup_logging
+
+# 配置日志（如果还没有配置）
+if not logging.getLogger().handlers:
+    setup_logging(level='INFO')
+
 logger = logging.getLogger(__name__)
 
 # 本地模块导入

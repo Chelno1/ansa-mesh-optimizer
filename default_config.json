@@ -35,6 +35,31 @@
     "max_memory_usage": 8.0,
     "temp_cleanup": true
   },
+  "logging": {
+    "level": "INFO",
+    "console": {
+      "enabled": true,
+      "level": "INFO",
+      "format": "simple"
+    },
+    "file": {
+      "enabled": false,
+      "level": "DEBUG",
+      "format": "detailed",
+      "filename": "ansa_optimizer.log",
+      "max_size": "10MB",
+      "backup_count": 5,
+      "rotation": true
+    },
+    "modules": {
+      "src.optimizers": "INFO",
+      "src.evaluators": "INFO",
+      "src.utils": "WARNING",
+      "src.visualization": "WARNING",
+      "src.cli": "INFO",
+      "src.core": "INFO"
+    }
+  },
   "parameters": {
     "distortion_distance": {
       "param_type": "float",

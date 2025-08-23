@@ -24,19 +24,11 @@ cwd_dir = Path.cwd().resolve()
 sys.path.append(str(script_dir))
 sys.path.append(str(cwd_dir))
 
-# 配置日志
-def setup_logging(log_level=logging.INFO):
-    """设置日志配置"""
-    logging.basicConfig(
-        level=log_level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(cwd_dir / 'ansa_batch.log'),
-            logging.StreamHandler()
-        ]
-    )
+# 导入统一的日志配置
+from src.utils.logging_config import setup_batch_logging
 
-setup_logging()
+# 配置日志
+setup_batch_logging(log_level=logging.INFO, log_dir=cwd_dir)
 logger = logging.getLogger(__name__)
 
 # 安全导入Ansa模块

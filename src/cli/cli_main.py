@@ -11,47 +11,15 @@ import importlib
 from pathlib import Path
 from typing import Optional, List, Tuple
 
+# 导入统一的日志配置
+from src.utils.logging_config import setup_cli_logging
+
 logger = logging.getLogger(__name__)
 
 # 全局变量
 APP_VERSION = "2.1.0"
 APP_NAME = "Ansa Mesh Optimizer"
 
-def setup_logging(verbose: bool = False, log_file: Optional[str] = None):
-    """设置日志配置"""
-    level = logging.DEBUG if verbose else logging.INFO
-    
-    # 创建格式化器
-    detailed_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
-    )
-    simple_formatter = logging.Formatter(
-        '%(levelname)s - %(message)s'
-    )
-    
-    # 配置根日志记录器
-    root_logger = logging.getLogger()
-    root_logger.setLevel(level)
-    
-    # 清除现有处理器
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-    
-    # 控制台处理器
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(level)
-    console_handler.setFormatter(simple_formatter if not verbose else detailed_formatter)
-    root_logger.addHandler(console_handler)
-    
-    # 文件处理器（如果指定）
-    if log_file:
-        try:
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setLevel(logging.DEBUG)
-            file_handler.setFormatter(detailed_formatter)
-            root_logger.addHandler(file_handler)
-        except Exception as e:
-            print(f"警告: 无法创建日志文件 {log_file}: {e}")
 
 def create_parser() -> argparse.ArgumentParser:
     """创建命令行参数解析器"""
@@ -138,7 +106,7 @@ def main_cli() -> int:
         log_level = logging.INFO
     
     # 设置日志
-    setup_logging(args.verbose, args.log_file)
+    setup_cli_logging(args.verbose, args.log_file)
     
     # 检查命令
     if not args.command:

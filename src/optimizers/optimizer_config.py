@@ -101,10 +101,12 @@ class OptimizerConfig:
     
     def _setup_logging(self):
         """设置日志级别"""
+        from src.utils.logging_config import configure_module_logging
+        
         if self.verbose:
-            logging.getLogger('src.optimizers').setLevel(logging.INFO)
+            configure_module_logging('src.optimizers', 'INFO')
         else:
-            logging.getLogger('src.optimizers').setLevel(logging.WARNING)
+            configure_module_logging('src.optimizers', 'WARNING')
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""

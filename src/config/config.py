@@ -93,6 +93,76 @@ class SimpleOptimizationConfig:
 
 
 @dataclass
+class SimpleLoggingConfig:
+    """简化的日志配置"""
+    level: str = "INFO"
+    console_enabled: bool = True
+    console_level: str = "INFO"
+    console_format: str = "simple"
+    file_enabled: bool = False
+    file_level: str = "DEBUG"
+    file_format: str = "detailed"
+    filename: Optional[str] = None
+    max_size: str = "10MB"
+    backup_count: int = 5
+    rotation: bool = True
+    modules: Dict[str, str] = field(default_factory=lambda: {
+        "src.optimizers": "INFO",
+        "src.evaluators": "INFO",
+        "src.utils": "WARNING",
+        "src.visualization": "WARNING",
+        "src.cli": "INFO",
+        "src.core": "INFO"
+    })
+    
+    def validate(self) -> Tuple[bool, Optional[str]]:
+        """验证日志配置"""
+        errors = []
+        
+        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        if self.level.upper() not in valid_levels:
+            errors.append(f"Invalid level: {self.level}")
+        if self.console_level.upper() not in valid_levels:
+            errors.append(f"Invalid console_level: {self.console_level}")
+        if self.file_level.upper() not in valid_levels:
+            errors.append(f"Invalid file_level: {self.file_level}")
+        
+        valid_formats = ["simple", "detailed", "console", "file"]
+        if self.console_format not in valid_formats:
+            errors.append(f"Invalid console_format: {self.console_format}")
+        if self.file_format not in valid_formats:
+            errors.append(f"Invalid file_format: {self.file_format}")
+        
+        if self.backup_count < 0:
+            errors.append("backup_count must be non-negative")
+        
+        if errors:
+            return False, "; ".join(errors)
+        return True, None
+    
+    def to_logging_config_dict(self) -> Dict[str, Any]:
+        """转换为LoggingConfig可用的字典格式"""
+        return {
+            'level': self.level,
+            'console': {
+                'enabled': self.console_enabled,
+                'level': self.console_level,
+                'format': self.console_format
+            },
+            'file': {
+                'enabled': self.file_enabled,
+                'level': self.file_level,
+                'format': self.file_format,
+                'filename': self.filename,
+                'max_size': self.max_size,
+                'backup_count': self.backup_count,
+                'rotation': self.rotation
+            },
+            'modules': self.modules.copy()
+        }
+
+
+@dataclass
 class SimpleAnsaConfig:
     """简化的ANSA配置"""
     ansa_executable: str = 'ansa'
@@ -408,6 +478,7 @@ class SimpleConfigManager:
         # 先初始化配置对象
         self.optimization_config = SimpleOptimizationConfig()
         self.ansa_config = SimpleAnsaConfig()
+        self.logging_config = SimpleLoggingConfig()
         
         # 加载配置文件（如果提供）
         config_params = None
@@ -419,6 +490,9 @@ class SimpleConfigManager:
         
         # 验证配置
         self._validate_configs()
+        
+        # 设置日志配置
+        self._setup_logging()
     
     def _load_config_file(self, config_file: str) -> Optional[List[str]]:
         """加载配置文件"""
@@ -444,6 +518,35 @@ class SimpleConfigManager:
                         else:
                             setattr(self.ansa_config, key, value)
             
+            # 更新日志配置
+            if 'logging' in config_data:
+                logging_data = config_data['logging']
+                
+                # 处理嵌套的配置结构
+                if 'console' in logging_data:
+                    console_data = logging_data['console']
+                    self.logging_config.console_enabled = console_data.get('enabled', True)
+                    self.logging_config.console_level = console_data.get('level', 'INFO')
+                    self.logging_config.console_format = console_data.get('format', 'simple')
+                
+                if 'file' in logging_data:
+                    file_data = logging_data['file']
+                    self.logging_config.file_enabled = file_data.get('enabled', False)
+                    self.logging_config.file_level = file_data.get('level', 'DEBUG')
+                    self.logging_config.file_format = file_data.get('format', 'detailed')
+                    self.logging_config.filename = file_data.get('filename')
+                    self.logging_config.max_size = file_data.get('max_size', '10MB')
+                    self.logging_config.backup_count = file_data.get('backup_count', 5)
+                    self.logging_config.rotation = file_data.get('rotation', True)
+                
+                if 'modules' in logging_data:
+                    self.logging_config.modules.update(logging_data['modules'])
+                
+                # 更新顶级属性
+                for key in ['level']:
+                    if key in logging_data:
+                        setattr(self.logging_config, key, logging_data[key])
+            
             # 返回参数列表
             if 'parameters' in config_data:
                 return list(config_data['parameters'].keys())
@@ -465,12 +568,33 @@ class SimpleConfigManager:
         if not ansa_valid:
             logger.warning(f"ANSA配置验证失败: {ansa_error}")
         
+        logging_valid, logging_error = self.logging_config.validate()
+        if not logging_valid:
+            logger.warning(f"日志配置验证失败: {logging_error}")
+        
         try:
             self.parameter_space.validate_bounds()
         except Exception as e:
             logger.warning(f"参数空间验证失败: {e}")
         
         logger.info("配置验证完成")
+    
+    def _setup_logging(self):
+        """设置日志配置"""
+        try:
+            from src.utils.logging_config import LoggingConfig
+            
+            # 将配置转换为LoggingConfig可用的格式
+            logging_config_dict = self.logging_config.to_logging_config_dict()
+            
+            # 创建并设置日志配置
+            logging_config = LoggingConfig(logging_config_dict)
+            logging_config.setup_logging()
+            
+            logger.info("日志配置已应用")
+            
+        except Exception as e:
+            logger.warning(f"设置日志配置失败: {e}")
     
     def validate_all_configs(self) -> None:
         """验证所有配置 - 保持向后兼容"""
@@ -489,6 +613,7 @@ class SimpleConfigManager:
                     key: str(value) if isinstance(value, Path) else value
                     for key, value in self.ansa_config.__dict__.items()
                 },
+                'logging': self.logging_config.to_logging_config_dict(),
                 'parameters': {
                     name: {
                         'param_type': param.param_type.value,
@@ -546,12 +671,19 @@ class SimpleConfigManager:
             
             example_param_space = SimpleParameterSpace(example_param_names)
             
+            example_logging_config = SimpleLoggingConfig(
+                level="INFO",
+                file_enabled=True,
+                filename="ansa_optimizer.log"
+            )
+            
             config_data = {
                 'optimization': example_optimization_config.__dict__,
                 'ansa': {
                     key: str(value) if isinstance(value, Path) else value
                     for key, value in example_ansa_config.__dict__.items()
                 },
+                'logging': example_logging_config.to_logging_config_dict(),
                 'parameters': {
                     name: {
                         'param_type': param.param_type.value,
@@ -605,6 +737,7 @@ class SimpleConfigManager:
 UnifiedConfigManager = SimpleConfigManager
 OptimizationConfig = SimpleOptimizationConfig
 AnsaConfig = SimpleAnsaConfig
+LoggingConfig = SimpleLoggingConfig
 UnifiedParameterSpace = SimpleParameterSpace
 
 # 全局配置实例
