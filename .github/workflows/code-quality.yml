@@ -1,0 +1,53 @@
+name: Code Quality Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+        pip install pre-commit
+    
+    - name: Cache pre-commit
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+    
+    - name: Run pre-commit
+      run: |
+        pre-commit install
+        pre-commit run --all-files
+    
+    - name: Check for missing newlines
+      run: |
+        echo "检查Python文件的行尾换行符..."
+        find src -name "*.py" -exec sh -c 'if [ -n "$(tail -c1 "$1")" ]; then echo "缺少换行符: $1"; exit 1; fi' _ {} \;
+        echo "所有Python文件都有正确的行尾换行符！"
+    
+    - name: Run tests
+      run: |
+        python -m pytest tests/ -v --cov=src --cov-report=xml
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
