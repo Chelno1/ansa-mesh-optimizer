@@ -1,4 +1,19 @@
-.PHONY: install install-dev format lint test check-newlines setup-pre-commit clean
+.PHONY: help install install-dev format lint test check-newlines setup-pre-commit clean
+
+# 默认目标 - 显示帮助信息
+help:
+	@echo "可用的命令："
+	@echo "  help           - 显示此帮助信息"
+	@echo "  install        - 安装项目"
+	@echo "  install-dev    - 安装开发依赖"
+	@echo "  setup-pre-commit - 设置pre-commit钩子"
+	@echo "  format         - 格式化代码"
+	@echo "  lint           - 代码检查"
+	@echo "  check-newlines - 检查行尾换行符"
+	@echo "  test           - 运行测试"
+	@echo "  check          - 完整的代码质量检查"
+	@echo "  clean          - 清理缓存文件"
+	@echo "  dev-setup      - 开发环境完整设置"
 
 # 安装项目
 install:
