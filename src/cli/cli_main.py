@@ -7,7 +7,7 @@ CLI主模块 - 命令行接口核心功能
 import sys
 import argparse
 import logging
-import importlib.util
+import importlib
 from pathlib import Path
 from typing import Optional, List, Tuple
 
@@ -94,41 +94,32 @@ def create_parser() -> argparse.ArgumentParser:
     # 创建子命令
     subparsers = parser.add_subparsers(dest='command', help='可用命令')
     
-    # 定义要加载的命令模块
-    command_modules = [
-        ('optimize_cmd', 'register_optimize_command'),
-        ('compare_cmd', 'register_compare_command'),
-        ('config_cmd', 'register_config_command'),
-        ('info_cmd', 'register_info_command'),
-        ('test_cmd', 'register_test_command')
-    ]
+    # 定义要加载的命令模块映射 {模块名: 注册函数名}
+    command_modules = {
+        'optimize_cmd': 'register_optimize_command',
+        'compare_cmd': 'register_compare_command',
+        'config_cmd': 'register_config_command',
+        'info_cmd': 'register_info_command',
+        'test_cmd': 'register_test_command'
+    }
     
-    # 安全加载命令模块 - 使用直接导入而不是文件路径
-    for module_name, register_func in command_modules:
+    # 使用 importlib.import_module 动态加载命令模块
+    for module_name, register_func_name in command_modules.items():
         try:
-            logger.debug("Loading command module: %s", module_name)
+            logger.debug("动态加载命令模块: %s", module_name)
             
-            # 直接导入模块而不是使用文件路径
-            if module_name == 'optimize_cmd':
-                from src.cli.commands.optimize_cmd import register_optimize_command as register
-            elif module_name == 'compare_cmd':
-                from src.cli.commands.compare_cmd import register_compare_command as register
-            elif module_name == 'config_cmd':
-                from src.cli.commands.config_cmd import register_config_command as register
-            elif module_name == 'info_cmd':
-                from src.cli.commands.info_cmd import register_info_command as register
-            elif module_name == 'test_cmd':
-                from src.cli.commands.test_cmd import register_test_command as register
-            else:
-                logger.error("Unknown command module: %s", module_name)
-                continue
+            # 构建完整的模块路径并动态导入
+            full_module_path = f"src.cli.commands.{module_name}"
+            module = importlib.import_module(full_module_path)
             
-            # 执行注册函数
-            register(subparsers)
-            logger.debug("Successfully registered command: %s", module_name)
+            # 获取注册函数并调用
+            register_func = getattr(module, register_func_name)
+            register_func(subparsers)
+            
+            logger.debug("成功注册命令模块: %s -> %s", module_name, register_func_name)
             
         except Exception as e:
-            logger.exception("Failed to register command %s:", module_name)
+            logger.exception("无法注册命令模块 %s:", module_name)
             print(f"⚠️ 警告: 无法加载命令 {module_name}: {e}")
     
     return parser
