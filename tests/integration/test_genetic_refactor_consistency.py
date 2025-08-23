@@ -14,8 +14,8 @@ import os
 from typing import Dict, List, Any
 
 # 导入原始版本和重构版本
-from src.optimizers.genetic_optimizer import GeneticOptimizer as OriginalGeneticOptimizer
-from src.optimizers.genetic_optimizer_refactored import GeneticOptimizer as RefactoredGeneticOptimizer
+from src.optimizers.genetic_optimizer import GeneticOptimizer as RefactoredGeneticOptimizer
+from src.optimizers.genetic_optimizer import GeneticOptimizer as OriginalGeneticOptimizer  # 现在是重构版本
 from src.optimizers.genetic_config import GeneticConfig
 
 

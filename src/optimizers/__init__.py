@@ -53,13 +53,10 @@ from .genetic_visualization import (
     create_genetic_visualizer
 )
 
-from .genetic_optimizer_refactored import (
-    GeneticOptimizer as GeneticOptimizerRefactored,
+from .genetic_optimizer import (
+    GeneticOptimizer,
     create_genetic_optimizer
 )
-
-# 保持向后兼容性
-from .genetic_optimizer import GeneticOptimizer
 
 __all__ = [
     # 原有的优化器策略
@@ -98,6 +95,5 @@ __all__ = [
     
     # 遗传算法优化器
     'GeneticOptimizer',
-    'GeneticOptimizerRefactored',
     'create_genetic_optimizer'
 ]
