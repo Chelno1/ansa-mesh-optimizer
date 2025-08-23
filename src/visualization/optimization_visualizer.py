@@ -30,10 +30,21 @@ except ImportError:
 VISUALIZATION_AVAILABLE = False
 try:
     import matplotlib.pyplot as plt
-    from src.utils.display_config import configure_matplotlib_for_display, safe_show, safe_close
-    configure_matplotlib_for_display()
+    from src.utils.display_config import DisplayConfig, display_config
     VISUALIZATION_AVAILABLE = True
     logger.info("可视化库加载成功")
+    
+    # 创建默认显示配置
+    _display_config = DisplayConfig()
+    
+    def safe_show():
+        """安全的显示函数"""
+        _display_config.safe_show()
+    
+    def safe_close():
+        """安全的关闭函数"""
+        _display_config.safe_close()
+        
 except ImportError as e:
     logger.warning(f"可视化库未安装: {e}")
     
@@ -82,9 +93,9 @@ class OptimizationVisualizer:
             return
         
         try:
-            # 确保matplotlib配置正确
-            from src.utils.display_config import configure_matplotlib_for_display
-            configure_matplotlib_for_display()
+            # 使用新的显示配置系统
+            with display_config(no_display=False):
+                pass  # 配置已在上下文管理器中处理
             
             plots_generated = 0
             

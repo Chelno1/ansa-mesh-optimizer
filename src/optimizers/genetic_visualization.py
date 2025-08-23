@@ -16,15 +16,33 @@ logger = logging.getLogger(__name__)
 
 # 安全导入matplotlib和显示配置
 try:
-    from src.utils.display_config import configure_matplotlib_for_display, safe_show, safe_close
-    configure_matplotlib_for_display()
+    from src.utils.display_config import DisplayConfig, display_config
     import matplotlib.pyplot as plt
     import numpy as np
     MATPLOTLIB_AVAILABLE = True
+    
+    # 创建默认显示配置
+    _display_config = DisplayConfig()
+    
+    def safe_show():
+        """安全的显示函数"""
+        _display_config.safe_show()
+    
+    def safe_close():
+        """安全的关闭函数"""
+        _display_config.safe_close()
+        
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
-    safe_show = None
-    safe_close = None
+    
+    def safe_show():
+        """安全的显示函数 - 备用版本"""
+        pass
+    
+    def safe_close():
+        """安全的关闭函数 - 备用版本"""
+        pass
+        
     logger.warning("matplotlib不可用，无法生成图表")
 
 # 尝试导入字体装饰器模块
