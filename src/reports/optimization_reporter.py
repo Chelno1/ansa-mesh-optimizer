@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # 导入工具函数
 try:
-    from src.utils.utils import format_execution_time
+    from src.utils import format_execution_time
 except ImportError:
     def format_execution_time(seconds):
         """备用时间格式化函数"""

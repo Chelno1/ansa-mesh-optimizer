@@ -50,7 +50,7 @@ except ImportError:
 try:
     from src.core.ansa_mesh_optimizer import MeshOptimizer, optimize_mesh_parameters
     from src.config.config import UnifiedConfigManager
-    from src.utils.utils import performance_monitor, format_execution_time, calculate_statistics
+    from src.utils import performance_monitor, format_execution_time, calculate_statistics
 
     # 导入新的模块化组件
     from src.visualization.comparison_visualizer import ComparisonVisualizer
@@ -398,6 +398,12 @@ class OptimizationComparison:
             stats = calculate_statistics(best_values)
             time_stats = calculate_statistics(execution_times)
             
+            # 安全地获取统计值
+            mean_best = stats.get('mean', 0) if isinstance(stats, dict) else 0
+            std_best = stats.get('std', 0) if isinstance(stats, dict) else 0
+            mean_time = time_stats.get('mean', 0) if isinstance(time_stats, dict) else 0
+            std_time = time_stats.get('std', 0) if isinstance(time_stats, dict) else 0
+            
             summary_entry = {
                 'optimizer': optimizer,
                 'successful_runs': len(successful_runs),
@@ -405,23 +411,23 @@ class OptimizationComparison:
                 'success_rate': len(successful_runs) / len(runs) if runs else 0,
                 
                 # 性能统计
-                'mean_best_value': stats['mean'],
-                'std_best_value': stats['std'],
-                'min_best_value': stats['min'],
-                'max_best_value': stats['max'],
-                'median_best_value': stats['median'],
-                'q25_best_value': stats['q25'],
-                'q75_best_value': stats['q75'],
+                'mean_best_value': mean_best,
+                'std_best_value': std_best,
+                'min_best_value': stats.get('min', 0) if isinstance(stats, dict) else 0,
+                'max_best_value': stats.get('max', 0) if isinstance(stats, dict) else 0,
+                'median_best_value': stats.get('median', 0) if isinstance(stats, dict) else 0,
+                'q25_best_value': stats.get('q25', 0) if isinstance(stats, dict) else 0,
+                'q75_best_value': stats.get('q75', 0) if isinstance(stats, dict) else 0,
                 
                 # 时间统计
-                'mean_execution_time': time_stats['mean'],
-                'std_execution_time': time_stats['std'],
-                'min_execution_time': time_stats['min'],
-                'max_execution_time': time_stats['max'],
+                'mean_execution_time': mean_time,
+                'std_execution_time': std_time,
+                'min_execution_time': time_stats.get('min', 0) if isinstance(time_stats, dict) else 0,
+                'max_execution_time': time_stats.get('max', 0) if isinstance(time_stats, dict) else 0,
                 
                 # 效率指标
-                'efficiency_score': stats['mean'] / time_stats['mean'] if time_stats['mean'] > 0 else float('inf'),
-                'robustness_score': 1 / (1 + stats['std']) if stats['std'] > 0 else 1,
+                'efficiency_score': mean_best / mean_time if isinstance(mean_time, (int, float)) and mean_time > 0 else float('inf'),
+                'robustness_score': 1 / (1 + std_best) if isinstance(std_best, (int, float)) and std_best > 0 else 1,
                 
                 # 原始数据
                 'best_values': best_values,

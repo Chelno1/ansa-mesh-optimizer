@@ -1,27 +1,30 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-实用工具函数 - 改进版本
+通用工具函数模块 - 重构版本
+
+包含参数验证、性能监控、数学计算等通用工具函数。
+序列化和格式化功能已分离到专门模块。
 
 作者: Chel
 创建日期: 2025-06-19
-版本: 1.2.0
-更新日期: 2025-06-20
-修复: 参数处理，错误处理，性能监控
+版本: 2.0.0
+更新日期: 2025-08-23
+重构: 将序列化和格式化功能分离，遵循单一职责原则
 """
 
 import numpy as np
-import json
 import time
 import logging
 from typing import Any, Dict, List, Union, Tuple, Optional, Callable
 from contextlib import contextmanager
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 # 导入统一的参数验证功能
 from .parameter_validator import normalize_params as _normalize_params
+from .parameter_validator import validate_param_types as _validate_param_types
+
 
 def normalize_params(params: Dict[str, Any]) -> Dict[str, Union[int, float]]:
     """
@@ -33,48 +36,14 @@ def normalize_params(params: Dict[str, Any]) -> Dict[str, Union[int, float]]:
         
     Returns:
         标准化后的参数字典
+        
+    Examples:
+        >>> params = {'quality_threshold': np.array([0.6]), 'value': np.float64(3.14)}
+        >>> normalized = normalize_params(params)
+        >>> print(normalized)
     """
     return _normalize_params(params)
 
-def safe_json_serialize(obj: Any) -> str:
-    """
-    安全的JSON序列化，处理numpy类型和其他特殊类型
-    
-    Args:
-        obj: 要序列化的对象
-        
-    Returns:
-        JSON字符串
-    """
-    def convert_types(obj):
-        if isinstance(obj, dict):
-            return {key: convert_types(value) for key, value in obj.items()}
-        elif isinstance(obj, (list, tuple)):
-            return [convert_types(item) for item in obj]
-        elif isinstance(obj, (np.integer, np.floating)):
-            return obj.item()
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif hasattr(obj, 'item'):  # 其他numpy类型
-            return obj.item()
-        elif isinstance(obj, Path):
-            return str(obj)
-        elif hasattr(obj, 'isoformat'):  # datetime对象
-            return obj.isoformat()
-        elif isinstance(obj, (set, frozenset)):
-            return list(obj)
-        else:
-            return obj
-    
-    try:
-        converted_obj = convert_types(obj)
-        return json.dumps(converted_obj, sort_keys=True, ensure_ascii=False, indent=2)
-    except Exception as e:
-        logger.error(f"JSON serialization failed: {e}")
-        return json.dumps({"error": f"Serialization failed: {str(e)}"})
-
-# 导入统一的参数验证功能
-from .parameter_validator import validate_param_types as _validate_param_types
 
 def validate_param_types(params: Dict[str, Any], param_space) -> Dict[str, Union[int, float]]:
     """
@@ -87,96 +56,17 @@ def validate_param_types(params: Dict[str, Any], param_space) -> Dict[str, Union
         
     Returns:
         验证后的参数字典
+        
+    Examples:
+        >>> validated = validate_param_types(params, param_space_config)
+        >>> print(validated)
     """
     return _validate_param_types(params, param_space)
 
-def format_execution_time(seconds: float) -> str:
-    """
-    格式化执行时间
-    
-    Args:
-        seconds: 秒数
-        
-    Returns:
-        格式化的时间字符串
-    """
-    if seconds < 0:
-        return "0秒"
-    elif seconds < 60:
-        return f"{seconds:.1f}秒"
-    elif seconds < 3600:
-        minutes = seconds / 60
-        return f"{minutes:.1f}分钟"
-    else:
-        hours = seconds / 3600
-        return f"{hours:.1f}小时"
-
-def create_summary_table(data: List[Dict[str, Any]], 
-                        columns: Optional[List[str]] = None,
-                        max_width: int = 120) -> str:
-    """
-    创建简单的表格摘要
-    
-    Args:
-        data: 数据列表
-        columns: 要显示的列名
-        max_width: 最大表格宽度
-        
-    Returns:
-        格式化的表格字符串
-    """
-    if not data:
-        return "无数据"
-    
-    if columns is None:
-        columns = list(data[0].keys())
-    
-    # 计算列宽
-    col_widths = {}
-    for col in columns:
-        col_name_width = len(str(col))
-        max_value_width = max(len(str(row.get(col, ''))) for row in data)
-        col_widths[col] = min(max(col_name_width, max_value_width), max_width // len(columns))
-    
-    # 创建表格
-    lines = []
-    
-    # 标题行
-    header = " | ".join(str(col).ljust(col_widths[col])[:col_widths[col]] for col in columns)
-    lines.append(header)
-    
-    # 分隔线
-    separator = " | ".join("-" * col_widths[col] for col in columns)
-    lines.append(separator)
-    
-    # 数据行
-    for row in data:
-        data_line = " | ".join(
-            truncate_string(str(row.get(col, '')), col_widths[col]).ljust(col_widths[col])
-            for col in columns
-        )
-        lines.append(data_line)
-    
-    return "\n".join(lines)
-
-def truncate_string(s: str, max_length: int = 50) -> str:
-    """
-    截断字符串
-    
-    Args:
-        s: 原始字符串
-        max_length: 最大长度
-        
-    Returns:
-        截断后的字符串
-    """
-    if len(s) <= max_length:
-        return s
-    return s[:max_length-3] + "..."
 
 def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:
     """
-    安全除法
+    安全除法，避免除零错误
     
     Args:
         numerator: 分子
@@ -185,6 +75,11 @@ def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> f
         
     Returns:
         除法结果
+        
+    Examples:
+        >>> result = safe_divide(10, 2)  # 返回 5.0
+        >>> result = safe_divide(10, 0)  # 返回 0.0
+        >>> result = safe_divide(10, 0, -1)  # 返回 -1.0
     """
     try:
         if abs(denominator) < 1e-10:  # 更精确的零检查
@@ -193,12 +88,17 @@ def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> f
     except (ZeroDivisionError, TypeError, ValueError):
         return default
 
+
 def check_memory_usage() -> Dict[str, Union[float, str]]:
     """
-    检查内存使用情况
+    检查当前进程的内存使用情况
     
     Returns:
         内存使用信息字典
+        
+    Examples:
+        >>> memory_info = check_memory_usage()
+        >>> print(f"RSS: {memory_info['rss_mb']:.1f}MB")
     """
     try:
         import psutil
@@ -218,8 +118,15 @@ def check_memory_usage() -> Dict[str, Union[float, str]]:
     except Exception as e:
         return {'error': str(e)}
 
+
 def setup_numpy_print_options():
-    """设置numpy打印选项"""
+    """
+    设置numpy打印选项，优化数组显示格式
+    
+    Examples:
+        >>> setup_numpy_print_options()
+        >>> print(np.array([1.23456789, 2.3456789]))  # 格式化输出
+    """
     try:
         np.set_printoptions(
             precision=6,
@@ -231,17 +138,23 @@ def setup_numpy_print_options():
     except Exception as e:
         logger.warning(f"Failed to set numpy print options: {e}")
 
+
 @contextmanager
 def performance_monitor(operation_name: str, 
                        log_memory: bool = True,
                        log_level: int = logging.INFO):
     """
-    性能监控上下文管理器
+    性能监控上下文管理器，自动记录操作耗时和内存变化
     
     Args:
         operation_name: 操作名称
         log_memory: 是否记录内存使用
         log_level: 日志级别
+        
+    Examples:
+        >>> with performance_monitor("数据处理"):
+        ...     # 执行一些操作
+        ...     time.sleep(1)
     """
     start_time = time.time()
     start_memory = check_memory_usage() if log_memory else None
@@ -254,19 +167,26 @@ def performance_monitor(operation_name: str,
         end_time = time.time()
         execution_time = end_time - start_time
         
+        # 导入格式化函数
+        from .formatting import format_execution_time
+        
         logger.log(log_level, f"{operation_name} 完成，耗时: {format_execution_time(execution_time)}")
         
         if log_memory and start_memory and 'error' not in start_memory:
             end_memory = check_memory_usage()
             if 'error' not in end_memory:
-                memory_delta = end_memory['rss_mb'] - start_memory['rss_mb']
-                logger.log(log_level, f"内存变化: {memory_delta:+.1f}MB")
+                start_rss = start_memory.get('rss_mb', 0)
+                end_rss = end_memory.get('rss_mb', 0)
+                if isinstance(start_rss, (int, float)) and isinstance(end_rss, (int, float)):
+                    memory_delta = end_rss - start_rss
+                    logger.log(log_level, f"内存变化: {memory_delta:+.1f}MB")
+
 
 def create_progress_callback(total_iterations: int, 
                            verbose: bool = True,
                            update_interval: int = 1) -> Callable:
     """
-    创建进度回调函数
+    创建进度回调函数，用于显示操作进度
     
     Args:
         total_iterations: 总迭代次数
@@ -275,6 +195,11 @@ def create_progress_callback(total_iterations: int,
         
     Returns:
         进度回调函数
+        
+    Examples:
+        >>> progress_cb = create_progress_callback(100)
+        >>> for i in range(101):
+        ...     progress_cb(i, current_best=100-i)
     """
     last_update = 0
     start_time = time.time()
@@ -299,6 +224,8 @@ def create_progress_callback(total_iterations: int,
         if elapsed_time > 0:
             rate = iteration / elapsed_time
             eta = (total_iterations - iteration) / rate if rate > 0 else 0
+            # 导入格式化函数
+            from .formatting import format_execution_time
             status_parts.append(f"ETA: {format_execution_time(eta)}")
         
         if message:
@@ -312,12 +239,13 @@ def create_progress_callback(total_iterations: int,
     
     return progress_callback
 
+
 def retry_on_exception(max_retries: int = 3, 
                       delay: float = 1.0,
                       backoff_factor: float = 2.0,
                       exceptions: tuple = (Exception,)) -> Callable:
     """
-    重试装饰器
+    重试装饰器，自动重试失败的函数调用
     
     Args:
         max_retries: 最大重试次数
@@ -327,6 +255,12 @@ def retry_on_exception(max_retries: int = 3,
         
     Returns:
         装饰器函数
+        
+    Examples:
+        >>> @retry_on_exception(max_retries=3, delay=1.0)
+        ... def unstable_function():
+        ...     # 可能失败的操作
+        ...     pass
     """
     def decorator(func):
         def wrapper(*args, **kwargs):
@@ -347,120 +281,8 @@ def retry_on_exception(max_retries: int = 3,
         return wrapper
     return decorator
 
-def estimate_completion_time(start_time: float, 
-                           current_iteration: int, 
-                           total_iterations: int) -> str:
-    """
-    估算完成时间
-    
-    Args:
-        start_time: 开始时间戳
-        current_iteration: 当前迭代次数
-        total_iterations: 总迭代次数
-        
-    Returns:
-        估算完成时间字符串
-    """
-    if current_iteration <= 0:
-        return "估算中..."
-    
-    elapsed_time = time.time() - start_time
-    avg_time_per_iteration = elapsed_time / current_iteration
-    remaining_iterations = total_iterations - current_iteration
-    estimated_remaining_time = avg_time_per_iteration * remaining_iterations
-    
-    return format_execution_time(estimated_remaining_time)
 
-def validate_file_path(file_path: Union[str, Path], 
-                      must_exist: bool = True,
-                      create_dir: bool = False) -> Path:
-    """
-    验证文件路径
-    
-    Args:
-        file_path: 文件路径
-        must_exist: 文件是否必须存在
-        create_dir: 是否创建目录
-        
-    Returns:
-        验证后的Path对象
-        
-    Raises:
-        ValueError: 路径验证失败
-    """
-    path = Path(file_path)
-    
-    if must_exist and not path.exists():
-        raise ValueError(f"文件不存在: {path}")
-    
-    if create_dir:
-        path.parent.mkdir(parents=True, exist_ok=True)
-    
-    return path
-
-def load_json_config(config_file: Union[str, Path]) -> Dict[str, Any]:
-    """
-    安全加载JSON配置文件
-    
-    Args:
-        config_file: 配置文件路径
-        
-    Returns:
-        配置字典
-        
-    Raises:
-        ValueError: 配置文件加载失败
-    """
-    try:
-        config_path = validate_file_path(config_file, must_exist=True)
-        
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = json.load(f)
-        
-        logger.info(f"成功加载配置文件: {config_path}")
-        return dict(config)
-        
-    except json.JSONDecodeError as e:
-        raise ValueError(f"JSON格式错误: {e}")
-    except Exception as e:
-        raise ValueError(f"配置文件加载失败: {e}")
-
-def save_json_config(config: Dict[str, Any], 
-                    config_file: Union[str, Path],
-                    backup: bool = True) -> None:
-    """
-    安全保存JSON配置文件
-    
-    Args:
-        config: 配置字典
-        config_file: 配置文件路径
-        backup: 是否备份现有文件
-    """
-    config_path = Path(config_file)
-    
-    # 备份现有文件
-    if backup and config_path.exists():
-        backup_path = config_path.with_suffix(f"{config_path.suffix}.bak")
-        config_path.rename(backup_path)
-        logger.info(f"备份文件已创建: {backup_path}")
-    
-    # 保存新配置
-    try:
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # 使用安全的JSON序列化
-        json_str = safe_json_serialize(config)
-        
-        with open(config_path, 'w', encoding='utf-8') as f:
-            f.write(json_str)
-        
-        logger.info(f"配置文件已保存: {config_path}")
-        
-    except Exception as e:
-        logger.error(f"保存配置文件失败: {e}")
-        raise
-
-def calculate_statistics(values: List[float]) -> Dict[str, float]:
+def calculate_statistics(values: List[float]) -> Dict[str, Union[float, str, int]]:
     """
     计算数值列表的统计信息
     
@@ -469,6 +291,11 @@ def calculate_statistics(values: List[float]) -> Dict[str, float]:
         
     Returns:
         统计信息字典
+        
+    Examples:
+        >>> values = [1.0, 2.0, 3.0, 4.0, 5.0]
+        >>> stats = calculate_statistics(values)
+        >>> print(f"平均值: {stats['mean']}")
     """
     if not values:
         return {'error': 'No values provided'}
@@ -490,26 +317,6 @@ def calculate_statistics(values: List[float]) -> Dict[str, float]:
     except Exception as e:
         return {'error': str(e)}
 
-def create_backup_filename(original_path: Union[str, Path], 
-                          timestamp: bool = True) -> Path:
-    """
-    创建备份文件名
-    
-    Args:
-        original_path: 原始文件路径
-        timestamp: 是否添加时间戳
-        
-    Returns:
-        备份文件路径
-    """
-    path = Path(original_path)
-    
-    if timestamp:
-        from datetime import datetime
-        timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-        return path.with_name(f"{path.stem}_{timestamp_str}{path.suffix}")
-    else:
-        return path.with_name(f"{path.stem}_backup{path.suffix}")
 
 def filter_dict_by_keys(data: Dict[str, Any], 
                        keys: List[str], 
@@ -524,14 +331,17 @@ def filter_dict_by_keys(data: Dict[str, Any],
         
     Returns:
         过滤后的字典
+        
+    Examples:
+        >>> data = {'a': 1, 'b': 2, 'c': 3}
+        >>> filtered = filter_dict_by_keys(data, ['a', 'c'], include=True)
+        >>> print(filtered)  # {'a': 1, 'c': 3}
     """
     if include:
         return {k: v for k, v in data.items() if k in keys}
     else:
         return {k: v for k, v in data.items() if k not in keys}
 
-# 设置numpy打印选项
-setup_numpy_print_options()
 
 # 常用的正则表达式模式
 PATTERNS = {
@@ -541,6 +351,7 @@ PATTERNS = {
     'ip_address': r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b',
     'filename': r'[^<>:"/\\|?*\x00-\x1f]+',
 }
+
 
 def extract_numbers_from_text(text: str, pattern: str = 'number') -> List[float]:
     """
@@ -552,6 +363,10 @@ def extract_numbers_from_text(text: str, pattern: str = 'number') -> List[float]
         
     Returns:
         提取的数字列表
+        
+    Examples:
+        >>> numbers = extract_numbers_from_text("价格是 123.45 元和 67.89 元")
+        >>> print(numbers)  # [123.45, 67.89]
     """
     import re
     
@@ -568,6 +383,11 @@ def extract_numbers_from_text(text: str, pattern: str = 'number') -> List[float]
     except ValueError as e:
         logger.warning(f"Number extraction failed: {e}")
         return []
+
+
+# 设置numpy打印选项
+setup_numpy_print_options()
+
 
 if __name__ == "__main__":
     # 测试工具函数
@@ -597,5 +417,10 @@ if __name__ == "__main__":
     test_values = [1.0, 2.0, 3.0, 4.0, 5.0]
     stats = calculate_statistics(test_values)
     print(f"Statistics: {stats}")
+    
+    # 测试数字提取
+    text = "价格是 123.45 元和 67.89 元"
+    numbers = extract_numbers_from_text(text)
+    print(f"Extracted numbers: {numbers}")
     
     print("Utils testing completed!")
