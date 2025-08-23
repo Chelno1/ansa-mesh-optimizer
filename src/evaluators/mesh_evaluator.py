@@ -25,20 +25,7 @@ import shutil
 import json
 from datetime import datetime
 
-try:
-    from src.config.config import UnifiedConfigManager
-except ImportError:
-    # 如果从src目录运行，尝试不同的导入路径
-    try:
-        import sys
-        from pathlib import Path
-        # 添加src目录到路径
-        src_dir = Path(__file__).parent.parent
-        if str(src_dir) not in sys.path:
-            sys.path.insert(0, str(src_dir))
-        from src.config.config import UnifiedConfigManager
-    except ImportError as e:
-        raise ImportError(f"无法导入UnifiedConfigManager: {e}")
+from src.config.config import UnifiedConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -97,19 +84,7 @@ class MeshEvaluator(ABC):
         pass
 
 # 导入统一的参数验证器
-try:
-    from src.utils.parameter_validator import get_parameter_validator
-except ImportError:
-    # 如果导入失败，尝试添加路径
-    try:
-        import sys
-        from pathlib import Path
-        src_dir = Path(__file__).parent.parent
-        if str(src_dir) not in sys.path:
-            sys.path.insert(0, str(src_dir))
-        from src.utils.parameter_validator import get_parameter_validator
-    except ImportError as e:
-        raise ImportError(f"无法导入get_parameter_validator: {e}")
+from src.utils.parameter_validator import get_parameter_validator
 
 class AnsaMeshEvaluator(MeshEvaluator):
     """Ansa网格评估器 - 改进版本"""

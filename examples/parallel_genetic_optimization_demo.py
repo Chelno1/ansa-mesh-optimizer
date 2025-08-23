@@ -17,9 +17,6 @@ import numpy as np
 from typing import Dict, Any
 from pathlib import Path
 
-# 添加项目根目录到路径
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
 
 from src.optimizers.genetic_optimizer import GeneticOptimizer, GeneticConfig
 from src.optimizers.parallel_genetic_optimizer import ParallelGeneticOptimizer, ParallelGeneticConfig

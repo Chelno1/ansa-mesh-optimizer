@@ -21,8 +21,6 @@ import traceback
 # 设置脚本目录
 script_dir = Path(__file__).parent.resolve()
 cwd_dir = Path.cwd().resolve()
-sys.path.append(str(script_dir))
-sys.path.append(str(cwd_dir))
 
 # 导入统一的日志配置
 from src.utils.logging_config import setup_batch_logging

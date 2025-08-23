@@ -105,7 +105,7 @@ cd ansa-mesh-optimizer
 pip install -r requirements.txt
 
 # 验证安装
-python main.py info --check-deps
+python -m src.cli.cli_main info --check-deps
 ```
 
 ## 🚀 快速开始
@@ -113,28 +113,28 @@ python main.py info --check-deps
 ### 1. 基本优化 (支持v2.1.0新功能)
 ```bash
 # 使用贝叶斯优化（推荐）
-python main.py optimize --optimizer bayesian --n-calls 30 --evaluator mock
+python -m src.cli.cli_main optimize --optimizer bayesian --n-calls 30 --evaluator mock
 
 # 使用遗传算法
-python main.py optimize --optimizer genetic --n-calls 50 --evaluator mock
+python -m src.cli.cli_main optimize --optimizer genetic --n-calls 50 --evaluator mock
 
 # 使用新的优化参数配置选项 (v2.1.0)
-python main.py optimize --optimizer bayesian --advanced-params --timestamped-temp
+python -m src.cli.cli_main optimize --optimizer bayesian --advanced-params --timestamped-temp
 ```
 
 ### 2. 优化器比较
 ```bash
 # 比较多个优化器性能
-python main.py compare --optimizers bayesian random genetic --n-calls 20 --n-runs 3
+python -m src.cli.cli_main compare --optimizers bayesian random genetic --n-calls 20 --n-runs 3
 ```
 
 ### 3. 使用真实ANSA环境
 ```bash
 # 确保ANSA环境可用
-python main.py info --check-ansa
+python -m src.cli.cli_main info --check-ansa
 
 # 运行真实优化
-python main.py optimize --optimizer bayesian --evaluator ansa --config my_config.json
+python -m src.cli.cli_main optimize --optimizer bayesian --evaluator ansa --config my_config.json
 ```
 
 ## 📖 详细使用指南
@@ -145,16 +145,16 @@ python main.py optimize --optimizer bayesian --evaluator ansa --config my_config
 
 | 命令 | 描述 | 示例 |
 |------|------|------|
-| `optimize` | 运行单个优化器 | `python main.py optimize --optimizer bayesian` |
-| `compare` | 比较多个优化器 | `python main.py compare --optimizers bayesian genetic` |
-| `config` | 配置管理 | `python main.py config generate` |
-| `info` | 系统信息 | `python main.py info --check-deps` |
-| `test` | 运行测试 | `python main.py test --quick` |
+| `optimize` | 运行单个优化器 | `python -m src.cli.cli_main optimize --optimizer bayesian` |
+| `compare` | 比较多个优化器 | `python -m src.cli.cli_main compare --optimizers bayesian genetic` |
+| `config` | 配置管理 | `python -m src.cli.cli_main config generate` |
+| `info` | 系统信息 | `python -m src.cli.cli_main info --check-deps` |
+| `test` | 运行测试 | `python -m src.cli.cli_main test --quick` |
 
 #### optimize 命令参数
 
 ```bash
-python main.py optimize [OPTIONS]
+python -m src.cli.cli_main optimize [OPTIONS]
 
 选项:
   --optimizer {bayesian,random,forest,genetic,parallel}
@@ -176,7 +176,7 @@ python main.py optimize [OPTIONS]
 #### compare 命令参数
 
 ```bash
-python main.py compare [OPTIONS]
+python -m src.cli.cli_main compare [OPTIONS]
 
 选项:
   --optimizers {bayesian,random,forest,genetic,parallel} [...]
@@ -293,10 +293,10 @@ python install_chinese_fonts.py
 
 ```bash
 # 生成默认配置文件
-python main.py config generate --output default_config.json
+python -m src.cli.cli_main config generate --output default_config.json
 
 # 生成示例配置文件
-python main.py config generate --output example_config.json --example
+python -m src.cli.cli_main config generate --output example_config.json --example
 ```
 
 ### 配置文件结构
@@ -334,13 +334,13 @@ python main.py config generate --output example_config.json --example
 
 ```bash
 # 验证配置文件
-python main.py config validate my_config.json
+python -m src.cli.cli_main config validate my_config.json
 
 # 显示当前配置
-python main.py config show
+python -m src.cli.cli_main config show
 
 # 显示特定配置节
-python main.py config show --section optimization
+python -m src.cli.cli_main config show --section optimization
 ```
 
 ## 📁 项目结构 (重构后)
@@ -476,10 +476,10 @@ cache = OptimizationCache(
 ### 2. 并行优化
 ```bash
 # 使用并行优化器
-python main.py optimize --optimizer parallel --n-calls 100
+python -m src.cli.cli_main optimize --optimizer parallel --n-calls 100
 
 # 并行比较
-python main.py compare --parallel-runs --optimizers bayesian genetic
+python -m src.cli.cli_main compare --parallel-runs --optimizers bayesian genetic
 ```
 
 ### 3. 早停配置
@@ -496,10 +496,10 @@ config.min_delta = 0.01
 
 ```bash
 # 运行完整测试套件
-python main.py test
+python -m src.cli.cli_main test
 
 # 快速测试
-python main.py test --quick
+python -m src.cli.cli_main test --quick
 
 # 重构后优化器测试
 python -m pytest tests/test_refactored_optimizer.py -v
@@ -508,23 +508,23 @@ python -m pytest tests/test_refactored_optimizer.py -v
 python test_decorator.py
 
 # 完整测试
-python main.py test --evaluator mock --verbose-test
+python -m src.cli.cli_main test --evaluator mock --verbose-test
 
 # 性能测试
-python main.py info --performance
+python -m src.cli.cli_main info --performance
 ```
 
 ### 系统检查
 
 ```bash
 # 检查依赖库
-python main.py info --check-deps
+python -m src.cli.cli_main info --check-deps
 
 # 检查ANSA环境
-python main.py info --check-ansa
+python -m src.cli.cli_main info --check-ansa
 
 # 完整系统信息
-python main.py info --check-deps --check-ansa --performance
+python -m src.cli.cli_main info --check-deps --check-ansa --performance
 ```
 
 ## 📈 示例和用例
@@ -694,16 +694,16 @@ optimizer.plot_evolution('evolution.png')
 1. **ANSA不可用**
    ```bash
    # 检查ANSA环境
-   python main.py info --check-ansa
+   python -m src.cli.cli_main info --check-ansa
    
    # 使用模拟评估器
-   python main.py optimize --evaluator mock
+   python -m src.cli.cli_main optimize --evaluator mock
    ```
 
 2. **缺少依赖库**
    ```bash
    # 检查依赖
-   python main.py info --check-deps
+   python -m src.cli.cli_main info --check-deps
    
    # 安装完整依赖
    pip install scikit-optimize matplotlib pandas seaborn scipy
@@ -742,7 +742,7 @@ optimizer.plot_evolution('evolution.png')
 
     ```bash
     # 检查依赖
-    python main.py info --check-deps
+    python -m src.cli.cli_main info --check-deps
 
     # 安装缺失依赖
     pip install scikit-optimize
@@ -752,20 +752,20 @@ optimizer.plot_evolution('evolution.png')
 
     ```bash
     # 检查参数配置
-    python main.py config validate config.json
+    python -m src.cli.cli_main config validate config.json
 
     # 生成默认配置
-    python main.py config generate
+    python -m src.cli.cli_main config generate
     ```
 
 ### 日志和调试
 
 ```bash
 # 启用详细日志
-python main.py optimize --verbose --log-file optimization.log
+python -m src.cli.cli_main optimize --verbose --log-file optimization.log
 
 # 保存详细报告
-python main.py optimize --save-plots --output results.json
+python -m src.cli.cli_main optimize --save-plots --output results.json
 ```
 
 ## 🤝 贡献指南

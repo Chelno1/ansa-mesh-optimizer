@@ -10,12 +10,6 @@ from typing import Tuple, List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# 添加当前目录到Python路径
-parent_dir = str(Path(__file__).parent.parent.parent)
-logger.debug("Adding to Python path: %s", parent_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-    logger.debug("Updated Python path: %s", sys.path)
 
 def check_and_import_modules() -> Tuple[bool, List[Tuple[str, str]], List[str]]:
     """检查并导入必要模块 - 使用新的依赖管理系统"""

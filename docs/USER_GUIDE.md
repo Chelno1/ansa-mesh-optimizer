@@ -24,7 +24,7 @@ cd ansa-mesh-optimizer
 pip install -r requirements.txt
 
 # 3. 运行基本优化
-python src/main.py --input-model example.ansa --optimizer bayesian --n-calls 20
+python -m src.main --input-model example.ansa --optimizer bayesian --n-calls 20
 ```
 
 ### 基本工作流程
@@ -214,22 +214,22 @@ result = optimizer.optimize()
 
 ```bash
 # 基本使用
-python src/main.py --input-model model.ansa
+python -m src.main --input-model model.ansa
 
 # 指定优化器
-python src/main.py --input-model model.ansa --optimizer genetic
+python -m src.main --input-model model.ansa --optimizer genetic
 
 # 设置调用次数
-python src/main.py --input-model model.ansa --n-calls 100
+python -m src.main --input-model model.ansa --n-calls 100
 
 # 使用配置文件
-python src/main.py --config config.json
+python -m src.main --config config.json
 
 # 启用详细输出
-python src/main.py --input-model model.ansa --verbose
+python -m src.main --input-model model.ansa --verbose
 
 # 保存结果
-python src/main.py --input-model model.ansa --output results.json
+python -m src.main --input-model model.ansa --output results.json
 ```
 
 ### 教程 4: 参数空间自定义
