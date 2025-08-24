@@ -910,8 +910,8 @@ class OptimizationVisualizer:
                 if save_path:
                     plt.savefig(save_path, dpi=300, bbox_inches="tight")
                 safe_close()
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"关闭图表时出错: {e}")
 
     @with_chinese_font
     def plot_parameter_evolution(self, data, save_path=None):
@@ -1067,8 +1067,8 @@ class OptimizationVisualizer:
                 if save_path:
                     plt.savefig(save_path, dpi=300, bbox_inches="tight")
                 safe_close()
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"关闭图表时出错: {e}")
 
     @with_chinese_font
     def plot_parameter_distribution(self, data, save_path=None):
@@ -1315,8 +1315,8 @@ class OptimizationVisualizer:
                 if save_path:
                     plt.savefig(save_path, dpi=300, bbox_inches="tight")
                 safe_close()
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"关闭图表时出错: {e}")
 
     def generate_complete_visualization_report(self, data, output_dir=None):
         """

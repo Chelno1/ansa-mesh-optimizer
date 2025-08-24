@@ -604,7 +604,8 @@ class OptimizationComparison:
                     summary_data = self.comparison_summary.to_dict("records")
                 else:
                     summary_data = [{"error": "Summary conversion failed"}]
-            except:
+            except Exception as e:
+                logger.warning(f"摘要数据转换失败: {e}")
                 summary_data = [{"error": "Summary conversion failed"}]
 
         import json
@@ -675,7 +676,8 @@ class OptimizationComparison:
                 else:
                     try:
                         summary_data = self.comparison_summary.to_dict("records")
-                    except:
+                    except Exception as e:
+                        logger.warning(f"转换摘要数据为字典失败: {e}")
                         summary_data = []
 
                 if summary_data:
@@ -746,7 +748,8 @@ class OptimizationComparison:
         else:
             try:
                 result["summary"] = self.comparison_summary.to_dict("records")
-            except:
+            except Exception as e:
+                logger.warning(f"构建最终结果摘要失败: {e}")
                 result["summary"] = None
 
         # 确定最佳优化器

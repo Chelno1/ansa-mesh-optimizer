@@ -105,8 +105,8 @@ def force_set_chinese_font():
             try:
                 cache_file.unlink()
                 logger.info(f"已删除字体缓存: {cache_file}")
-            except:
-                pass
+            except (OSError, PermissionError) as e:
+                logger.warning(f"删除字体缓存文件失败: {cache_file}, 错误: {e}")
 
         # 重建字体缓存
         fm._rebuild()
