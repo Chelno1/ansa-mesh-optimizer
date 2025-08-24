@@ -92,17 +92,13 @@ def main_cli() -> int:
     """主CLI函数"""
     parser = create_parser()
     args = parser.parse_args()
-
-    # 设置日志级别
-    if args.quiet:
-        pass
-    elif args.verbose:
-        pass
-    else:
-        pass
-
     # 设置日志
-    setup_cli_logging(args.verbose, args.log_file)
+    setup_cli_logging(args.verbose and not args.quiet, args.log_file)
+
+    if args.quiet:
+        logging.getLogger().setLevel(logging.ERROR)
+    elif args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     # 检查命令
     if not args.command:
