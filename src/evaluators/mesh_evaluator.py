@@ -1,58 +1,58 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-网格评估接口模块 - 改进版本
+网格评估接口模块 - 重构版本
 
 作者: Chel
 创建日期: 2025-06-19
-版本: 1.2.0
-更新日期: 2025-06-20
-修复: 错误处理，参数验证，Mock评估器
+版本: 2.0.0
+更新日期: 2025-08-24
+重构: 拆分单体模块为多个专注模块
 """
 
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, List, Tuple, Any, Union
 import subprocess
 import os
-import re
 import logging
 from pathlib import Path
-import tempfile
-import glob
 import time
 import random
-import shutil
-import json
-from datetime import datetime
 
+# 导入配置管理器
 from src.config.config import UnifiedConfigManager
+
+# 导入参数验证器
+from src.utils.parameter_validator import get_parameter_validator
+
+# 导入参数替换策略
+from src.evaluators.parameter_replacement_strategies import ParameterReplacementManager, format_mpar_parameter_value
+
+# 导入重构后的工具模块
+from src.evaluators.utils import (
+    normalize_params,
+    create_timestamped_temp_dir,
+    copy_mpar_files_to_temp_dir,
+    create_temp_config_in_dir,
+    create_temp_config,
+    parse_ansa_output,
+    cleanup_temp_files,
+    cleanup_temp_directory,
+    process_parameter_files_in_temp_dir,
+    simulate_evaluation
+)
+
+# 导入环境验证模块
+from src.evaluators.environment import (
+    validate_ansa_environment,
+    check_input_files,
+    run_ansa_batch,
+    handle_ansa_returncode,
+    AnsaEnvironmentValidator
+)
 
 logger = logging.getLogger(__name__)
 
-def normalize_params(params: Dict[str, Any]) -> Dict[str, float]:
-    """
-    标准化参数字典，确保类型正确
-    
-    Args:
-        params: 参数字典
-        
-    Returns:
-        标准化后的参数字典
-    """
-    normalized = {}
-    
-    for key, value in params.items():
-        if hasattr(value, 'item'):  # numpy类型
-            normalized[key] = float(value.item())
-        elif hasattr(value, 'dtype'):  # numpy数组等
-            if hasattr(value, 'size') and value.size == 1:
-                normalized[key] = float(value.item())
-            else:
-                normalized[key] = float(value.tolist()[0]) if hasattr(value, 'tolist') else float(value)
-        else:
-            normalized[key] = float(value)
-    
-    return normalized
 
 class MeshEvaluator(ABC):
     """网格评估器抽象基类"""
@@ -83,11 +83,9 @@ class MeshEvaluator(ABC):
         """
         pass
 
-# 导入统一的参数验证器
-from src.utils.parameter_validator import get_parameter_validator
 
 class AnsaMeshEvaluator(MeshEvaluator):
-    """Ansa网格评估器 - 改进版本"""
+    """Ansa网格评估器 - 重构版本"""
     
     def __init__(self, config_manager=None):
         if config_manager is None:
@@ -98,41 +96,21 @@ class AnsaMeshEvaluator(MeshEvaluator):
         self.validator = get_parameter_validator(config_manager.parameter_space)
         self.cwd_dir = Path.cwd().resolve()
         self.criterion_dir = self.cwd_dir / 'criterion'
-
         
         # 初始化参数替换策略管理器
-        from src.evaluators.parameter_replacement_strategies import ParameterReplacementManager, format_mpar_parameter_value
         self.parameter_replacer = ParameterReplacementManager(config_manager)
         self._format_parameter_value = format_mpar_parameter_value
         
+        # 初始化环境验证器
+        self.env_validator = AnsaEnvironmentValidator(self.config)
         self._validate_environment()
-    
     
     def _validate_environment(self) -> None:
         """验证Ansa环境"""
         try:
-            # 检查Ansa可执行文件
-            result = subprocess.run(
-                [self.config.ansa_executable, '--version'],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            if result.returncode != 0:
-                raise RuntimeError("Ansa可执行文件无法运行")
-            
-            logger.info("Ansa环境验证成功")
-            
-        except subprocess.TimeoutExpired:
-            logger.warning("Ansa版本检查超时")
-        except FileNotFoundError:
-            logger.warning("Ansa可执行文件未找到")
-        except RuntimeError as e:
-            logger.warning(f"Ansa环境验证失败: {e}")
+            self.env_validator.validate()
         except Exception as e:
-            logger.warning(f"Ansa环境验证异常: {e}")
-        
-        # logger.info("将在需要时使用模拟模式")
+            logger.warning(f"环境验证过程中发生异常: {e}")
     
     def validate_params(self, params: Dict[str, float]) -> bool:
         """验证参数有效性"""
@@ -150,7 +128,7 @@ class AnsaMeshEvaluator(MeshEvaluator):
     
     def evaluate_mesh(self, params: Dict[str, float]) -> float:
         """
-        评估网格质量 - 改进版本
+        评估网格质量 - 重构版本
         
         Args:
             params: 网格参数字典
@@ -173,16 +151,18 @@ class AnsaMeshEvaluator(MeshEvaluator):
         
         try:
             # 创建带时间戳的临时文件夹
-            temp_dir = self._create_timestamped_temp_dir()
+            temp_dir = create_timestamped_temp_dir()
             
             # 将*.ansa_mpar文件拷贝到临时文件夹
-            copied_mpar_files = self._copy_mpar_files_to_temp_dir(temp_dir)
+            copied_mpar_files = copy_mpar_files_to_temp_dir(
+                temp_dir, self.criterion_dir, self.config.mpar_file_pattern
+            )
             
             # 在临时文件夹中创建临时配置文件
-            config_file = self._create_temp_config_in_dir(temp_dir, cleaned_params)
+            config_file = create_temp_config_in_dir(temp_dir, cleaned_params, self._format_parameter_value)
             
             # 处理mpar参数文件替换（在临时文件夹中）
-            self._process_parameter_files_in_temp_dir(temp_dir, cleaned_params)
+            process_parameter_files_in_temp_dir(temp_dir, cleaned_params, self.parameter_replacer)
             
             # 运行Ansa批处理
             bad_elements_count = self._run_ansa_batch(temp_dir)
@@ -200,182 +180,15 @@ class AnsaMeshEvaluator(MeshEvaluator):
                 locals().get('config_file'),
                 locals().get('final_config_file')
             ]
-            temp_dir = locals().get('temp_dir')
+            temp_dir_var = locals().get('temp_dir')
             
-            self._cleanup_temp_files(temp_files)
+            cleanup_temp_files(temp_files)
             # 不清理临时文件夹
-            # if temp_dir:
-            #     self._cleanup_temp_directory(temp_dir)
-    
-    # def _format_parameter_value(self, param_name: str, value: Any) -> str:
-    #     """
-    #     格式化参数值
-        
-    #     Args:
-    #         param_name: 参数名
-    #         value: 参数值
-            
-    #     Returns:
-    #         格式化后的参数值字符串
-    #     """
-    #     # 定义需要特殊格式化的参数
-    #     special_formatting = {
-    #         'distortion_distance': lambda v: f"{v}.%",
-    #         # 可以添加更多特殊格式化规则
-    #         # 'another_param': lambda v: f"{v}mm",
-    #     }
-        
-    #     if param_name in special_formatting:
-    #         return special_formatting[param_name](value)
-    #     else:
-    #         return str(value)
-
-    def _create_timestamped_temp_dir(self) -> str:
-        """创建带时间戳的临时文件夹"""
-        try:
-            # 生成时间戳
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # 毫秒精度
-            
-            # 创建临时目录名称
-            temp_dir_name = f"ansa_mesh_eval_{timestamp}"
-            temp_dir_path = os.path.join(os.getcwd(), temp_dir_name)
-            
-            # 创建目录
-            os.makedirs(temp_dir_path, exist_ok=True)
-            
-            logger.info(f"创建临时文件夹: {temp_dir_path}")
-            return temp_dir_path
-            
-        except Exception as e:
-            logger.error(f"创建临时文件夹失败: {e}")
-            # 如果创建失败，回退到当前目录
-            return os.getcwd()
-    
-    def _copy_mpar_files_to_temp_dir(self, temp_dir: str) -> str:
-        """将*.ansa_mpar文件拷贝到临时文件夹"""
-        try:
-            # 查找mpar文件
-            mpar_files = list(Path(self.criterion_dir).glob(self.config.mpar_file_pattern))
-            
-            if not mpar_files:
-                logger.warning("未找到mpar文件，跳过文件拷贝")
-                return ""
-            
-            # 只取第一个mpar文件
-            mpar_file = mpar_files[0]
-            
-            # 构建目标文件路径
-            dest_file = os.path.join(temp_dir, mpar_file.name)
-            
-            # 拷贝文件
-            shutil.copy2(str(mpar_file), dest_file)
-            
-            logger.info(f"拷贝mpar文件: {mpar_file} -> {dest_file}")
-            return dest_file
-            
-        except Exception as e:
-            logger.error(f"拷贝mpar文件失败: {e}")
-            return ""
-    
-    def _create_temp_config_in_dir(self, temp_dir: str, params: Dict[str, float]) -> str:
-        """在指定目录中创建临时配置文件"""
-        try:
-            # 在临时目录中创建配置文件
-            config_file_path = os.path.join(temp_dir, "mesh_config.json")
-            
-            # 创建JSON格式的配置数据
-            config_data = {}
-            for key, value in params.items():
-                formatted_value = self._format_parameter_value(key, value)
-                config_data[key] = formatted_value
-            
-            with open(config_file_path, 'w', encoding='utf-8') as f:
-                json.dump(config_data, f, ensure_ascii=False, indent=2)
-            
-            logger.debug(f"在临时目录创建配置文件: {config_file_path}")
-            return config_file_path
-            
-        except Exception as e:
-            logger.error(f"在临时目录创建配置文件失败: {e}")
-            raise
-    
-    def _process_parameter_files_in_temp_dir(self, temp_dir: str, params: Dict[str, float]) -> None:
-        """在临时文件夹中处理参数文件替换"""
-        try:
-            # 在临时目录中查找mpar文件
-            temp_mpar_files = list(Path(temp_dir).glob("*.ansa_mpar"))
-            
-            if not temp_mpar_files:
-                logger.warning("临时目录中未找到mpar文件，跳过参数文件处理")
-                return
-            
-            # 只处理第一个mpar文件
-            mpar_file = temp_mpar_files[0]
-            original_mpar_path = str(mpar_file)
-            logger.info(f"处理临时目录中的mpar文件: {mpar_file}")
-            
-            # 记录处理前临时目录中的所有文件，以便后续清理
-            temp_dir_path = Path(temp_dir)
-            files_before = set(temp_dir_path.iterdir())
-            
-            # 使用参数替换管理器处理参数
-            updated_file_path = self.parameter_replacer.process_parameter_replacements(original_mpar_path, params)
-            
-            # 如果创建了新文件，需要将内容复制回原文件并清理
-            if updated_file_path != original_mpar_path:
-                # 读取更新后的文件内容
-                with open(updated_file_path, 'r', encoding='utf-8') as f:
-                    updated_content = f.read()
-                
-                # 写入原文件
-                with open(mpar_file, 'w', encoding='utf-8') as f:
-                    f.write(updated_content)
-                
-                # 清理所有在处理过程中创建的临时文件
-                files_after = set(temp_dir_path.iterdir())
-                temp_files_created = files_after - files_before
-                
-                cleaned_count = 0
-                for temp_file in temp_files_created:
-                    try:
-                        temp_file.unlink()
-                        cleaned_count += 1
-                        logger.debug(f"已清理临时文件: {temp_file}")
-                    except Exception as cleanup_error:
-                        logger.warning(f"清理临时文件失败 {temp_file}: {cleanup_error}")
-                
-                # 确保清理最终的更新文件（如果它不在上面的集合中）
-                if Path(updated_file_path).exists() and Path(updated_file_path) not in temp_files_created:
-                    try:
-                        Path(updated_file_path).unlink()
-                        cleaned_count += 1
-                        logger.debug(f"已清理最终更新文件: {updated_file_path}")
-                    except Exception as cleanup_error:
-                        logger.warning(f"清理最终更新文件失败 {updated_file_path}: {cleanup_error}")
-                
-                logger.info(f"已将更新内容复制回临时目录文件: {mpar_file}，并清理了 {cleaned_count} 个临时文件")
-                
-        except Exception as e:
-            logger.error(f"在临时目录处理参数文件失败: {e}")
-    
-    def _create_temp_config(self, params: Dict[str, float]) -> str:
-        """创建临时配置文件"""
-        try:
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
-                for key, value in params.items():
-                    formatted_value = self._format_parameter_value(key, value)
-                    f.write(f"{key} = {formatted_value}\n")
-                temp_file = f.name
-            
-            logger.debug(f"创建临时配置文件: {temp_file}")
-            return temp_file
-            
-        except Exception as e:
-            logger.error(f"创建临时配置文件失败: {e}")
-            raise
+            # if temp_dir_var:
+            #     cleanup_temp_directory(temp_dir_var)
     
     def _run_ansa_batch(self, temp_dir: str) -> float:
-        """运行Ansa批处理 - 改进的错误处理"""
+        """运行Ansa批处理 - 使用环境模块"""
         try:
             # 构建Ansa命令
             ansa_command = [
@@ -386,129 +199,45 @@ class AnsaMeshEvaluator(MeshEvaluator):
                 '-changedir', temp_dir
             ]
             
-            logger.info(f"执行Ansa命令: {' '.join(ansa_command)}")
+            # 检查输入文件
+            input_model_path = str(self.cwd_dir / self.config.input_model)
+            batch_script_path = str(self.config.script_dir / self.config.batch_script)
             
-            # 验证输入文件存在
-            input_model_path = Path(self.config.input_model)
-            if not input_model_path.exists():
-                logger.error(f"输入模型文件不存在: {input_model_path}")
-                return self._simulate_evaluation()
-            
-            # 验证批处理脚本存在
-            batch_script_path = self.config.script_dir / self.config.batch_script
-            if not batch_script_path.exists():
-                logger.error(f"批处理脚本不存在: {batch_script_path}")
-                return self._simulate_evaluation()
+            is_valid, error_msg = check_input_files(input_model_path, batch_script_path)
+            if not is_valid:
+                logger.error(error_msg)
+                return simulate_evaluation()
             
             # 执行命令
-            result = subprocess.run(
-                ansa_command,
-                capture_output=True,
-                text=True,
-                timeout=self.config.execution_timeout,
-                cwd=temp_dir
-            )
+            result = run_ansa_batch(ansa_command, temp_dir, self.config.execution_timeout)
             
-            # 具体的错误处理
-            if result.returncode != 0:
-                if result.returncode == 1:
-                    logger.warning("Ansa返回代码1 - 可能有警告但继续执行")
-                    # 尝试解析输出
-                    return self._parse_ansa_output(result.stdout)
-                elif result.returncode == 2:
-                    logger.error("Ansa返回代码2 - 致命错误")
-                    logger.error(f"错误输出: {result.stderr}")
-                    return self._simulate_evaluation()
-                else:
-                    logger.error(f"Ansa执行失败，返回代码: {result.returncode}")
-                    logger.error(f"错误输出: {result.stderr}")
-                    return self._simulate_evaluation()
+            # 处理返回代码
+            is_success, error_msg = handle_ansa_returncode(result)
+            if not is_success:
+                logger.error(error_msg)
+                return simulate_evaluation()
             
             # 解析成功的输出
-            bad_elements_count = self._parse_ansa_output(result.stdout)
+            bad_elements_count = parse_ansa_output(result.stdout)
             return bad_elements_count
             
         except subprocess.TimeoutExpired:
             logger.error(f"Ansa执行超时({self.config.execution_timeout}秒)")
-            return self._simulate_evaluation()
+            return simulate_evaluation()
         except FileNotFoundError:
             logger.error(f"Ansa可执行文件未找到: {self.config.ansa_executable}")
             logger.info("使用模拟模式")
-            return self._simulate_evaluation()
+            return simulate_evaluation()
         except PermissionError:
             logger.error("没有权限执行Ansa")
-            return self._simulate_evaluation()
+            return simulate_evaluation()
         except Exception as e:
             logger.exception(f"Ansa执行时发生意外错误: {e}")
-            return self._simulate_evaluation()
-    
-    def _parse_ansa_output(self, output: str) -> float:
-        """解析Ansa输出 - 增强版本"""
-        try:
-            # 查找不合格网格数量的多种模式
-            patterns = [
-                r'bad elements:\s*(\d+)',
-                r'failed elements:\s*(\d+)',
-                r'poor quality elements:\s*(\d+)',
-                r'质量不合格元素:\s*(\d+)',
-                r'不合格单元:\s*(\d+)'
-            ]
-            
-            for pattern in patterns:
-                match = re.search(pattern, output, re.IGNORECASE)
-                if match:
-                    count = int(match.group(1))
-                    logger.info(f"找到不合格网格数量: {count}")
-                    return float(count)
-            
-            # 如果没有找到，尝试从最后几行提取数字
-            lines = output.strip().split('\n')
-            for line in reversed(lines[-10:]):  # 检查最后10行
-                # 查找数字
-                numbers = re.findall(r'\d+', line)
-                if numbers:
-                    # 取最大的数字（通常是元素数量）
-                    max_number = max(int(n) for n in numbers)
-                    if max_number > 0:
-                        logger.info(f"从输出行解析得到数字: {max_number}")
-                        return float(max_number)
-            
-            logger.warning("无法从输出中解析不合格网格数量")
-            logger.debug(f"Ansa输出: {output}")
-            return 99999.0
-            
-        except Exception as e:
-            logger.error(f"解析Ansa输出失败: {e}")
-            return 99999.0
-    
-    def _simulate_evaluation(self) -> float:
-        """模拟评估（用于测试和备用）"""
-        # 基于参数生成模拟结果
-        base_score = random.uniform(50, 500)
-        logger.info(f"使用模拟评估，返回结果: {base_score}")
-        return base_score
-    
-    def _cleanup_temp_files(self, files: List[Optional[str]]) -> None:
-        """清理临时文件"""
-        for file_path in files:
-            if file_path and os.path.exists(file_path):
-                try:
-                    os.remove(file_path)
-                    logger.debug(f"删除临时文件: {file_path}")
-                except Exception as e:
-                    logger.warning(f"删除临时文件失败: {e}")
-    
-    def _cleanup_temp_directory(self, temp_dir: str) -> None:
-        """清理临时目录"""
-        if temp_dir and os.path.exists(temp_dir):
-            try:
-                shutil.rmtree(temp_dir)
-                logger.debug(f"删除临时目录: {temp_dir}")
-            except Exception as e:
-                logger.warning(f"删除临时目录失败: {e}")
+            return simulate_evaluation()
+
 
 class MockMeshEvaluator(MeshEvaluator):
-    """模拟网格评估器（用于测试）- 改进版本"""
+    """模拟网格评估器（用于测试）- 重构版本"""
     
     def __init__(self, landscape_type: str = 'rosenbrock', add_noise: bool = True, config_manager=None):
         self.landscape_type = landscape_type
@@ -554,15 +283,12 @@ class MockMeshEvaluator(MeshEvaluator):
             
             if not is_valid:
                 logger.warning(f"Mock evaluator: invalid parameters - {error_msg}")
-                # 对于测试，如果参数验证失败，抛出ValueError
-                raise ValueError(f"Parameter validation failed: {error_msg}")
+                # 与AnsaMeshEvaluator行为一致，返回inf而不是抛出异常
+                return float('inf')
             
-        except ValueError:
-            # 重新抛出ValueError以便测试能够捕获
-            raise
         except Exception as e:
             logger.error(f"Mock evaluator parameter processing failed: {e}")
-            raise ValueError(f"Parameter processing error: {e}")
+            return float('inf')
         
         # 添加现实的延迟模拟
         if self.add_noise:
@@ -722,6 +448,7 @@ class MockMeshEvaluator(MeshEvaluator):
         
         return optimal_params.get(self.landscape_type, optimal_params['rosenbrock'])
 
+
 def create_mesh_evaluator(evaluator_type: str = 'ansa', config_manager=None) -> MeshEvaluator:
     """
     创建网格评估器
@@ -746,6 +473,7 @@ def create_mesh_evaluator(evaluator_type: str = 'ansa', config_manager=None) -> 
         return MockMeshEvaluator(landscape_type=landscape, config_manager=config_manager)
     else:
         raise ValueError(f"不支持的评估器类型: {evaluator_type}")
+
 
 # 工具函数
 def test_evaluator(evaluator: MeshEvaluator, n_tests: int = 5) -> None:
@@ -778,6 +506,7 @@ def test_evaluator(evaluator: MeshEvaluator, n_tests: int = 5) -> None:
         print(f"Average result: {avg_result:.6f}")
     
     print("Testing completed!\n")
+
 
 if __name__ == "__main__":
     # 测试评估器
