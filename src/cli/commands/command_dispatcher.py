@@ -6,7 +6,7 @@ import sys
 import logging
 import importlib
 from pathlib import Path
-from typing import Tuple, List, Dict, Any, Optional
+from typing import Tuple, List, Dict, Any
 
 logger = logging.getLogger(__name__)
 

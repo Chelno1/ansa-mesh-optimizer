@@ -4,7 +4,6 @@
 
 import os
 import logging
-from typing import Optional
 from contextlib import contextmanager
 from threading import local
 
