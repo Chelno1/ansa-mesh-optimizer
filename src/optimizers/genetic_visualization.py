@@ -18,7 +18,7 @@ try:
     import matplotlib.pyplot as plt
     import numpy as np
 
-    from ..utils.display_config import DisplayConfig, display_config
+    from ..utils.display_config import DisplayConfig
 
     MATPLOTLIB_AVAILABLE = True
 

@@ -9,6 +9,7 @@ Ansa批处理结果解析和报告生成模块
 功能: 从 batch_mesh.py 中提取的报告生成逻辑
 """
 
+import importlib.util
 import logging
 import time
 from pathlib import Path
@@ -16,14 +17,8 @@ from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-# 安全导入Ansa模块
-ANSA_AVAILABLE = False
-try:
-    from ansa import base, constants, mesh
-
-    ANSA_AVAILABLE = True
-except ImportError:
-    pass
+# 检测 Ansa 模块可用性
+ANSA_AVAILABLE = importlib.util.find_spec("ansa") is not None
 
 
 class QualityReportGenerator:

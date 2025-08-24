@@ -22,11 +22,11 @@ from typing import Any, Dict, Union
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
-
 # 导入统一的参数验证功能
 from .parameter_validator import normalize_params as _normalize_params
 from .parameter_validator import validate_param_types as _validate_param_types
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_params(params: Dict[str, Any]) -> Dict[str, Union[int, float]]:

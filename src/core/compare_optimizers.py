@@ -19,6 +19,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+import importlib.util
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -26,7 +27,6 @@ logger = logging.getLogger(__name__)
 # 安全导入分析库
 ANALYSIS_LIBS_AVAILABLE = False
 try:
-    import numpy as np
     import pandas as pd
 
     ANALYSIS_LIBS_AVAILABLE = True
@@ -41,20 +41,14 @@ except ImportError as e:
 
     pd = MockPandas()
 
-# 尝试导入统计库
-SCIPY_AVAILABLE = False
-try:
-    from scipy import stats
-
-    SCIPY_AVAILABLE = True
-except ImportError:
-    logger.warning("scipy不可用，将跳过高级统计分析")
+# 检测统计库可用性
+SCIPY_AVAILABLE = importlib.util.find_spec("scipy") is not None
 
 # 本地模块导入
 try:
     from ..analysis.statistical_analyzer import StatisticalAnalyzer
     from ..config.config import UnifiedConfigManager
-    from .ansa_mesh_optimizer import MeshOptimizer, optimize_mesh_parameters
+    from .ansa_mesh_optimizer import MeshOptimizer
     from ..reports.comparison_reporter import ComparisonReporter
     from ..utils import (
         calculate_statistics,

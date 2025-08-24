@@ -84,8 +84,8 @@ try:
     logger.info("配置系统类已导入")
 
     # 导入重构后的模块
-    from .early_stopping import EarlyStopping, create_early_stopping
-    from ..evaluators.mesh_evaluator import MeshEvaluator, create_mesh_evaluator
+    from .early_stopping import create_early_stopping
+    from ..evaluators.mesh_evaluator import create_mesh_evaluator
 
     # 导入新的优化器策略模块
     from ..optimizers import (
@@ -97,7 +97,6 @@ try:
     from ..reports.optimization_reporter import OptimizationReporter
     from ..utils import performance_monitor
     from ..utils.optimization_cache import CachedEvaluator, OptimizationCache
-    from ..utils.utils import normalize_params, validate_param_types
 
     # 导入可视化和报告模块
     from ..visualization.optimization_visualizer import OptimizationVisualizer
@@ -351,7 +350,7 @@ class MeshOptimizer:
                 logger.info(f"分析参数: {param_name}")
 
                 # 确定参数类型并设置合适的扰动范围
-                if param_type == float:
+                if param_type is float:
                     min_val = max(low, param_value * (1 - noise_level))
                     max_val = min(high, param_value * (1 + noise_level))
                     test_values = np.linspace(min_val, max_val, n_trials)
