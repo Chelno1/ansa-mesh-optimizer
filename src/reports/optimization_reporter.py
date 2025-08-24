@@ -33,18 +33,20 @@ except ImportError:
 class OptimizationReporter:
     """优化过程报告生成器"""
 
-    def __init__(self, report_dir: Optional[Path] = None):
+    def __init__(self, base_output_dir: Path, report_subdir: Optional[str] = None):
         """
         初始化报告生成器
 
         Args:
-            report_dir: 报告保存目录
+            base_output_dir: 基础输出目录（来自配置的 output_dir）
+            report_subdir: 报告子目录名，如果为None则自动生成时间戳目录
         """
-        if report_dir is None:
+        if report_subdir is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            report_dir = Path(f"optimization_reports/{timestamp}_optimization")
-
-        self.report_dir = Path(report_dir)
+            report_subdir = f"{timestamp}_optimization"
+            
+        # 在配置的 output_dir 下创建 optimization_reports 子目录
+        self.report_dir = Path(base_output_dir) / "optimization_reports" / report_subdir
         self.report_dir.mkdir(parents=True, exist_ok=True)
 
     def generate_optimization_report(

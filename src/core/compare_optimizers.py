@@ -104,7 +104,13 @@ class OptimizationComparison:
 
         # 创建结果目录
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.results_dir = Path(f"comparison_results_{timestamp}")
+        
+        # 获取配置的 output_dir
+        config_manager = UnifiedConfigManager(config_file=None, require_config=False)
+        base_output_dir = config_manager.ansa_config.output_dir
+        
+        # 创建在配置目录下的结果目录
+        self.results_dir = base_output_dir / f"comparison_results_{timestamp}"
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
         # 统计信息
@@ -170,7 +176,12 @@ class OptimizationComparison:
             self._generate_comparison_summary()
 
             # 保存结果
-            reporter = ComparisonReporter(self.results_dir)
+            # 获取配置的 output_dir
+            config_manager = UnifiedConfigManager(config_file=None, require_config=False)
+            base_output_dir = config_manager.ansa_config.output_dir
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            reporter = ComparisonReporter(base_output_dir, f"comparison_results_{timestamp}")
             reporter.save_all_results(
                 self.results,
                 self.comparison_summary,

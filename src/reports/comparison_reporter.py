@@ -10,7 +10,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -42,14 +42,21 @@ except ImportError:
 class ComparisonReporter:
     """优化器比较报告生成器"""
 
-    def __init__(self, results_dir: Path):
+    def __init__(self, base_output_dir: Path, results_subdir: Optional[str] = None):
         """
         初始化报告生成器
 
         Args:
-            results_dir: 结果保存目录
+            base_output_dir: 基础输出目录（来自配置的 output_dir）
+            results_subdir: 结果子目录名，如果为None则自动生成时间戳目录
         """
-        self.results_dir = results_dir
+        if results_subdir is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            results_subdir = f"comparison_results_{timestamp}"
+            
+        # 在配置的 output_dir 下创建比较结果目录
+        # 创建层次结构：base_output_dir/comparison_reports/results_subdir
+        self.results_dir = Path(base_output_dir) / "comparison_reports" / results_subdir
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
     def save_all_results(

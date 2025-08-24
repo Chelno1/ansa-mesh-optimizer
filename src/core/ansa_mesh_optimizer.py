@@ -276,11 +276,18 @@ class MeshOptimizer:
         """生成优化报告"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         optimizer_name = result.optimizer_name.replace(" ", "_")
-        report_dir = Path(f"optimization_reports/{timestamp}_{optimizer_name}")
-        report_dir.mkdir(parents=True, exist_ok=True)
-
-        # 创建报告器和可视化器（使用指定目录）
-        reporter = OptimizationReporter(report_dir)
+        report_subdir = f"{timestamp}_{optimizer_name}"
+        
+        # 获取配置的 output_dir
+        from ..config.config import UnifiedConfigManager
+        config_manager = UnifiedConfigManager(config_file=None, require_config=False)
+        base_output_dir = config_manager.ansa_config.output_dir
+        
+        # 创建报告器和可视化器（使用配置的 output_dir）
+        reporter = OptimizationReporter(base_output_dir, report_subdir)
+        
+        # 为可视化器创建完整路径
+        report_dir = base_output_dir / "optimization_reports" / report_subdir
         visualizer = OptimizationVisualizer(report_dir)
 
         # 使用报告器生成报告
