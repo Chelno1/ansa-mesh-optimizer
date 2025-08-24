@@ -177,6 +177,7 @@ class SimpleAnsaConfig:
     script_dir: Path = field(default_factory=lambda: Path("src"))
     input_model_path: str = "input_model.ansa"  # 直接使用绝对路径字段，替代原有的input_model
     output_dir: Path = field(default_factory=lambda: Path("output"))
+    criteria_dir: str = "criterion"  # 用于指定mpar和qual文件的路径
     mpar_file_pattern: str = "*.ansa_mpar"
     qual_file_pattern: str = "*.ansa_qual"
     batch_script: str = "batch_mesh.py"
@@ -209,6 +210,12 @@ class SimpleAnsaConfig:
         # 验证输入模型路径
         if self.input_model_path and not Path(self.input_model_path).exists():
             errors.append(f"input_model_path does not exist: {self.input_model_path}")
+
+        # 验证criteria_dir（如果是绝对路径）
+        if self.criteria_dir:
+            criteria_path = Path(self.criteria_dir)
+            if criteria_path.is_absolute() and not criteria_path.exists():
+                errors.append(f"criteria_dir does not exist: {self.criteria_dir}")
 
         if errors:
             return False, "; ".join(errors)

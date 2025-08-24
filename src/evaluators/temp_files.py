@@ -45,7 +45,9 @@ class TempFileManager:
         self.config = config_manager.ansa_config
         self.parameter_replacer = parameter_replacer
         self.cwd_dir = Path.cwd().resolve()
-        self.criterion_dir = self.cwd_dir / "criterion"
+        
+        # 直接使用配置的 criteria_dir 绝对路径
+        self.criterion_dir = Path(self.config.criteria_dir)
         
         # 临时文件跟踪
         self.temp_dir: Optional[str] = None
@@ -77,7 +79,7 @@ class TempFileManager:
 
             # 在临时文件夹中创建临时配置文件
             config_file = create_temp_config_in_dir(
-                self.temp_dir, params, format_mpar_parameter_value
+                self.temp_dir, params, format_mpar_parameter_value, str(self.criterion_dir)
             )
             self.temp_files.append(config_file)
             logger.debug(f"创建临时配置文件: {config_file}")

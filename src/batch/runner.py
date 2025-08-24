@@ -9,6 +9,7 @@ Ansa批处理网格运行器模块
 功能: 从 batch_mesh.py 中提取的批量运行逻辑
 """
 
+import json
 import logging
 import time
 import traceback
@@ -50,8 +51,7 @@ class AnsaBatchMeshRunner:
         """
         self.script_dir = script_dir or Path(__file__).parent.parent.resolve()
         self.cwd_dir = cwd_dir or Path.cwd().resolve()
-        self.criterion_dir = self.script_dir / "criterion"
-
+        
         # 加载配置
         self.config = config or AnsaBatchConfig()
         json_config_file = self.cwd_dir / "mesh_config.json"
@@ -61,6 +61,9 @@ class AnsaBatchMeshRunner:
         is_valid, errors = self.config.validate()
         if not is_valid:
             logger.warning(f"配置验证失败: {errors}")
+
+        # 设置criteria_dir（优先从配置文件读取）
+        self.criterion_dir = self._get_criteria_dir()
 
         # 运行统计
         self.stats: Dict[str, Any] = {
@@ -643,6 +646,26 @@ class AnsaBatchMeshRunner:
         except Exception as e:
             logger.error(f"模拟保存模型失败: {e}")
             return False
+
+    def _get_criteria_dir(self) -> Path:
+        """获取criteria目录路径，优先从配置文件读取"""
+        try:
+            # 尝试从临时配置文件中读取criteria_dir
+            config_file = self.cwd_dir / "mesh_config.json"
+            if config_file.exists():
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+                    if 'criteria_dir' in config_data:
+                        criteria_dir = Path(config_data['criteria_dir'])
+                        logger.info(f"使用配置文件中的criteria_dir: {criteria_dir}")
+                        return criteria_dir
+        except Exception as e:
+            logger.warning(f"读取配置文件中的criteria_dir失败: {e}")
+        
+        # 回退到默认值
+        default_dir = self.script_dir / "criterion"
+        logger.info(f"使用默认的criteria_dir: {default_dir}")
+        return default_dir
 
     def get_stats(self) -> Dict[str, Any]:
         """获取运行统计信息"""

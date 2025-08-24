@@ -91,7 +91,7 @@ def copy_mpar_files_to_temp_dir(
 
 
 def create_temp_config_in_dir(
-    temp_dir: str, params: Dict[str, float], format_value_func
+    temp_dir: str, params: Dict[str, float], format_value_func, criteria_dir: Optional[str] = None
 ) -> str:
     """
     在指定目录中创建临时配置文件
@@ -100,6 +100,7 @@ def create_temp_config_in_dir(
         temp_dir: 临时目录路径
         params: 参数字典
         format_value_func: 参数值格式化函数
+        criteria_dir: criteria目录路径
 
     Returns:
         配置文件路径
@@ -113,6 +114,10 @@ def create_temp_config_in_dir(
         for key, value in params.items():
             formatted_value = format_value_func(key, value)
             config_data[key] = formatted_value
+            
+        # 添加criteria_dir信息
+        if criteria_dir:
+            config_data["criteria_dir"] = criteria_dir
 
         with open(config_file_path, "w", encoding="utf-8") as f:
             json.dump(config_data, f, ensure_ascii=False, indent=2)

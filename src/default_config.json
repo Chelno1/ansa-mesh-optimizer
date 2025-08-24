@@ -23,6 +23,7 @@
     "script_dir": "src",
     "input_model_path": "/absolute/path/to/input_model.ansa",
     "output_dir": "output",
+    "criteria_dir": "/absolute/path/to/criteria",
     "mpar_file_pattern": "*.ansa_mpar",
     "qual_file_pattern": "*.ansa_qual",
     "batch_script": "batch_mesh.py",
