@@ -47,7 +47,7 @@ def cmd_test(args, modules) -> int:
         # 为测试创建配置管理器（使用默认配置文件）
         try:
             import os
-            default_config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'default_config.json')
+            default_config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'default_config.json')
             # 直接使用类创建实例
             config_manager_class = UnifiedConfigManager
             config_manager_instance = config_manager_class()
@@ -130,7 +130,7 @@ def run_basic_tests(modules, evaluator_type: str, n_iterations: int, verbose: bo
         try:
             # 为测试创建临时配置文件路径
             import os
-            default_config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'default_config.json')
+            default_config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'default_config.json')
             
             result = optimize_mesh_parameters(
                 n_calls=n_iterations,
@@ -158,7 +158,7 @@ def run_basic_tests(modules, evaluator_type: str, n_iterations: int, verbose: bo
             try:
                 # 为比较测试使用配置文件
                 import os
-                default_config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'default_config.json')
+                default_config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'default_config.json')
                 
                 comparison_results = compare_optimizers(
                     optimizers=['random', 'genetic'],

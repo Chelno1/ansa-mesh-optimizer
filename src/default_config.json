@@ -4,23 +4,23 @@
     "n_initial_points": 5,
     "random_state": 42,
     "verbose": true,
-    "optimizer": "bayesian",
-    "n_jobs": 1,
+    "optimizer": "genetic",
     "use_cache": true,
     "cache_file": "optimization_cache.pkl",
     "early_stopping": true,
     "patience": 5,
     "min_delta": 0.01,
-    "adaptive_early_stopping": false,
     "sensitivity_analysis": true,
     "sensitivity_trials": 5,
     "noise_level": 0.1,
+    "n_jobs": 1,
+    "adaptive_early_stopping": false,
     "convergence_threshold": 1e-06,
     "max_stagnation_iterations": 10
   },
   "ansa": {
     "ansa_executable": "ansa",
-    "script_dir": "/home/chel/ansa-mesh-optimizer/src/config",
+    "script_dir": "src",
     "input_model": "input_model.ansa",
     "output_dir": "output",
     "mpar_file_pattern": "*.ansa_mpar",
@@ -35,12 +35,81 @@
     "max_memory_usage": 8.0,
     "temp_cleanup": true
   },
+  "logging": {
+    "level": "INFO",
+    "console": {
+      "enabled": true,
+      "level": "INFO",
+      "format": "simple"
+    },
+    "file": {
+      "enabled": false,
+      "level": "DEBUG",
+      "format": "detailed",
+      "filename": "ansa_optimizer.log",
+      "max_size": "10MB",
+      "backup_count": 5,
+      "rotation": true
+    },
+    "modules": {
+      "src.optimizers": "INFO",
+      "src.evaluators": "INFO",
+      "src.utils": "WARNING",
+      "src.visualization": "WARNING",
+      "src.cli": "INFO",
+      "src.core": "INFO"
+    }
+  },
   "parameters": {
+    "element_size": {
+      "param_type": "float",
+      "bounds": [
+        0.5,
+        2.0
+      ],
+      "description": "目标单元尺寸",
+      "unit": "mm",
+      "ansa_mapping": "target_element_length",
+      "default_value": 1.0
+    },
+    "perimeter_length": {
+      "param_type": "float",
+      "bounds": [
+        0.5,
+        8.0
+      ],
+      "description": "周边长度",
+      "unit": "mm",
+      "ansa_mapping": "perimeter_length",
+      "default_value": 2.0
+    },
+    "min_target_length": {
+      "param_type": "float",
+      "bounds": [
+        1.0,
+        2.0
+      ],
+      "description": "最小目标长度",
+      "unit": "mm",
+      "ansa_mapping": "general_min_target_len",
+      "default_value": 1.5
+    },
+    "max_target_length": {
+      "param_type": "float",
+      "bounds": [
+        8.0,
+        10.0
+      ],
+      "description": "最大目标长度",
+      "unit": "mm",
+      "ansa_mapping": "general_max_target_len",
+      "default_value": 9.0
+    },
     "distortion_distance": {
       "param_type": "float",
       "bounds": [
-        10,
-        30
+        10.0,
+        30.0
       ],
       "description": "扭曲距离",
       "unit": "%",
@@ -53,7 +122,7 @@
         1.0,
         5.0
       ],
-      "description": "Fillet规则1的width上限值 (0-width_1)",
+      "description": "Fillet规则1的width上限值",
       "unit": "mm",
       "ansa_mapping": "rule_fillet_width_1",
       "default_value": 3.0
@@ -64,7 +133,7 @@
         5.0,
         12.0
       ],
-      "description": "Fillet规则2的width上限值 (width_1-width_2)",
+      "description": "Fillet规则2的width上限值",
       "unit": "mm",
       "ansa_mapping": "rule_fillet_width_2",
       "default_value": 10.0
@@ -75,7 +144,7 @@
         12.0,
         25.0
       ],
-      "description": "Fillet规则3的width上限值 (width_2-width_3)",
+      "description": "Fillet规则3的width上限值",
       "unit": "mm",
       "ansa_mapping": "rule_fillet_width_3",
       "default_value": 20.0
@@ -86,7 +155,7 @@
         25.0,
         40.0
       ],
-      "description": "Fillet规则4的width上限值 (width_3-width_4)",
+      "description": "Fillet规则4的width上限值",
       "unit": "mm",
       "ansa_mapping": "rule_fillet_width_4",
       "default_value": 30.0
@@ -130,7 +199,7 @@
         5.0,
         20.0
       ],
-      "description": "Chamfer规则的width上限值 (替换rule_chamfer配置中的width值)",
+      "description": "Chamfer规则的width上限值",
       "unit": "mm",
       "ansa_mapping": "rule_chamfer_width_1",
       "default_value": 10.0
@@ -141,7 +210,7 @@
         0.0,
         45.0
       ],
-      "description": "扭曲角度参数，对应8mm_V23.ansa_mpar文件中的distortion-angle",
+      "description": "扭曲角度参数",
       "unit": "degrees",
       "ansa_mapping": "distortion-angle",
       "default_value": 0.0
@@ -152,7 +221,7 @@
         0.667,
         1.0
       ],
-      "description": "周边距离系数，对应8mm_V23.ansa_mpar文件中remove_perimeters_with_distance的系数部分",
+      "description": "周边距离系数",
       "unit": "*Lmin",
       "ansa_mapping": "remove_perimeters_with_distance",
       "default_value": 0.667
@@ -160,7 +229,7 @@
   },
   "metadata": {
     "version": "2.0.0",
-    "created_by": "UnifiedConfigManager",
-    "description": "Unified Ansa mesh optimizer configuration file"
+    "created_by": "ConsolidatedConfigManager",
+    "description": "Consolidated Ansa mesh optimizer configuration file"
   }
 }

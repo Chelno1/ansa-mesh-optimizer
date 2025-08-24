@@ -213,7 +213,7 @@ def test_config_integration():
     
     try:
         # 测试是否能从默认配置文件读取日志配置
-        config_file = project_root / "default_config.json"
+        config_file = project_root / "src" / "default_config.json"
         if config_file.exists():
             from src.config.config import SimpleConfigManager
             from src.utils.logging_config import reset_logging
