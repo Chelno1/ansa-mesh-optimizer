@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 """
 网格评估接口模块 - 重构版本
+负责高层接口和协调逻辑
 
 作者: Chel
 创建日期: 2025-06-19
-版本: 2.0.0
+版本: 2.1.0
 更新日期: 2025-08-24
-重构: 拆分单体模块为多个专注模块
+重构: 拆分单体模块为多个专注模块，提升可维护性
 """
 
 import logging
@@ -17,36 +18,21 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict
 
-# 导入配置管理器
+# 导入新的专用模块
+from src.evaluators.ansa_runner import create_ansa_runner
+from src.evaluators.temp_files import create_temp_file_manager
+from src.evaluators.validator import ParameterValidator
 
 # 导入环境验证模块
-from src.evaluators.environment import (
-    AnsaEnvironmentValidator,
-    check_input_files,
-    handle_ansa_returncode,
-    run_ansa_batch,
-)
-from src.evaluators.io_utils import (
-    cleanup_temp_files,
-    copy_mpar_files_to_temp_dir,
-    create_temp_config_in_dir,
-    create_timestamped_temp_dir,
-    parse_ansa_output,
-    process_parameter_files_in_temp_dir,
-    simulate_evaluation,
-)
+from src.evaluators.environment import AnsaEnvironmentValidator
 
 # 导入参数替换策略
 from src.evaluators.parameter_replacement_strategies import (
     ParameterReplacementManager,
-    format_mpar_parameter_value,
 )
 
 # 导入重构后的工具模块
 from src.evaluators.utils import normalize_params
-
-# 导入参数验证器
-from src.utils.parameter_validator import get_parameter_validator
 
 logger = logging.getLogger(__name__)
 
@@ -82,21 +68,20 @@ class MeshEvaluator(ABC):
 
 
 class AnsaMeshEvaluator(MeshEvaluator):
-    """Ansa网格评估器 - 重构版本"""
+    """Ansa网格评估器 - 重构版本，使用组合模式"""
 
     def __init__(self, config_manager=None):
         if config_manager is None:
             raise ValueError("AnsaMeshEvaluator requires a config_manager instance")
+            
         self.config_manager = config_manager
         self.config = config_manager.ansa_config
         self.param_mapping = config_manager.parameter_space.get_ansa_mapping()
-        self.validator = get_parameter_validator(config_manager.parameter_space)
-        self.cwd_dir = Path.cwd().resolve()
-        self.criterion_dir = self.cwd_dir / "criterion"
 
-        # 初始化参数替换策略管理器
+        # 初始化专用组件
+        self.parameter_validator = ParameterValidator(config_manager)
         self.parameter_replacer = ParameterReplacementManager(config_manager)
-        self._format_parameter_value = format_mpar_parameter_value
+        self.ansa_runner = create_ansa_runner(config_manager)
 
         # 初始化环境验证器
         self.env_validator = AnsaEnvironmentValidator(self.config)
@@ -110,22 +95,12 @@ class AnsaMeshEvaluator(MeshEvaluator):
             logger.warning(f"环境验证过程中发生异常: {e}")
 
     def validate_params(self, params: Dict[str, float]) -> bool:
-        """验证参数有效性"""
-        try:
-            is_valid, error_msg, _ = self.validator.validate_comprehensive(params)
-            if not is_valid:
-                raise ValueError(f"Parameter validation failed: {error_msg}")
-            return is_valid
-        except ValueError:
-            # 重新抛出ValueError以便测试能够捕获
-            raise
-        except Exception as e:
-            logger.error(f"参数验证异常: {e}")
-            raise ValueError(f"Parameter validation error: {e}")
+        """验证参数有效性 - 委托给专用验证器"""
+        return self.parameter_validator.validate_params(params)
 
     def evaluate_mesh(self, params: Dict[str, float]) -> float:
         """
-        评估网格质量 - 重构版本
+        评估网格质量 - 重构版本，使用组合的组件
 
         Args:
             params: 网格参数字典
@@ -133,43 +108,21 @@ class AnsaMeshEvaluator(MeshEvaluator):
         Returns:
             不合格网格单元数量
         """
-        # 标准化和验证参数
-        try:
-            normalized_params = normalize_params(params)
-            is_valid, error_msg, cleaned_params = self.validator.validate_comprehensive(
-                normalized_params
-            )
-
-            if not is_valid:
-                logger.error(f"参数验证失败: {error_msg}")
-                return float("inf")
-
-        except Exception as e:
-            logger.error(f"参数处理失败: {e}")
+        # 验证和准备参数
+        is_valid, cleaned_params = self.parameter_validator.validate_params_for_evaluation(params)
+        if not is_valid:
             return float("inf")
 
+        # 使用临时文件管理器设置环境并执行评估
+        temp_file_manager = create_temp_file_manager(self.config_manager, self.parameter_replacer)
+        
         try:
-            # 创建带时间戳的临时文件夹
-            temp_dir = create_timestamped_temp_dir()
-
-            # 将*.ansa_mpar文件拷贝到临时文件夹
-            copied_mpar_files = copy_mpar_files_to_temp_dir(
-                temp_dir, self.criterion_dir, self.config.mpar_file_pattern
-            )
-
-            # 在临时文件夹中创建临时配置文件
-            config_file = create_temp_config_in_dir(
-                temp_dir, cleaned_params, self._format_parameter_value
-            )
-
-            # 处理mpar参数文件替换（在临时文件夹中）
-            process_parameter_files_in_temp_dir(
-                temp_dir, cleaned_params, self.parameter_replacer
-            )
-
+            # 设置临时环境
+            temp_dir = temp_file_manager.setup_temp_environment(cleaned_params)
+            
             # 运行Ansa批处理
-            bad_elements_count = self._run_ansa_batch(temp_dir)
-
+            bad_elements_count = self.ansa_runner.run_ansa_batch(temp_dir)
+            
             logger.info(f"网格评估完成: {bad_elements_count} 个不合格单元")
             return float(bad_elements_count)
 
@@ -178,60 +131,8 @@ class AnsaMeshEvaluator(MeshEvaluator):
             return float("inf")
 
         finally:
-            # 清理临时文件和文件夹
-            temp_files = [
-                locals().get("config_file"),
-                locals().get("final_config_file"),
-            ]
-            temp_dir_var = locals().get("temp_dir")
-
-            cleanup_temp_files(temp_files)
-            # 不清理临时文件夹
-            # if temp_dir_var:
-            #     cleanup_temp_directory(temp_dir_var)
-
-    def _run_ansa_batch(self, temp_dir: str) -> float:
-        """运行Ansa批处理 - 简化版本"""
-        try:
-            # 构建Ansa命令
-            ansa_command = [
-                self.config.ansa_executable,
-                "-b",
-                "-execpy",
-                f"load_script: '{self.config.script_dir / self.config.batch_script}'",
-                "-i",
-                f"{self.cwd_dir / self.config.input_model}",
-                "-changedir",
-                temp_dir,
-            ]
-
-            # 检查输入文件
-            input_model_path = str(self.cwd_dir / self.config.input_model)
-            batch_script_path = str(self.config.script_dir / self.config.batch_script)
-
-            is_valid, error_msg = check_input_files(input_model_path, batch_script_path)
-            if not is_valid:
-                logger.error(error_msg)
-                return simulate_evaluation()
-
-            # 执行命令
-            result = run_ansa_batch(
-                ansa_command, temp_dir, self.config.execution_timeout
-            )
-
-            # 处理返回代码
-            is_success, error_msg = handle_ansa_returncode(result)
-            if not is_success:
-                logger.error(error_msg)
-                return simulate_evaluation()
-
-            # 解析成功的输出
-            bad_elements_count = parse_ansa_output(result.stdout)
-            return bad_elements_count
-
-        except Exception as e:
-            logger.error(f"Ansa批处理执行失败: {e}")
-            return simulate_evaluation()
+            # 清理临时文件
+            temp_file_manager.cleanup()
 
 
 class MockMeshEvaluator(MeshEvaluator):
@@ -249,27 +150,16 @@ class MockMeshEvaluator(MeshEvaluator):
 
         if config_manager is None:
             raise ValueError("MockMeshEvaluator requires a config_manager instance")
+            
         self.config_manager = config_manager
-        self.validator = get_parameter_validator(config_manager.parameter_space)
+        self.parameter_validator = ParameterValidator(config_manager)
 
         # 设置随机种子以便可重现
         random.seed(42)
 
     def validate_params(self, params: Dict[str, float]) -> bool:
-        """验证参数有效性 - 修复版本"""
-        try:
-            is_valid, error_msg, _ = self.validator.validate_comprehensive(params)
-            if not is_valid:
-                # 对于测试，如果参数验证失败，抛出ValueError
-                raise ValueError(f"Parameter validation failed: {error_msg}")
-            return is_valid
-        except ValueError:
-            # 重新抛出ValueError以便测试能够捕获
-            raise
-        except Exception as e:
-            logger.warning(f"Mock evaluator parameter validation failed: {e}")
-            # 对于其他异常，也抛出ValueError以保持一致性
-            raise ValueError(f"Parameter validation error: {e}")
+        """验证参数有效性 - 委托给专用验证器"""
+        return self.parameter_validator.validate_params(params)
 
     def evaluate_mesh(self, params: Dict[str, float]) -> float:
         """
@@ -279,20 +169,10 @@ class MockMeshEvaluator(MeshEvaluator):
         """
         self.evaluation_count += 1
 
-        # 标准化参数
-        try:
-            normalized_params = normalize_params(params)
-            is_valid, error_msg, cleaned_params = self.validator.validate_comprehensive(
-                normalized_params
-            )
-
-            if not is_valid:
-                logger.warning(f"Mock evaluator: invalid parameters - {error_msg}")
-                # 与AnsaMeshEvaluator行为一致，返回inf而不是抛出异常
-                return float("inf")
-
-        except Exception as e:
-            logger.error(f"Mock evaluator parameter processing failed: {e}")
+        # 验证和准备参数
+        is_valid, cleaned_params = self.parameter_validator.validate_params_for_evaluation(params)
+        if not is_valid:
+            logger.warning("Mock evaluator: invalid parameters")
             return float("inf")
 
         # 添加现实的延迟模拟

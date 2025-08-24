@@ -97,21 +97,21 @@ class TestMeshEvaluator(unittest.TestCase):
             self.fail(f"有效参数测试失败: {e}")
 
         # 测试无效参数 - 直接修改验证器
-        original_validator = self.evaluator.validator
+        original_validator = self.evaluator.parameter_validator.validator
         mock_validator = MagicMock()
         mock_validator.validate_comprehensive.return_value = (
             False,
             "Parameter validation failed",
             {},
         )
-        self.evaluator.validator = mock_validator
+        self.evaluator.parameter_validator.validator = mock_validator
 
         try:
             invalid_params: Dict[str, float] = {"distortion_distance": -1.0}
             result = self.evaluator.evaluate_mesh(invalid_params)
             self.assertEqual(result, float("inf"))
         finally:
-            self.evaluator.validator = original_validator
+            self.evaluator.parameter_validator.validator = original_validator
 
         # 测试缺失参数
         mock_validator2 = MagicMock()
@@ -120,14 +120,14 @@ class TestMeshEvaluator(unittest.TestCase):
             "Missing parameters",
             {},
         )
-        self.evaluator.validator = mock_validator2
+        self.evaluator.parameter_validator.validator = mock_validator2
 
         try:
             missing_params: Dict[str, float] = {}
             result = self.evaluator.evaluate_mesh(missing_params)
             self.assertEqual(result, float("inf"))
         finally:
-            self.evaluator.validator = original_validator
+            self.evaluator.parameter_validator.validator = original_validator
 
     def test_evaluation_results(self) -> None:
         """测试评估结果"""
@@ -186,21 +186,21 @@ class TestMeshEvaluator(unittest.TestCase):
     def test_error_handling(self) -> None:
         """测试错误处理"""
         # 测试空字典 - 直接修改现有evaluator的验证器
-        original_validator = self.evaluator.validator
+        original_validator = self.evaluator.parameter_validator.validator
         mock_validator = MagicMock()
         mock_validator.validate_comprehensive.return_value = (
             False,
             "Empty parameters",
             {},
         )
-        self.evaluator.validator = mock_validator
+        self.evaluator.parameter_validator.validator = mock_validator
 
         try:
             result = self.evaluator.evaluate_mesh({})
             self.assertEqual(result, float("inf"))
         finally:
             # 恢复原验证器
-            self.evaluator.validator = original_validator
+            self.evaluator.parameter_validator.validator = original_validator
 
         # 测试参数类型错误 - normalize_params会处理字符串转换
         invalid_type_params: Dict[str, Any] = {"distortion_distance": "20"}
@@ -217,7 +217,7 @@ class TestMeshEvaluator(unittest.TestCase):
             "Out of range",
             {},
         )
-        self.evaluator.validator = mock_validator2
+        self.evaluator.parameter_validator.validator = mock_validator2
 
         try:
             out_of_range_params = self.test_params.copy()
@@ -226,7 +226,7 @@ class TestMeshEvaluator(unittest.TestCase):
             self.assertEqual(result, float("inf"))
         finally:
             # 恢复原验证器
-            self.evaluator.validator = original_validator
+            self.evaluator.parameter_validator.validator = original_validator
 
     def test_result_consistency(self) -> None:
         """测试结果一致性"""
