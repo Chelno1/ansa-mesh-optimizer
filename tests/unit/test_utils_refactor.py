@@ -37,18 +37,22 @@ from src.utils.formatting import (
     format_number,
     format_percentage,
     format_file_size,
-    create_progress_bar
+    create_progress_bar,
+    extract_numbers_from_text,
+    PATTERNS
 )
 
-# 测试通用工具模块
+# 测试参数验证模块 (仍在utils.py中)
 from src.utils.utils import (
-    normalize_params,
+    normalize_params
+)
+
+# 测试通用工具模块 (已迁移到misc.py)
+from src.utils.misc import (
     safe_divide,
     check_memory_usage,
     calculate_statistics,
-    filter_dict_by_keys,
-    extract_numbers_from_text,
-    PATTERNS
+    filter_dict_by_keys
 )
 
 # 测试统一导出接口

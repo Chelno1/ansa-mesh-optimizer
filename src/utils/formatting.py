@@ -301,6 +301,51 @@ def create_progress_bar(current: int, total: int, width: int = 50) -> str:
         return "[" + " " * width + "] N/A"
 
 
+# 常用的正则表达式模式
+PATTERNS = {
+    'number': r'[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?',
+    'integer': r'[-+]?\d+',
+    'email': r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+    'ip_address': r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b',
+    'filename': r'[^<>:"/\\|?*\x00-\x1f]+',
+}
+
+
+def extract_numbers_from_text(text: str, pattern: str = 'number') -> List[float]:
+    """
+    从文本中提取数字
+    
+    Args:
+        text: 输入文本
+        pattern: 使用的正则表达式模式
+        
+    Returns:
+        提取的数字列表
+        
+    Examples:
+        >>> numbers = extract_numbers_from_text("价格是 123.45 元和 67.89 元")
+        >>> print(numbers)  # [123.45, 67.89]
+    """
+    import re
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    if pattern not in PATTERNS:
+        raise ValueError(f"Unknown pattern: {pattern}")
+    
+    matches = re.findall(PATTERNS[pattern], text)
+    
+    try:
+        if pattern == 'integer':
+            return [float(int(match)) for match in matches]
+        else:
+            return [float(match) for match in matches]
+    except ValueError as e:
+        logger.warning(f"Number extraction failed: {e}")
+        return []
+
+
 if __name__ == "__main__":
     # 测试格式化功能
     print("=== Formatting Testing ===")
@@ -329,5 +374,16 @@ if __name__ == "__main__":
     print(f"\n进度条测试:")
     print(create_progress_bar(30, 100))
     print(create_progress_bar(75, 100))
+    
+    # 测试数字提取
+    print(f"\n数字提取测试:")
+    text = "价格是 123.45 元和 67.89 元"
+    numbers = extract_numbers_from_text(text)
+    print(f"从文本 '{text}' 提取的数字: {numbers}")
+    
+    # 测试整数提取
+    text2 = "总共有 10 个项目和 25 个子项目"
+    integers = extract_numbers_from_text(text2, 'integer')
+    print(f"从文本 '{text2}' 提取的整数: {integers}")
     
     print("Formatting testing completed!")

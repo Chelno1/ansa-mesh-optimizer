@@ -3,12 +3,19 @@
 """
 Utils 包 - 统一导出接口
 
-提供序列化、格式化、参数验证等工具函数的统一访问点。
-保持向后兼容性，同时支持模块化的代码组织。
+模块化重构后的工具函数包，按职责领域分离：
+- utils.py: 参数验证和类型转换
+- formatting.py: 时间、表格、数字格式化和文本处理
+- serialization.py: JSON序列化和配置文件处理
+- misc.py: 通用工具函数（数学计算、系统监控、性能分析等）
+
+提供统一的导出接口，保持向后兼容性。
 
 作者: Chel
 创建日期: 2025-08-23
-版本: 2.0.0
+版本: 3.0.0
+更新日期: 2025-08-24
+重构: 按领域拆分功能，遵循单一职责原则
 """
 
 # 从序列化模块导入
@@ -31,13 +38,19 @@ from .formatting import (
     format_number,
     format_percentage,
     format_file_size,
-    create_progress_bar
+    create_progress_bar,
+    extract_numbers_from_text,
+    PATTERNS
 )
 
 # 从原始 utils 模块导入剩余的函数
 from .utils import (
     normalize_params,
-    validate_param_types,
+    validate_param_types
+)
+
+# 从 misc 模块导入通用工具函数
+from .misc import (
     safe_divide,
     check_memory_usage,
     setup_numpy_print_options,
@@ -45,9 +58,7 @@ from .utils import (
     create_progress_callback,
     retry_on_exception,
     calculate_statistics,
-    filter_dict_by_keys,
-    extract_numbers_from_text,
-    PATTERNS
+    filter_dict_by_keys
 )
 
 # 从异常模块导入
@@ -158,9 +169,10 @@ __author__ = 'Chel'
 
 # 模块说明
 __doc_modules__ = {
+    'utils': '参数验证和类型转换',
+    'formatting': '时间、表格、数字格式化和文本处理',
     'serialization': '序列化和配置文件处理',
-    'formatting': '时间、表格、数字格式化',
-    'utils': '通用工具函数和性能监控',
+    'misc': '通用工具函数（数学计算、系统监控、性能分析等）',
     'exceptions': '自定义异常类定义',
     'error_handler': '错误处理装饰器和工具函数'
 }

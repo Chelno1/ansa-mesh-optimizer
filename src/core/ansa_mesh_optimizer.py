@@ -84,7 +84,8 @@ try:
     from src.evaluators.mesh_evaluator import create_mesh_evaluator, MeshEvaluator
     from src.utils.optimization_cache import OptimizationCache, CachedEvaluator
     from src.core.early_stopping import create_early_stopping, EarlyStopping
-    from src.utils.utils import normalize_params, validate_param_types, performance_monitor
+    from src.utils.utils import normalize_params, validate_param_types
+    from src.utils import performance_monitor
 
     # 导入新的优化器策略模块
     from src.optimizers import (
