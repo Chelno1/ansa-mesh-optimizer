@@ -15,6 +15,7 @@ import json
 import logging
 import logging.handlers
 import sys
+import copy
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
@@ -73,7 +74,7 @@ class LoggingConfig:
 
     def _merge_config(self, user_config: Dict[str, Any]) -> Dict[str, Any]:
         """合并用户配置和默认配置"""
-        config = self.DEFAULT_CONFIG.copy()
+        config = copy.deepcopy(self.DEFAULT_CONFIG)
 
         # 深度合并配置
         for key, value in user_config.items():
