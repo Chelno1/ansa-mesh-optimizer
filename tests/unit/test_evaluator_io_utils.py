@@ -13,9 +13,6 @@ import os
 import shutil
 from pathlib import Path
 from unittest.mock import patch, MagicMock, mock_open
-import sys
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.evaluators.io_utils import (
     create_timestamped_temp_dir,

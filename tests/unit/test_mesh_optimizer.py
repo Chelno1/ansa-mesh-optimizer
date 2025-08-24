@@ -10,26 +10,32 @@
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-import sys
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from core.ansa_mesh_optimizer import (
+from src.core.ansa_mesh_optimizer import (
     MeshOptimizer, optimize_mesh_parameters, get_available_optimizers
 )
-from config.config import OptimizationConfig
+from src.config.config import OptimizationConfig
 
 class TestMeshOptimizer(unittest.TestCase):
     """网格优化器测试类"""
     
     def setUp(self):
         """测试前准备"""
-        self.config = OptimizationConfig()
-        self.config.n_calls = 10
-        self.config.n_initial_points = 3
+        from src.config.config import UnifiedConfigManager
+        from src.core.ansa_mesh_optimizer import ConfigManagerWrapper
+        
+        # 创建配置管理器
+        unified_manager = UnifiedConfigManager()
+        unified_manager.optimization_config.n_calls = 10
+        unified_manager.optimization_config.n_initial_points = 3
+        
+        # 创建包装器
+        self.config_manager = ConfigManagerWrapper(unified_manager)
+        self.config = self.config_manager.optimization_config
+        
         self.optimizer = MeshOptimizer(
-            config=self.config,
+            config_manager=self.config_manager,
             evaluator_type='mock',
             use_cache=False
         )
@@ -84,8 +90,19 @@ class TestMeshOptimizer(unittest.TestCase):
         self.config.patience = 2
         self.config.min_delta = 0.01
         
+        # 创建新的配置管理器用于早停测试
+        from src.config.config import UnifiedConfigManager
+        from src.core.ansa_mesh_optimizer import ConfigManagerWrapper
+        
+        unified_manager = UnifiedConfigManager()
+        unified_manager.optimization_config.early_stopping = True
+        unified_manager.optimization_config.patience = 2
+        unified_manager.optimization_config.min_delta = 0.01
+        
+        config_manager = ConfigManagerWrapper(unified_manager)
+        
         optimizer = MeshOptimizer(
-            config=self.config,
+            config_manager=config_manager,
             evaluator_type='mock',
             use_cache=False
         )
@@ -112,7 +129,16 @@ class TestMeshOptimizer(unittest.TestCase):
             bad_config = OptimizationConfig()
             bad_config.n_calls = -1
             bad_config.n_initial_points = -1
-            MeshOptimizer(config=bad_config, evaluator_type='mock', use_cache=False)
+            
+            # 创建无效配置的配置管理器
+            from src.config.config import UnifiedConfigManager
+            from src.core.ansa_mesh_optimizer import ConfigManagerWrapper
+            
+            unified_manager = UnifiedConfigManager()
+            unified_manager.optimization_config = bad_config
+            bad_config_manager = ConfigManagerWrapper(unified_manager)
+            
+            MeshOptimizer(config_manager=bad_config_manager, evaluator_type='mock', use_cache=False)
     
     def test_optimization_history(self):
         """测试优化历史记录"""
@@ -162,7 +188,7 @@ class TestMeshOptimizer(unittest.TestCase):
         """测试缓存功能"""
         # 创建带缓存的优化器
         optimizer_with_cache = MeshOptimizer(
-            config=self.config,
+            config_manager=self.config_manager,
             evaluator_type='mock',
             use_cache=True
         )

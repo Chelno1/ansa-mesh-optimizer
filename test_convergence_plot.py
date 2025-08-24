@@ -4,13 +4,10 @@
 """
 
 import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
-
 import logging
 from pathlib import Path
-from optimizers.optimizer_config import OptimizationResult
-from visualization.optimization_visualizer import OptimizationVisualizer
+from src.optimizers.optimizer_config import OptimizationResult
+from src.visualization.optimization_visualizer import OptimizationVisualizer
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

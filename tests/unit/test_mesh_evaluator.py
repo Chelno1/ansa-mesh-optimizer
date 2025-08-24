@@ -10,11 +10,8 @@
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-import sys
 import tempfile
 from typing import Dict, List, Any, Optional
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.evaluators.mesh_evaluator import (
     create_mesh_evaluator, MeshEvaluator

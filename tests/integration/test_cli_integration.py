@@ -13,11 +13,9 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 import logging
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from src.cli.cli_main import main_cli, create_parser
-from core.ansa_mesh_optimizer import MeshOptimizer
-from batch_mesh import AnsaBatchMeshRunner
+from src.core.ansa_mesh_optimizer import MeshOptimizer
+from src.batch_mesh import AnsaBatchMeshRunner
 
 class TestCLIIntegration(unittest.TestCase):
     """CLI集成测试类"""
@@ -70,7 +68,7 @@ class TestCLIIntegration(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             mock_dispatch.assert_called_once()
     
-    @patch('src.evaluators.batch_mesh_improved.AnsaBatchMeshRunner.run_batch_mesh')
+    @patch('src.batch_mesh.AnsaBatchMeshRunner.run_batch_mesh')
     def test_batch_mesh_execution(self, mock_run_batch):
         """测试批处理网格执行"""
         mock_run_batch.return_value = True
@@ -85,17 +83,28 @@ class TestCLIIntegration(unittest.TestCase):
         self.assertTrue(success)
         mock_run_batch.assert_called_once()
     
-    @patch('src.core.ansa_mesh_optimizer_refactored.MeshOptimizer.optimize')
+    @patch('src.core.ansa_mesh_optimizer.MeshOptimizer.optimize')
     def test_mesh_optimization(self, mock_optimize):
         """测试网格优化"""
-        expected_result = {
-            'best_value': 0.5,
-            'best_params': {'param1': 1.0},
-            'optimizer': 'genetic'
-        }
+        from src.optimizers.optimizer_config import OptimizationResult
+        
+        expected_result = OptimizationResult(
+            best_value=0.5,
+            best_params={'param1': 1.0},
+            optimizer_name='genetic',
+            optimization_history=[],
+            success=True
+        )
         mock_optimize.return_value = expected_result
         
-        optimizer = MeshOptimizer(evaluator_type='mock')
+        # 创建带配置管理器的优化器
+        from src.config.config import UnifiedConfigManager
+        from src.core.ansa_mesh_optimizer import ConfigManagerWrapper
+        
+        unified_manager = UnifiedConfigManager()
+        config_manager = ConfigManagerWrapper(unified_manager)
+        
+        optimizer = MeshOptimizer(config_manager=config_manager, evaluator_type='mock')
         result = optimizer.optimize(optimizer='genetic', n_calls=5)
         
         self.assertEqual(result, expected_result)

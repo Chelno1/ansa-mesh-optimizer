@@ -11,10 +11,6 @@ import unittest
 import subprocess
 from pathlib import Path
 from unittest.mock import patch, MagicMock, Mock
-import sys
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from src.evaluators.environment import (
     validate_ansa_environment,
     check_input_files,

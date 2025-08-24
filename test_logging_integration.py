@@ -11,9 +11,8 @@ import logging
 import tempfile
 from pathlib import Path
 
-# 添加项目根目录到路径
+# 项目根目录（用于配置文件路径）
 project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
 
 def test_basic_logging_config():
     """测试基本日志配置功能"""

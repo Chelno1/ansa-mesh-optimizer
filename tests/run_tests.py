@@ -14,9 +14,8 @@ from pathlib import Path
 from typing import List, Dict, Any
 import time
 
-# 添加项目根目录到路径
+# 项目根目录（用于路径引用）
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
 
 def setup_test_logging():
     """设置测试日志"""

@@ -12,12 +12,9 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import logging
-import sys
 import json
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from batch_mesh import (
+from src.batch_mesh import (
     AnsaBatchMeshRunner, AnsaBatchConfig, batch_mesh_with_params
 )
 
@@ -101,7 +98,7 @@ class TestBatchMeshIntegration(unittest.TestCase):
         self.assertFalse(is_valid)
         self.assertTrue(len(errors) > 0)
     
-    @patch('src.evaluators.batch_mesh_improved.ANSA_AVAILABLE', False)
+    @patch('src.batch_mesh.ANSA_AVAILABLE', False)
     def test_mock_mode(self):
         """测试模拟模式"""
         # 在ANSA不可用时运行
