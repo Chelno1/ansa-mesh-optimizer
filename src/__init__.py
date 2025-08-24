@@ -9,8 +9,17 @@ ANSA 网格优化器主包
 创建日期: 2025-08-24
 """
 
-# 统一版本号定义
-__version__ = "2.3.0"
+from importlib import metadata
+from pathlib import Path
+
+
+PACKAGE_NAME = "ansa-mesh-optimizer"
+
+try:
+    __version__ = metadata.version(PACKAGE_NAME)
+except metadata.PackageNotFoundError:  # pragma: no cover - fallback for source usage
+    __version__ = (Path(__file__).resolve().parent.parent / "VERSION").read_text().strip()
+
 __author__ = "Chel"
 __email__ = "chel.china@gmail.com"
 __description__ = "高级网格参数优化工具"

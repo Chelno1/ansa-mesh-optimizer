@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ansa-mesh-optimizer"
-version = "2.1.0"
+dynamic = ["version"]
 description = "高级网格参数优化工具"
 readme = "docs/readme.md"
 license = {file = "LICENSE"}
@@ -56,6 +56,9 @@ exclude = ["tests*"]
 
 [tool.setuptools.package-dir]
 "ansa_mesh_optimizer" = "src"
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION"}
 
 [tool.black]
 line-length = 88
