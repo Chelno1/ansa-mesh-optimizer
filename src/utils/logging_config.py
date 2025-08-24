@@ -403,7 +403,7 @@ def create_logger(name: str, level: Optional[Union[str, int]] = None) -> logging
 
     if level is not None:
         logger.setLevel(
-            LoggingConfig().LEVEL_MAP.get(str(level).upper(), logging.INFO)
+            LoggingConfig.LEVEL_MAP.get(str(level).upper(), logging.INFO)
             if isinstance(level, str)
             else level
         )
@@ -427,7 +427,7 @@ def configure_module_logging(module_name: str, level: Union[str, int]) -> None:
         # 如果全局配置不存在，直接配置模块日志记录器
         logger = logging.getLogger(module_name)
         logger.setLevel(
-            LoggingConfig().LEVEL_MAP.get(str(level).upper(), logging.INFO)
+            LoggingConfig.LEVEL_MAP.get(str(level).upper(), logging.INFO)
             if isinstance(level, str)
             else level
         )
