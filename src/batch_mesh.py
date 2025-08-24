@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import logging
 import sys
-import time
 import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -78,12 +77,8 @@ try:
         AnsaBatchConfig,
         AnsaBatchMeshRunner,
         QualityReportGenerator,
-        ResultAnalyzer,
         create_default_config,
         load_config_from_file,
-        run_batch_mesh as run_batch_mesh_simple,
-        check_element_quality_simple,
-        generate_quality_report,
         analyze_quality_results,
     )
 except ImportError:
@@ -93,25 +88,10 @@ except ImportError:
         AnsaBatchConfig,
         AnsaBatchMeshRunner,
         QualityReportGenerator,
-        ResultAnalyzer,
         create_default_config,
         load_config_from_file,
-        run_batch_mesh as run_batch_mesh_simple,
-        check_element_quality_simple,
-        generate_quality_report,
         analyze_quality_results,
     )
-
-# 安全导入Ansa模块
-ANSA_AVAILABLE = False
-try:
-    from ansa import base, constants, mesh
-
-    ANSA_AVAILABLE = True
-    logger.info("Ansa模块加载成功")
-except ImportError as e:
-    logger.warning(f"Ansa模块未找到: {e}")
-    logger.info("将使用模拟模式运行")
 
 # 为了向后兼容，重新导出类
 AnsaBatchConfig = AnsaBatchConfig

@@ -9,6 +9,7 @@
 功能: 提供简化的配置管理，减少复杂性，保持向后兼容性
 """
 
+import importlib.util
 import json
 import logging
 from dataclasses import dataclass, field
@@ -89,12 +90,8 @@ class SimpleOptimizationConfig:
         """获取可用的优化器列表"""
         available = ["random", "genetic"]
 
-        try:
-            import skopt
-
+        if importlib.util.find_spec("skopt") is not None:
             available.extend(["bayesian", "forest"])
-        except ImportError:
-            pass
 
         return available
 

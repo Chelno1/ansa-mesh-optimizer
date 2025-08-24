@@ -154,9 +154,6 @@ __all__ = [
     "PATTERNS",
 ]
 
-# 从主包导入版本信息
-from src import __version__, __author__
-
 # 模块说明
 __doc_modules__ = {
     "utils": "参数验证和类型转换",

@@ -47,7 +47,7 @@ class Individual:
         for i, (gene, (low, high), param_type) in enumerate(
             zip(self.genes, self.bounds, self.param_types)
         ):
-            if param_type == int:
+            if param_type is int:
                 self.genes[i] = max(low, min(high, round(gene)))
             else:
                 self.genes[i] = max(low, min(high, gene))
@@ -56,7 +56,7 @@ class Individual:
         """转换为参数字典"""
         params = {}
         for i, name in enumerate(param_names):
-            if self.param_types[i] == int:
+            if self.param_types[i] is int:
                 params[name] = int(round(self.genes[i]))
             else:
                 params[name] = self.genes[i]
@@ -80,7 +80,7 @@ class Individual:
             if random.random() < adaptive_rate:
                 low, high = self.bounds[i]
 
-                if self.param_types[i] == int:
+                if self.param_types[i] is int:
                     # 整数变异
                     range_size = max(1, int((high - low) * 0.1))
                     delta = random.randint(-range_size, range_size)
@@ -119,7 +119,7 @@ class Individual:
         child2_genes = []
 
         for i in range(len(self.genes)):
-            if self.param_types[i] == int:
+            if self.param_types[i] is int:
                 # 整数参数使用均匀交叉
                 if random.random() < 0.5:
                     child1_genes.append(self.genes[i])
@@ -216,7 +216,7 @@ def create_individual(
     """
     genes = []
     for (low, high), param_type in zip(bounds, param_types):
-        if param_type == int:
+        if param_type is int:
             gene = random.randint(int(low), int(high))
         else:
             gene = random.uniform(low, high)

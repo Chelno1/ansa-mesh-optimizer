@@ -414,7 +414,7 @@ def gaussian_mutation(
         if random.random() < mutation_rate:
             low, high = individual.bounds[i]
 
-            if individual.param_types[i] == int:
+            if individual.param_types[i] is int:
                 # 整数变异
                 range_size = max(1, int((high - low) * mutation_strength))
                 delta = random.randint(-range_size, range_size)
