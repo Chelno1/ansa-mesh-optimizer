@@ -57,7 +57,7 @@ def cmd_test(args, modules) -> int:
             import os
 
             default_config_path = os.path.join(
-                os.path.dirname(os.path.dirname(__file__)), "default_config.json"
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src", "default_config.json"
             )
             # 直接使用类创建实例
             config_manager_class = UnifiedConfigManager
@@ -164,7 +164,7 @@ def run_basic_tests(
             import os
 
             default_config_path = os.path.join(
-                os.path.dirname(os.path.dirname(__file__)), "default_config.json"
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src", "default_config.json"
             )
 
             result = optimize_mesh_parameters(
@@ -197,7 +197,7 @@ def run_basic_tests(
                 import os
 
                 default_config_path = os.path.join(
-                    os.path.dirname(os.path.dirname(__file__)), "default_config.json"
+                    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src", "default_config.json"
                 )
 
                 comparison_results = compare_optimizers(

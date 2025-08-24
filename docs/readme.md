@@ -293,7 +293,7 @@ python install_chinese_fonts.py
 
 ```bash
 # 生成默认配置文件
-python -m src.cli.cli_main config generate --output default_config.json
+python -m src.cli.cli_main config generate --output src/default_config.json
 
 # 生成示例配置文件
 python -m src.cli.cli_main config generate --output example_config.json --example

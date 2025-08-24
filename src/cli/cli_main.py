@@ -41,7 +41,7 @@ def create_parser() -> argparse.ArgumentParser:
   python main.py info --check-deps
 
   # 使用真实Ansa评估器
-  python main.py optimize --optimizer genetic --evaluator ansa --config my_config.json
+  python main.py optimize --optimizer genetic --evaluator ansa --config src/default_config.json
         """,
     )
 

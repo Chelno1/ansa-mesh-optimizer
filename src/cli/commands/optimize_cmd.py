@@ -88,10 +88,10 @@ def cmd_optimize(args, modules) -> int:
                 print("❌ 错误: 未指定配置文件")
                 print("请使用 --config 参数指定配置文件路径")
                 print(
-                    "示例: python main.py optimize --config my_config.json --optimizer bayesian"
+                    "示例: python main.py optimize --config src/default_config.json --optimizer bayesian"
                 )
                 print("可以使用以下命令生成默认配置文件:")
-                print("  python main.py config generate --output my_config.json")
+                print("  python main.py config generate --output src/default_config.json")
                 return 1
 
             # 创建配置管理器并加载配置
