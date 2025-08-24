@@ -24,7 +24,13 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 # 导入统一的版本号
-from src import __version__
+try:
+    from .. import __version__
+except ImportError:  # pragma: no cover
+    import sys
+
+    sys.path.append(str(Path(__file__).resolve().parents[2]))
+    from src import __version__
 
 logger = logging.getLogger(__name__)
 
