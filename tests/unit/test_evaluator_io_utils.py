@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-网格评估器工具函数单元测试
+网格评估器 I/O 工具函数单元测试
 
 作者: Chel
 创建日期: 2025-08-24
@@ -17,7 +17,6 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.evaluators.utils import normalize_params
 from src.evaluators.io_utils import (
     create_timestamped_temp_dir,
     copy_mpar_files_to_temp_dir,
@@ -31,8 +30,8 @@ from src.evaluators.io_utils import (
 )
 
 
-class TestEvaluatorUtils(unittest.TestCase):
-    """评估器工具函数测试类"""
+class TestEvaluatorIOUtils(unittest.TestCase):
+    """评估器 I/O 工具函数测试类"""
     
     def setUp(self) -> None:
         """测试前准备"""
@@ -44,35 +43,6 @@ class TestEvaluatorUtils(unittest.TestCase):
         
         self.temp_dir = tempfile.mkdtemp()
         self.addCleanup(lambda: shutil.rmtree(self.temp_dir, ignore_errors=True))
-    
-    def test_normalize_params(self):
-        """测试参数标准化"""
-        # 测试正常的float参数
-        params = {'param1': 1.5, 'param2': 2.0}
-        normalized = normalize_params(params)
-        self.assertEqual(normalized, {'param1': 1.5, 'param2': 2.0})
-        
-        # 测试字符串数字
-        params = {'param1': '1.5', 'param2': '2'}
-        normalized = normalize_params(params)
-        self.assertEqual(normalized, {'param1': 1.5, 'param2': 2.0})
-        
-        # 测试整数
-        params = {'param1': 1, 'param2': 2}
-        normalized = normalize_params(params)
-        self.assertEqual(normalized, {'param1': 1.0, 'param2': 2.0})
-    
-    @patch('src.evaluators.utils.numpy', create=True)
-    def test_normalize_params_with_numpy(self, mock_numpy):
-        """测试numpy类型参数标准化"""
-        # 模拟numpy scalar
-        mock_value = MagicMock()
-        mock_value.item.return_value = 1.5
-        params = {'param1': mock_value}
-        
-        normalized = normalize_params(params)
-        self.assertEqual(normalized['param1'], 1.5)
-        mock_value.item.assert_called_once()
     
     def test_create_timestamped_temp_dir(self):
         """测试创建时间戳临时目录"""
@@ -267,9 +237,15 @@ class TestEvaluatorUtils(unittest.TestCase):
         mpar_file = Path(self.temp_dir) / 'test.ansa_mpar'
         mpar_file.write_text('original content')
         
-        # 创建模拟的参数替换器，返回相同文件路径（模拟就地更新）
+        # 创建一个在临时目录外的更新文件
+        external_temp_dir = tempfile.mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(external_temp_dir, ignore_errors=True))
+        updated_file = Path(external_temp_dir) / 'updated.ansa_mpar'
+        updated_file.write_text('updated content')
+        
+        # 创建模拟的参数替换器，返回外部文件路径
         mock_replacer = MagicMock()
-        mock_replacer.process_parameter_replacements.return_value = str(mpar_file)
+        mock_replacer.process_parameter_replacements.return_value = str(updated_file)
         
         params = {'param1': 1.0}
         
@@ -281,8 +257,11 @@ class TestEvaluatorUtils(unittest.TestCase):
             str(mpar_file), params
         )
         
-        # 验证文件内容保持不变（因为返回的是相同路径）
-        self.assertEqual(mpar_file.read_text(), 'original content')
+        # 验证原文件内容被更新
+        self.assertEqual(mpar_file.read_text(), 'updated content')
+        
+        # 验证更新后的文件被清理
+        self.assertFalse(updated_file.exists())
     
     def test_process_parameter_files_no_mpar(self):
         """测试当没有mpar文件时的处理"""

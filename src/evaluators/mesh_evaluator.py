@@ -11,9 +11,7 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, List, Tuple, Any, Union
-import subprocess
-import os
+from typing import Dict, Optional
 import logging
 from pathlib import Path
 import time
@@ -29,8 +27,8 @@ from src.utils.parameter_validator import get_parameter_validator
 from src.evaluators.parameter_replacement_strategies import ParameterReplacementManager, format_mpar_parameter_value
 
 # 导入重构后的工具模块
-from src.evaluators.utils import (
-    normalize_params,
+from src.evaluators.utils import normalize_params
+from src.evaluators.io_utils import (
     create_timestamped_temp_dir,
     copy_mpar_files_to_temp_dir,
     create_temp_config_in_dir,
@@ -188,7 +186,7 @@ class AnsaMeshEvaluator(MeshEvaluator):
             #     cleanup_temp_directory(temp_dir_var)
     
     def _run_ansa_batch(self, temp_dir: str) -> float:
-        """运行Ansa批处理 - 使用环境模块"""
+        """运行Ansa批处理 - 简化版本"""
         try:
             # 构建Ansa命令
             ansa_command = [
@@ -221,18 +219,8 @@ class AnsaMeshEvaluator(MeshEvaluator):
             bad_elements_count = parse_ansa_output(result.stdout)
             return bad_elements_count
             
-        except subprocess.TimeoutExpired:
-            logger.error(f"Ansa执行超时({self.config.execution_timeout}秒)")
-            return simulate_evaluation()
-        except FileNotFoundError:
-            logger.error(f"Ansa可执行文件未找到: {self.config.ansa_executable}")
-            logger.info("使用模拟模式")
-            return simulate_evaluation()
-        except PermissionError:
-            logger.error("没有权限执行Ansa")
-            return simulate_evaluation()
         except Exception as e:
-            logger.exception(f"Ansa执行时发生意外错误: {e}")
+            logger.error(f"Ansa批处理执行失败: {e}")
             return simulate_evaluation()
 
 
