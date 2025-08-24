@@ -175,7 +175,7 @@ class SimpleAnsaConfig:
 
     ansa_executable: str = "ansa"
     script_dir: Path = field(default_factory=lambda: Path("src"))
-    input_model: str = "input_model.ansa"
+    input_model_path: str = "input_model.ansa"  # 直接使用绝对路径字段，替代原有的input_model
     output_dir: Path = field(default_factory=lambda: Path("output"))
     mpar_file_pattern: str = "*.ansa_mpar"
     qual_file_pattern: str = "*.ansa_qual"
@@ -206,9 +206,26 @@ class SimpleAnsaConfig:
         if self.max_memory_usage <= 0:
             errors.append("max_memory_usage must be positive")
 
+        # 验证输入模型路径
+        if self.input_model_path and not Path(self.input_model_path).exists():
+            errors.append(f"input_model_path does not exist: {self.input_model_path}")
+
         if errors:
             return False, "; ".join(errors)
         return True, None
+    
+    def get_input_model_path(self, base_dir: Optional[Path] = None) -> str:
+        """
+        获取输入模型文件的完整路径
+        
+        Args:
+            base_dir: 基础目录（为保持接口兼容性保留，但实际不使用）
+            
+        Returns:
+            输入模型文件的绝对路径
+        """
+        # 直接返回 input_model_path
+        return self.input_model_path
 
     def ensure_output_dir(self):
         """确保输出目录存在"""
@@ -691,7 +708,7 @@ class SimpleConfigManager:
 
             example_ansa_config = SimpleAnsaConfig(
                 ansa_executable="ansa",
-                input_model="example_model.ansa",
+                input_model_path="example_model.ansa",
                 execution_timeout=600,
                 quality_check_enabled=True,
             )

@@ -91,13 +91,16 @@ class AnsaRunner:
         Returns:
             ANSA命令列表
         """
+        # 使用新的路径解析逻辑
+        input_model_path = self.config.get_input_model_path(self.cwd_dir)
+        
         return [
             self.config.ansa_executable,
             "-b",
             "-execpy",
             f"load_script: '{self.config.script_dir / self.config.batch_script}'",
             "-i",
-            f"{self.cwd_dir / self.config.input_model}",
+            input_model_path,
             "-changedir",
             temp_dir,
         ]
@@ -109,7 +112,8 @@ class AnsaRunner:
         Returns:
             验证是否成功
         """
-        input_model_path = str(self.cwd_dir / self.config.input_model)
+        # 使用新的路径解析逻辑
+        input_model_path = self.config.get_input_model_path(self.cwd_dir)
         batch_script_path = str(self.config.script_dir / self.config.batch_script)
 
         is_valid, error_msg = check_input_files(input_model_path, batch_script_path)
@@ -121,7 +125,7 @@ class AnsaRunner:
 
     def get_input_model_path(self) -> str:
         """获取输入模型文件路径"""
-        return str(self.cwd_dir / self.config.input_model)
+        return self.config.get_input_model_path(self.cwd_dir)
 
     def get_batch_script_path(self) -> str:
         """获取批处理脚本路径"""

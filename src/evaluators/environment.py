@@ -188,8 +188,14 @@ class AnsaEnvironmentValidator:
             self.error_message = error_msg
             return False
 
-        # 验证输入文件
-        input_model_path = getattr(self.config, "input_model", "")
+        # 验证输入文件 - 使用新的路径解析逻辑
+        if hasattr(self.config, 'get_input_model_path'):
+            # 使用新的路径解析方法
+            input_model_path = self.config.get_input_model_path()
+        else:
+            # 兼容旧的配置对象
+            input_model_path = getattr(self.config, "input_model", "")
+        
         batch_script_path = getattr(self.config, "script_dir", Path()) / getattr(
             self.config, "batch_script", ""
         )

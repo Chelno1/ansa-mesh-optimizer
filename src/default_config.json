@@ -21,7 +21,7 @@
   "ansa": {
     "ansa_executable": "ansa",
     "script_dir": "src",
-    "input_model": "input_model.ansa",
+    "input_model_path": "/absolute/path/to/input_model.ansa",
     "output_dir": "output",
     "mpar_file_pattern": "*.ansa_mpar",
     "qual_file_pattern": "*.ansa_qual",
