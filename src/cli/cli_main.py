@@ -10,12 +10,10 @@ import logging
 
 # 导入统一的日志配置
 from src.utils.logging_config import setup_cli_logging
+# 导入统一的版本号
+from src import __version__, APP_VERSION, APP_NAME
 
 logger = logging.getLogger(__name__)
-
-# 全局变量
-APP_VERSION = "2.1.0"
-APP_NAME = "Ansa Mesh Optimizer"
 
 
 def create_parser() -> argparse.ArgumentParser:

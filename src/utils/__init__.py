@@ -154,9 +154,8 @@ __all__ = [
     "PATTERNS",
 ]
 
-# 版本信息
-__version__ = "2.0.0"
-__author__ = "Chel"
+# 从主包导入版本信息
+from src import __version__, __author__
 
 # 模块说明
 __doc_modules__ = {

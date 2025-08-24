@@ -23,6 +23,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
+# 导入统一的版本号
+from src import __version__
+
 logger = logging.getLogger(__name__)
 
 
@@ -565,7 +568,7 @@ class OptimizationCache:
             "misses": self.misses,
             "total_requests": self.total_requests,
             "saved_at": datetime.now().isoformat(),
-            "version": "1.2.0",
+            "version": __version__,
         }
 
         # 选择保存格式

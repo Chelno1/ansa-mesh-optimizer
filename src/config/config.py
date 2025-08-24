@@ -16,6 +16,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+# 导入统一的版本号
+from src import __version__
+
 logger = logging.getLogger(__name__)
 
 
@@ -662,7 +665,7 @@ class SimpleConfigManager:
                     for name, param in self.parameter_space.parameters.items()
                 },
                 "metadata": {
-                    "version": "2.0.0",
+                    "version": __version__,
                     "created_by": "SimpleConfigManager",
                     "description": "Simplified Ansa mesh optimizer configuration",
                 },
@@ -730,7 +733,7 @@ class SimpleConfigManager:
                     for name, param in example_param_space.parameters.items()
                 },
                 "metadata": {
-                    "version": "2.0.0",
+                    "version": __version__,
                     "created_by": "SimpleConfigManager",
                     "description": "Example Ansa mesh optimizer configuration with selected parameters",
                 },

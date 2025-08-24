@@ -6,6 +6,9 @@ import logging
 import time
 import traceback
 
+# 导入统一的版本号
+from src import APP_NAME, APP_VERSION
+
 
 def register_optimize_command(subparsers):
     """注册优化命令"""
@@ -177,9 +180,6 @@ def save_optimization_result(
     import json
     import time
     from pathlib import Path
-
-    APP_NAME = "Ansa Mesh Optimizer"
-    APP_VERSION = "2.1.0"
 
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)

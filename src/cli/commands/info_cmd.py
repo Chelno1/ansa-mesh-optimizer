@@ -5,6 +5,9 @@
 import sys
 from pathlib import Path
 
+# 导入统一的版本号
+from src import APP_NAME, APP_VERSION
+
 
 def register_info_command(subparsers):
     """注册信息命令"""
@@ -16,9 +19,6 @@ def register_info_command(subparsers):
 
 def cmd_info(args, modules=None) -> int:
     """显示系统信息"""
-    APP_NAME = "Ansa Mesh Optimizer"
-    APP_VERSION = "1.3.0"
-
     print(f"📋 {APP_NAME} v{APP_VERSION}")
     print("=" * 50)
 
