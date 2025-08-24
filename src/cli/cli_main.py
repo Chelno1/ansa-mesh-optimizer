@@ -72,8 +72,8 @@ def create_parser() -> argparse.ArgumentParser:
             logger.debug("动态加载命令模块: %s", module_name)
 
             # 构建完整的模块路径并动态导入
-            full_module_path = f"src.cli.commands.{module_name}"
-            module = importlib.import_module(full_module_path)
+            full_module_path = f".commands.{module_name}"
+            module = importlib.import_module(full_module_path, package=__package__)
 
             # 获取注册函数并调用
             register_func = getattr(module, register_func_name)
