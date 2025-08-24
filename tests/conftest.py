@@ -12,7 +12,23 @@ import tempfile
 from pathlib import Path
 from typing import Dict, Generator
 
+import importlib
+import sys
+
 import pytest
+
+# Ensure the source package can be imported as ``ansa_mesh_optimizer``
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SRC_DIR = PROJECT_ROOT / "src"
+
+# Add the ``src`` directory to ``sys.path`` if it's not already there
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+# Alias the ``src`` package to ``ansa_mesh_optimizer`` so tests can import
+# the package as if it were installed.
+src_module = importlib.import_module("src")
+sys.modules.setdefault("ansa_mesh_optimizer", src_module)
 
 
 @pytest.fixture
