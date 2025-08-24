@@ -10,38 +10,36 @@
 功能: 提供统一的错误处理装饰器和工具函数
 """
 
+import functools
 import logging
 import traceback
-import functools
-from typing import Any, Callable, Optional, Type, Union
 from pathlib import Path
+from typing import Any, Callable, Optional, Type, Union
 
 # 从exceptions.py导入异常类
+from .exceptions import AnsaMeshOptimizerError as MeshOptimizerError
 from .exceptions import (
-    AnsaMeshOptimizerError as MeshOptimizerError,
-    ConfigurationError,
-    ValidationError,
-    OptimizationError,
-    EvaluationError,
+    DependencyError,
     FileOperationError,
-    DependencyError
+    ValidationError,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def safe_execute(func: Callable, *args, default_return=None, 
-                 log_errors: bool = True, **kwargs) -> Any:
+def safe_execute(
+    func: Callable, *args, default_return=None, log_errors: bool = True, **kwargs
+) -> Any:
     """
     安全执行函数，捕获并记录异常
-    
+
     Args:
         func: 要执行的函数
         *args: 函数参数
         default_return: 异常时的默认返回值
         log_errors: 是否记录错误
         **kwargs: 函数关键字参数
-        
+
     Returns:
         函数执行结果或默认值
     """
@@ -58,11 +56,11 @@ def handle_exceptions(
     exception_map: Optional[dict] = None,
     default_exception: Type[Exception] = MeshOptimizerError,
     log_errors: bool = True,
-    return_none_on_error: bool = False
+    return_none_on_error: bool = False,
 ):
     """
     异常处理装饰器
-    
+
     Args:
         exception_map: 异常映射字典
         default_exception: 默认异常类型
@@ -77,7 +75,7 @@ def handle_exceptions(
             TypeError: ValidationError,
             ImportError: DependencyError,
         }
-    
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -87,83 +85,78 @@ def handle_exceptions(
                 if log_errors:
                     logger.error(f"函数 {func.__name__} 执行失败: {e}")
                     logger.debug(f"错误详情: {traceback.format_exc()}")
-                
+
                 # 如果已经是自定义异常，直接抛出
                 if isinstance(e, MeshOptimizerError):
                     if return_none_on_error:
                         return None
                     raise
-                
+
                 # 映射标准异常为自定义异常
                 exception_type = type(e)
                 if exception_type in exception_map:
                     custom_exception = exception_map[exception_type]
                     mapped_exc = custom_exception(
-                        str(e),
-                        details={'original_exception': str(e)}
+                        str(e), details={"original_exception": str(e)}
                     )
                     if return_none_on_error:
                         return None
                     raise mapped_exc from e
-                
+
                 # 未知异常包装为默认异常
                 default_exc = default_exception(
-                    f"未知错误: {str(e)}", 
-                    details={'original_exception': str(e)}
+                    f"未知错误: {str(e)}", details={"original_exception": str(e)}
                 )
                 if return_none_on_error:
                     return None
                 raise default_exc from e
-        
+
         return wrapper
+
     return decorator
 
 
 def validate_file_path(file_path: Union[str, Path], must_exist: bool = True) -> Path:
     """
     验证文件路径
-    
+
     Args:
         file_path: 文件路径
         must_exist: 文件是否必须存在
-        
+
     Returns:
         验证后的Path对象
-        
+
     Raises:
         FileOperationError: 路径验证失败
     """
     try:
         path = Path(file_path)
-        
+
         if must_exist and not path.exists():
             raise FileOperationError(
-                f"文件不存在: {path}",
-                file_path=str(path),
-                operation="validate"
+                f"文件不存在: {path}", file_path=str(path), operation="validate"
             )
-        
+
         return path
     except Exception as e:
         if isinstance(e, FileOperationError):
             raise
         raise FileOperationError(
-            f"路径验证失败: {e}",
-            file_path=str(file_path),
-            operation="validate"
+            f"路径验证失败: {e}", file_path=str(file_path), operation="validate"
         ) from e
 
 
 def ensure_directory(dir_path: Union[str, Path]) -> Path:
     """
     确保目录存在
-    
+
     Args:
         dir_path: 目录路径
-        
+
     Returns:
         目录Path对象
-        
+
     Raises:
         FileOperationError: 目录创建失败
     """
@@ -173,22 +166,21 @@ def ensure_directory(dir_path: Union[str, Path]) -> Path:
         return path
     except Exception as e:
         raise FileOperationError(
-            f"创建目录失败: {e}",
-            file_path=str(dir_path),
-            operation="create_directory"
+            f"创建目录失败: {e}", file_path=str(dir_path), operation="create_directory"
         ) from e
 
 
 def log_function_call(func: Callable) -> Callable:
     """
     记录函数调用的装饰器
-    
+
     Args:
         func: 要装饰的函数
-        
+
     Returns:
         装饰后的函数
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         logger.debug(f"调用函数: {func.__name__}")
@@ -199,33 +191,37 @@ def log_function_call(func: Callable) -> Callable:
         except Exception as e:
             logger.error(f"函数 {func.__name__} 执行失败: {e}")
             raise
-    
+
     return wrapper
 
 
-def retry_on_failure(max_retries: int = 3, delay: float = 1.0, 
-                    backoff_factor: float = 2.0,
-                    exceptions: tuple = (Exception,)) -> Callable:
+def retry_on_failure(
+    max_retries: int = 3,
+    delay: float = 1.0,
+    backoff_factor: float = 2.0,
+    exceptions: tuple = (Exception,),
+) -> Callable:
     """
     失败重试装饰器
-    
+
     Args:
         max_retries: 最大重试次数
         delay: 初始延迟时间
         backoff_factor: 退避因子
         exceptions: 要捕获的异常类型
-        
+
     Returns:
         装饰器函数
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             import time
-            
+
             current_delay = delay
             last_exception = None
-            
+
             for attempt in range(max_retries + 1):
                 try:
                     return func(*args, **kwargs)
@@ -243,43 +239,44 @@ def retry_on_failure(max_retries: int = 3, delay: float = 1.0,
                         )
                         time.sleep(current_delay)
                         current_delay *= backoff_factor
-            
+
             # 这行代码理论上不会执行到，但为了类型检查
             if last_exception:
                 raise last_exception
-        
+
         return wrapper
+
     return decorator
 
 
 class ErrorContext:
     """错误上下文管理器"""
-    
+
     def __init__(self, operation: str, log_errors: bool = True):
         self.operation = operation
         self.log_errors = log_errors
         self.error_occurred = False
         self.error_details = None
-    
+
     def __enter__(self):
         logger.debug(f"开始操作: {self.operation}")
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
             self.error_occurred = True
             self.error_details = {
-                'type': exc_type.__name__,
-                'message': str(exc_val),
-                'traceback': traceback.format_exc()
+                "type": exc_type.__name__,
+                "message": str(exc_val),
+                "traceback": traceback.format_exc(),
             }
-            
+
             if self.log_errors:
                 logger.error(f"操作 {self.operation} 失败: {exc_val}")
                 logger.debug(f"错误详情: {traceback.format_exc()}")
         else:
             logger.debug(f"操作 {self.operation} 成功完成")
-        
+
         # 返回False表示不抑制异常
         return False
 
@@ -293,10 +290,10 @@ def create_error_context(operation: str, log_errors: bool = True) -> ErrorContex
 def format_error_message(error: Exception, include_traceback: bool = False) -> str:
     """格式化错误消息"""
     message = f"{type(error).__name__}: {str(error)}"
-    
+
     if include_traceback:
         message += f"\n{traceback.format_exc()}"
-    
+
     return message
 
 
@@ -304,15 +301,12 @@ def format_error_message(error: Exception, include_traceback: bool = False) -> s
 def setup_global_error_handler():
     """设置全局错误处理器"""
     import sys
-    
+
     def handle_exception(exc_type, exc_value, exc_traceback):
         if issubclass(exc_type, KeyboardInterrupt):
             sys.__excepthook__(exc_type, exc_value, exc_traceback)
             return
-        
-        logger.critical(
-            "未捕获的异常",
-            exc_info=(exc_type, exc_value, exc_traceback)
-        )
-    
+
+        logger.critical("未捕获的异常", exc_info=(exc_type, exc_value, exc_traceback))
+
     sys.excepthook = handle_exception

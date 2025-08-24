@@ -7,4 +7,4 @@
 from .comparison_reporter import ComparisonReporter
 from .optimization_reporter import OptimizationReporter
 
-__all__ = ['ComparisonReporter', 'OptimizationReporter']
+__all__ = ["ComparisonReporter", "OptimizationReporter"]

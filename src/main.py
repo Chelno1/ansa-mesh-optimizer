@@ -12,10 +12,12 @@ Ansa网格优化器主程序 - 重构版本
 
 import sys
 
+
 def main() -> int:
     """主函数 - 改进的错误处理"""
     try:
         from src.cli.cli_main import main_cli
+
         return main_cli()
     except ImportError as e:
         print(f"❌ CLI模块导入失败: {e}")
@@ -34,6 +36,7 @@ def main() -> int:
         print(f"💥 未捕获的异常: {e}")
         print("🔍 如需调试信息，请使用 --debug 参数")
         return 1
+
 
 if __name__ == "__main__":
     try:

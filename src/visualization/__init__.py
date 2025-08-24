@@ -7,4 +7,4 @@
 from .comparison_visualizer import ComparisonVisualizer
 from .optimization_visualizer import OptimizationVisualizer
 
-__all__ = ['ComparisonVisualizer', 'OptimizationVisualizer']
+__all__ = ["ComparisonVisualizer", "OptimizationVisualizer"]
