@@ -26,7 +26,9 @@ import queue
 import pickle
 
 # 导入基础组件
-from .genetic_optimizer import GeneticOptimizer, GeneticConfig, Individual
+from .genetic_optimizer import GeneticOptimizer
+from .genetic_config import GeneticConfig
+from .individual import Individual
 from .optimizer_config import OptimizationResult
 
 logger = logging.getLogger(__name__)
@@ -584,6 +586,9 @@ class ParallelGeneticOptimizer(GeneticOptimizer):
         self.diversity_engine = ParallelDiversityEngine(self.parallel_config)
         self.performance_monitor = PerformanceMonitor()
         
+        # 保持对最佳个体的引用以兼容性
+        self.best_individual = None
+        
         logger.info(f"并行遗传算法优化器初始化完成 - 工作进程数: {self.parallel_config.n_workers}")
     
     def optimize(self, n_calls: int, **kwargs) -> OptimizationResult:
@@ -606,7 +611,7 @@ class ParallelGeneticOptimizer(GeneticOptimizer):
         try:
             # 初始化种群
             with self.performance_monitor.measure_time('initialization'):
-                population = self._initialize_population(population_size)
+                population = self.evolution_engine.initialize_population(population_size)
             
             # 并行评估初始种群
             with self.performance_monitor.measure_time('initial_evaluation'):
@@ -616,17 +621,20 @@ class ParallelGeneticOptimizer(GeneticOptimizer):
             valid_individuals = [ind for ind in population if ind.fitness != float('inf')]
             if not valid_individuals:
                 logger.warning("初始种群中没有有效个体")
-                return self._generate_result(0, total_evaluations, time.time() - start_time)
+                return self._generate_parallel_result(0, total_evaluations, time.time() - start_time)
             
             generation = 0
+            generation_stats = []
             
             # 进化循环
             for generation in range(max_generations):
                 # 记录统计信息
-                self._record_generation_stats(population, generation)
+                stats = self.evolution_engine.record_generation_stats(population, generation)
+                if stats:
+                    generation_stats.append(stats)
                 
                 # 检查收敛
-                if self._check_convergence():
+                if self.evolution_engine.check_convergence():
                     logger.info(f"在第{generation}代检测到收敛")
                     break
                 
@@ -642,7 +650,9 @@ class ParallelGeneticOptimizer(GeneticOptimizer):
                     total_evaluations += new_evaluations
                 
                 population = new_population
-                self._update_best_individual(population)
+                self.best_individual = self.evolution_engine.update_best_individual(
+                    population, self.best_individual
+                )
                 
                 # 检查评估次数限制
                 if total_evaluations >= n_calls:
@@ -654,7 +664,7 @@ class ParallelGeneticOptimizer(GeneticOptimizer):
                     self._log_performance_stats(generation, total_evaluations)
             
             execution_time = time.time() - start_time
-            result = self._generate_result(generation + 1, total_evaluations, execution_time)
+            result = self._generate_parallel_result(generation + 1, total_evaluations, execution_time, generation_stats)
             
             # 记录性能摘要
             performance_summary = self.performance_monitor.get_performance_summary()
@@ -667,7 +677,7 @@ class ParallelGeneticOptimizer(GeneticOptimizer):
         except Exception as e:
             logger.error(f"并行优化异常: {e}")
             execution_time = time.time() - start_time
-            return self._generate_result(0, 0, execution_time)
+            return self._generate_parallel_result(0, 0, execution_time, [])
         
         finally:
             # 清理资源
@@ -753,13 +763,13 @@ class ParallelGeneticOptimizer(GeneticOptimizer):
         
         for _ in range((batch_size + 1) // 2):  # 确保生成足够的后代
             # 选择父母
-            parent1 = self._selection(population)
-            parent2 = self._selection(population)
+            parent1 = self.evolution_engine.selection(population)
+            parent2 = self.evolution_engine.selection(population)
             
             # 确保父母不同
             attempts = 0
             while parent1 is parent2 and attempts < 10:
-                parent2 = self._selection(population)
+                parent2 = self.evolution_engine.selection(population)
                 attempts += 1
             
             # 交叉
@@ -791,6 +801,21 @@ class ParallelGeneticOptimizer(GeneticOptimizer):
             logger.info(f"第{generation}代: 最佳适应度={best_fitness:.6f}, "
                        f"多样性={diversity:.4f}, 评估次数={total_evaluations}, "
                        f"内存使用={memory_usage:.1%}, CPU使用={cpu_usage:.1%}")
+    
+    def _generate_parallel_result(self, total_generations: int, total_evaluations: int,
+                                execution_time: float, generation_stats: Optional[List[Dict[str, Any]]] = None) -> OptimizationResult:
+        """生成并行优化结果"""
+        if generation_stats is None:
+            generation_stats = []
+            
+        return self.analyzer.generate_optimization_result(
+            best_individual=self.best_individual,
+            generation_stats=generation_stats,
+            evolution_engine=self.evolution_engine,
+            total_generations=total_generations,
+            total_evaluations=total_evaluations,
+            execution_time=execution_time
+        )
     
     def _cleanup_parallel_resources(self):
         """清理并行资源"""

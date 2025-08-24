@@ -58,6 +58,15 @@ from .genetic_optimizer import (
     create_genetic_optimizer
 )
 
+# 新的模块化组件
+from .evolution_loop import (
+    EvolutionLoop
+)
+
+from .optimizer_analysis import (
+    OptimizerAnalyzer
+)
+
 __all__ = [
     # 原有的优化器策略
     'OptimizerStrategy',
@@ -95,5 +104,9 @@ __all__ = [
     
     # 遗传算法优化器
     'GeneticOptimizer',
-    'create_genetic_optimizer'
+    'create_genetic_optimizer',
+    
+    # 新的模块化组件
+    'EvolutionLoop',
+    'OptimizerAnalyzer'
 ]
