@@ -127,6 +127,7 @@ dmypy.json
 *.cache
 *.log
 optimization_cache.pkl
+optimization_cache.gz
 optimization_reports/
 comparison_results_*/
 *.png
