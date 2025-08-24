@@ -21,13 +21,6 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-# 导入统一的日志配置
-from ..utils.logging_config import setup_logging
-
-# 配置日志（如果还没有配置）
-if not logging.getLogger().handlers:
-    setup_logging(level="INFO")
-
 logger = logging.getLogger(__name__)
 
 # 本地模块导入
