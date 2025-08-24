@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 # 导入统一的日志配置
-from src.utils.logging_config import setup_logging
+from ..utils.logging_config import setup_logging
 
 # 配置日志（如果还没有配置）
 if not logging.getLogger().handlers:
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # 本地模块导入
 try:
     # 使用重构后的配置
-    from src.config.config import OptimizationConfig, UnifiedConfigManager
+    from ..config.config import OptimizationConfig, UnifiedConfigManager
 
     # 创建兼容性包装器
     class ConfigManagerWrapper:
@@ -84,23 +84,23 @@ try:
     logger.info("配置系统类已导入")
 
     # 导入重构后的模块
-    from src.core.early_stopping import EarlyStopping, create_early_stopping
-    from src.evaluators.mesh_evaluator import MeshEvaluator, create_mesh_evaluator
+    from .early_stopping import EarlyStopping, create_early_stopping
+    from ..evaluators.mesh_evaluator import MeshEvaluator, create_mesh_evaluator
 
     # 导入新的优化器策略模块
-    from src.optimizers import (
+    from ..optimizers import (
         OptimizationResult,
         OptimizerConfig,
         OptimizerFactory,
         create_default_config,
     )
-    from src.reports.optimization_reporter import OptimizationReporter
-    from src.utils import performance_monitor
-    from src.utils.optimization_cache import CachedEvaluator, OptimizationCache
-    from src.utils.utils import normalize_params, validate_param_types
+    from ..reports.optimization_reporter import OptimizationReporter
+    from ..utils import performance_monitor
+    from ..utils.optimization_cache import CachedEvaluator, OptimizationCache
+    from ..utils.utils import normalize_params, validate_param_types
 
     # 导入可视化和报告模块
-    from src.visualization.optimization_visualizer import OptimizationVisualizer
+    from ..visualization.optimization_visualizer import OptimizationVisualizer
 
 except ImportError as e:
     logger.error(f"本地模块导入失败: {e}")
@@ -547,7 +547,7 @@ def get_available_optimizers() -> List[str]:
 
 def check_dependencies() -> Dict[str, Any]:
     """检查依赖库状态"""
-    from src.optimizers.optimizer_strategies import SKOPT_MODULES
+    from ..optimizers.optimizer_strategies import SKOPT_MODULES
 
     result = {
         "available_optimizers": get_available_optimizers(),

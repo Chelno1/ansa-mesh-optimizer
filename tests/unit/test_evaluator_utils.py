@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from src.evaluators.io_utils import (
+from ansa_mesh_optimizer.evaluators.io_utils import (
     cleanup_temp_directory,
     cleanup_temp_files,
     copy_mpar_files_to_temp_dir,
@@ -25,7 +25,7 @@ from src.evaluators.io_utils import (
     process_parameter_files_in_temp_dir,
     simulate_evaluation,
 )
-from src.evaluators.utils import normalize_params
+from ansa_mesh_optimizer.evaluators.utils import normalize_params
 
 
 class TestEvaluatorUtils(unittest.TestCase):
@@ -59,7 +59,7 @@ class TestEvaluatorUtils(unittest.TestCase):
         normalized = normalize_params(params)
         self.assertEqual(normalized, {"param1": 1.0, "param2": 2.0})
 
-    @patch("src.evaluators.utils.numpy", create=True)
+    @patch("ansa_mesh_optimizer.evaluators.utils.numpy", create=True)
     def test_normalize_params_with_numpy(self, mock_numpy):
         """测试numpy类型参数标准化"""
         # 模拟numpy scalar
@@ -73,8 +73,8 @@ class TestEvaluatorUtils(unittest.TestCase):
 
     def test_create_timestamped_temp_dir(self):
         """测试创建时间戳临时目录"""
-        with patch("src.evaluators.io_utils.os.getcwd", return_value="/test"):
-            with patch("src.evaluators.io_utils.os.makedirs") as mock_makedirs:
+        with patch("ansa_mesh_optimizer.evaluators.io_utils.os.getcwd", return_value="/test"):
+            with patch("ansa_mesh_optimizer.evaluators.io_utils.os.makedirs") as mock_makedirs:
                 temp_dir = create_timestamped_temp_dir()
 
                 # 验证目录名格式
@@ -83,9 +83,9 @@ class TestEvaluatorUtils(unittest.TestCase):
 
     def test_create_timestamped_temp_dir_failure(self):
         """测试临时目录创建失败的情况"""
-        with patch("src.evaluators.io_utils.os.getcwd", return_value="/test"):
+        with patch("ansa_mesh_optimizer.evaluators.io_utils.os.getcwd", return_value="/test"):
             with patch(
-                "src.evaluators.io_utils.os.makedirs",
+                "ansa_mesh_optimizer.evaluators.io_utils.os.makedirs",
                 side_effect=OSError("Permission denied"),
             ):
                 temp_dir = create_timestamped_temp_dir()
@@ -157,7 +157,7 @@ class TestEvaluatorUtils(unittest.TestCase):
 
         params = {"param1": 1.0, "param2": 2.0}
 
-        with patch("src.evaluators.io_utils.tempfile.NamedTemporaryFile") as mock_temp:
+        with patch("ansa_mesh_optimizer.evaluators.io_utils.tempfile.NamedTemporaryFile") as mock_temp:
             mock_file = MagicMock()
             mock_file.name = "/tmp/test_config.txt"
             mock_temp.return_value.__enter__.return_value = mock_file

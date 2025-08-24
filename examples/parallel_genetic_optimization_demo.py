@@ -18,8 +18,8 @@ from typing import Dict, Any
 from pathlib import Path
 
 
-from src.optimizers.genetic_optimizer import GeneticOptimizer, GeneticConfig
-from src.optimizers.parallel_genetic_optimizer import ParallelGeneticOptimizer, ParallelGeneticConfig
+from ansa_mesh_optimizer.optimizers.genetic_optimizer import GeneticOptimizer, GeneticConfig
+from ansa_mesh_optimizer.optimizers.parallel_genetic_optimizer import ParallelGeneticOptimizer, ParallelGeneticConfig
 
 # 配置日志
 logging.basicConfig(

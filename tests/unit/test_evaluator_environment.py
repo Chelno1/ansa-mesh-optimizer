@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
-from src.evaluators.environment import (
+from ansa_mesh_optimizer.evaluators.environment import (
     AnsaEnvironmentValidator,
     check_input_files,
     handle_ansa_returncode,

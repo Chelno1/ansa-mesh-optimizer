@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 try:
     import matplotlib.pyplot as plt
 
-    from src.utils.display_config import (
+    from ..utils.display_config import (
         configure_matplotlib_for_display,
         safe_close,
         safe_show,
@@ -47,7 +47,7 @@ except ImportError:
 
 # 尝试导入字体装饰器
 try:
-    from src.utils.font_decorator import plotting_ready, with_chinese_font
+    from ..utils.font_decorator import plotting_ready, with_chinese_font
 
     DECORATOR_AVAILABLE = True
 except ImportError:

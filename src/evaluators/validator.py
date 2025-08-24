@@ -12,8 +12,8 @@
 import logging
 from typing import Dict, Tuple
 
-from src.evaluators.utils import normalize_params
-from src.utils.parameter_validator import get_parameter_validator
+from .utils import normalize_params
+from ..utils.parameter_validator import get_parameter_validator
 
 logger = logging.getLogger(__name__)
 

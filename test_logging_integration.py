@@ -21,7 +21,7 @@ def test_basic_logging_config():
     print("=" * 60)
     
     try:
-        from src.utils.logging_config import setup_logging, reset_logging
+        from ansa_mesh_optimizer.utils.logging_config import setup_logging, reset_logging
         
         # 重置日志配置
         reset_logging()
@@ -53,7 +53,7 @@ def test_verbose_mode():
     print("=" * 60)
     
     try:
-        from src.utils.logging_config import setup_logging, reset_logging
+        from ansa_mesh_optimizer.utils.logging_config import setup_logging, reset_logging
         
         # 重置日志配置
         reset_logging()
@@ -83,7 +83,7 @@ def test_file_logging():
     print("=" * 60)
     
     try:
-        from src.utils.logging_config import setup_logging, reset_logging
+        from ansa_mesh_optimizer.utils.logging_config import setup_logging, reset_logging
         
         # 重置日志配置
         reset_logging()
@@ -135,7 +135,7 @@ def test_module_specific_logging():
     print("=" * 60)
     
     try:
-        from src.utils.logging_config import setup_logging, configure_module_logging, reset_logging
+        from ansa_mesh_optimizer.utils.logging_config import setup_logging, configure_module_logging, reset_logging
         
         # 重置日志配置
         reset_logging()
@@ -180,7 +180,7 @@ def test_cli_logging_compatibility():
     print("=" * 60)
     
     try:
-        from src.utils.logging_config import setup_cli_logging, reset_logging
+        from ansa_mesh_optimizer.utils.logging_config import setup_cli_logging, reset_logging
         
         # 重置日志配置
         reset_logging()
@@ -214,8 +214,8 @@ def test_config_integration():
         # 测试是否能从默认配置文件读取日志配置
         config_file = project_root / "src" / "default_config.json"
         if config_file.exists():
-            from src.config.config import SimpleConfigManager
-            from src.utils.logging_config import reset_logging
+            from ansa_mesh_optimizer.config.config import SimpleConfigManager
+            from ansa_mesh_optimizer.utils.logging_config import reset_logging
             
             # 重置日志配置
             reset_logging()
@@ -245,7 +245,7 @@ def test_quiet_mode():
     print("=" * 60)
     
     try:
-        from src.utils.logging_config import setup_logging, reset_logging
+        from ansa_mesh_optimizer.utils.logging_config import setup_logging, reset_logging
         
         # 重置日志配置
         reset_logging()

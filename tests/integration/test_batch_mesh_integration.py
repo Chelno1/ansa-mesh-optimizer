@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from src.batch_mesh import AnsaBatchConfig, AnsaBatchMeshRunner, batch_mesh_with_params
+from ansa_mesh_optimizer.batch_mesh import AnsaBatchConfig, AnsaBatchMeshRunner, batch_mesh_with_params
 
 
 class TestBatchMeshIntegration(unittest.TestCase):
@@ -88,7 +88,7 @@ class TestBatchMeshIntegration(unittest.TestCase):
         self.assertFalse(is_valid)
         self.assertTrue(len(errors) > 0)
 
-    @patch("src.batch_mesh.ANSA_AVAILABLE", False)
+    @patch("ansa_mesh_optimizer.batch_mesh.ANSA_AVAILABLE", False)
     def test_mock_mode(self):
         """测试模拟模式"""
         # 在ANSA不可用时运行

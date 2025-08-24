@@ -124,7 +124,7 @@ def run_basic_tests(
         print("\n2️⃣  测试评估器...")
 
         # 测试评估器
-        from src.evaluators.mesh_evaluator import create_mesh_evaluator
+        from ...evaluators.mesh_evaluator import create_mesh_evaluator
 
         evaluator = create_mesh_evaluator(evaluator_type, config_manager=config_manager)
 

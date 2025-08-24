@@ -18,7 +18,7 @@ import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from src.utils.logging_config import setup_batch_logging
+from .utils.logging_config import setup_batch_logging
 
 # 设置脚本目录
 script_dir = Path(__file__).parent.resolve()

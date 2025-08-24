@@ -13,13 +13,13 @@ import unittest
 
 import numpy as np
 
-from src.optimizers.genetic_config import GeneticConfig
+from ansa_mesh_optimizer.optimizers.genetic_config import GeneticConfig
 
 # 导入原始版本和重构版本
-from src.optimizers.genetic_optimizer import (
+from ansa_mesh_optimizer.optimizers.genetic_optimizer import (
     GeneticOptimizer as OriginalGeneticOptimizer,  # 现在是重构版本
 )
-from src.optimizers.genetic_optimizer import (
+from ansa_mesh_optimizer.optimizers.genetic_optimizer import (
     GeneticOptimizer as RefactoredGeneticOptimizer,
 )
 
@@ -270,9 +270,9 @@ class GeneticRefactorConsistencyTest(unittest.TestCase):
 
     def test_modular_components(self):
         """测试模块化组件"""
-        from src.optimizers.evolution import EvolutionEngine
-        from src.optimizers.genetic_config import create_fast_genetic_config
-        from src.optimizers.individual import create_individual, create_population
+        from ansa_mesh_optimizer.optimizers.evolution import EvolutionEngine
+        from ansa_mesh_optimizer.optimizers.genetic_config import create_fast_genetic_config
+        from ansa_mesh_optimizer.optimizers.individual import create_individual, create_population
 
         # 测试配置创建
         fast_config = create_fast_genetic_config()

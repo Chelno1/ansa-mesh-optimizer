@@ -18,7 +18,7 @@ try:
     import matplotlib.pyplot as plt
     import numpy as np
 
-    from src.utils.display_config import DisplayConfig, display_config
+    from ..utils.display_config import DisplayConfig, display_config
 
     MATPLOTLIB_AVAILABLE = True
 
@@ -48,7 +48,7 @@ except ImportError:
 
 # 尝试导入字体装饰器模块
 try:
-    from src.utils.font_decorator import plotting_ready, with_chinese_font
+    from ..utils.font_decorator import plotting_ready, with_chinese_font
 
     DECORATOR_AVAILABLE = True
 except ImportError:

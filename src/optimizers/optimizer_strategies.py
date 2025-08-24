@@ -86,7 +86,7 @@ class OptimizerStrategy(ABC):
         try:
             from datetime import datetime
 
-            from src.utils.utils import normalize_params, validate_param_types
+            from ..utils.utils import normalize_params, validate_param_types
 
             # 标准化参数
             normalized_params = normalize_params(params)
@@ -130,7 +130,7 @@ class OptimizerStrategy(ABC):
         additional_info: Optional[Dict[str, Any]] = None,
     ) -> "OptimizationResult":
         """格式化优化结果"""
-        from src.utils.utils import normalize_params
+        from ..utils.utils import normalize_params
 
         from .optimizer_config import OptimizationResult
 
@@ -419,7 +419,7 @@ class GeneticOptimizerStrategy(OptimizerStrategy):
     def optimize(self, n_calls: int, **kwargs) -> "OptimizationResult":
         """执行遗传算法优化"""
         try:
-            from src.optimizers.genetic_optimizer import GeneticOptimizer
+            from .genetic_optimizer import GeneticOptimizer
 
             genetic_optimizer = GeneticOptimizer(
                 param_space=self.param_space,
@@ -639,7 +639,7 @@ class ParallelOptimizerStrategy(OptimizerStrategy):
     def _evaluate_params_safe(self, params: Dict[str, float]) -> float:
         """线程安全的参数评估"""
         try:
-            from src.utils.utils import normalize_params, validate_param_types
+            from ..utils.utils import normalize_params, validate_param_types
 
             # 标准化参数
             normalized_params = normalize_params(params)

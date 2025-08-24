@@ -24,8 +24,8 @@ def main():
     
     try:
         # 导入必要的模块
-        from src.optimizers.optimizer_strategies import OptimizerFactory
-        from src.optimizers.optimizer_config import OptimizerConfig, create_parallel_config
+        from ansa_mesh_optimizer.optimizers.optimizer_strategies import OptimizerFactory
+        from ansa_mesh_optimizer.optimizers.optimizer_config import OptimizerConfig, create_parallel_config
         
         print("✅ 成功导入优化器模块")
         
@@ -211,7 +211,7 @@ def demonstrate_different_configurations():
     print("=" * 70)
     
     try:
-        from src.optimizers.optimizer_config import OptimizerConfig
+        from ansa_mesh_optimizer.optimizers.optimizer_config import OptimizerConfig
         
         # 快速配置 - 适合快速测试
         print("\n1. 快速配置 (适合快速测试):")

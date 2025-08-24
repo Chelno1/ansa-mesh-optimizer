@@ -13,14 +13,14 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from src.evaluators.io_utils import (
+from .io_utils import (
     cleanup_temp_files,
     copy_mpar_files_to_temp_dir,
     create_temp_config_in_dir,
     create_timestamped_temp_dir,
     process_parameter_files_in_temp_dir,
 )
-from src.evaluators.parameter_replacement_strategies import format_mpar_parameter_value
+from .parameter_replacement_strategies import format_mpar_parameter_value
 
 logger = logging.getLogger(__name__)
 

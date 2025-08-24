@@ -9,9 +9,9 @@ import importlib
 import logging
 
 # 导入统一的日志配置
-from src.utils.logging_config import setup_cli_logging
+from ..utils.logging_config import setup_cli_logging
 # 导入统一的版本号
-from src import __version__, APP_VERSION, APP_NAME
+from .. import __version__, APP_VERSION, APP_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +112,7 @@ def main_cli() -> int:
     # 导入命令处理器
     try:
         logger.debug("Importing command dispatcher...")
-        from src.cli.commands.command_dispatcher import dispatch_command
+        from .commands.command_dispatcher import dispatch_command
 
         logger.debug("Successfully imported command dispatcher")
 

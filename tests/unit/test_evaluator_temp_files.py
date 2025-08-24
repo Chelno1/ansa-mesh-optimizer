@@ -12,7 +12,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
-from src.evaluators.temp_files import TempFileManager, create_temp_file_manager
+from ansa_mesh_optimizer.evaluators.temp_files import TempFileManager, create_temp_file_manager
 
 
 class TestTempFileManager:

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # 安全导入字体配置模块
 try:
-    from src.utils.font_decorator import with_chinese_font
+    from ..utils.font_decorator import with_chinese_font
 
     DECORATOR_AVAILABLE = True
 except ImportError:
@@ -35,7 +35,7 @@ try:
     import pandas as pd
     import seaborn as sns
 
-    from src.utils.display_config import (
+    from ..utils.display_config import (
         configure_matplotlib_for_display,
         safe_close,
         safe_show,

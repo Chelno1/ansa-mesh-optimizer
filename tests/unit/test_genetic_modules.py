@@ -11,23 +11,23 @@ import tempfile
 import unittest
 
 
-from src.optimizers.evolution import (
+from ansa_mesh_optimizer.optimizers.evolution import (
     EvolutionEngine,
     tournament_selection,
 )
 
 # 导入测试目标
-from src.optimizers.genetic_config import (
+from ansa_mesh_optimizer.optimizers.genetic_config import (
     GeneticConfig,
     create_adaptive_genetic_config,
     create_fast_genetic_config,
     create_thorough_genetic_config,
 )
-from src.optimizers.genetic_visualization import (
+from ansa_mesh_optimizer.optimizers.genetic_visualization import (
     GeneticVisualizer,
     export_evolution_data,
 )
-from src.optimizers.individual import (
+from ansa_mesh_optimizer.optimizers.individual import (
     Individual,
     calculate_population_diversity,
     create_individual,

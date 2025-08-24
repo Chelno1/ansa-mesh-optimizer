@@ -11,7 +11,7 @@
 import pytest
 from unittest.mock import Mock, MagicMock
 
-from src.evaluators.validator import ParameterValidator
+from ansa_mesh_optimizer.evaluators.validator import ParameterValidator
 
 
 class TestParameterValidator:

@@ -6,8 +6,8 @@
 import sys
 import logging
 from pathlib import Path
-from src.optimizers.optimizer_config import OptimizationResult
-from src.visualization.optimization_visualizer import OptimizationVisualizer
+from ansa_mesh_optimizer.optimizers.optimizer_config import OptimizationResult
+from ansa_mesh_optimizer.visualization.optimization_visualizer import OptimizationVisualizer
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

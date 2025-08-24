@@ -12,7 +12,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
-from src.evaluators.ansa_runner import AnsaRunner, create_ansa_runner
+from ansa_mesh_optimizer.evaluators.ansa_runner import AnsaRunner, create_ansa_runner
 
 
 class TestAnsaRunner:

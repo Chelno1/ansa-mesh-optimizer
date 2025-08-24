@@ -12,7 +12,7 @@ import unittest
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
-from src.evaluators.mesh_evaluator import create_mesh_evaluator
+from ansa_mesh_optimizer.evaluators.mesh_evaluator import create_mesh_evaluator
 
 
 class TestMeshEvaluator(unittest.TestCase):
@@ -145,7 +145,7 @@ class TestMeshEvaluator(unittest.TestCase):
     def test_cached_evaluation(self) -> None:
         """测试缓存评估"""
         # 创建带缓存的评估器
-        from src.utils.optimization_cache import CachedEvaluator, OptimizationCache
+        from ansa_mesh_optimizer.utils.optimization_cache import CachedEvaluator, OptimizationCache
 
         with tempfile.NamedTemporaryFile(suffix=".pkl") as temp_file:
             cache = OptimizationCache(temp_file.name)

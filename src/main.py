@@ -16,7 +16,7 @@ import sys
 def main() -> int:
     """主函数 - 改进的错误处理"""
     try:
-        from src.cli.cli_main import main_cli
+        from .cli.cli_main import main_cli
 
         return main_cli()
     except ImportError as e:

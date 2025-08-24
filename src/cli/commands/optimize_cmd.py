@@ -68,7 +68,7 @@ def cmd_optimize(args, modules) -> int:
             print("🖼️  已启用无头模式 - 图表将保存但不显示")
 
         # 使用上下文管理器来管理显示配置
-        from src.utils.display_config import display_config
+        from ...utils.display_config import display_config
 
         with display_config(no_display=no_display):
             print("🚀 开始网格参数优化")
@@ -117,7 +117,7 @@ def cmd_optimize(args, modules) -> int:
             config.sensitivity_analysis = not args.no_sensitivity
 
             # 创建配置管理器包装器
-            from src.core.ansa_mesh_optimizer import ConfigManagerWrapper
+            from ...core.ansa_mesh_optimizer import ConfigManagerWrapper
 
             config_wrapper = ConfigManagerWrapper(config_manager)
 

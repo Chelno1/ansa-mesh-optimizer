@@ -104,7 +104,7 @@ class OptimizerConfig:
 
     def _setup_logging(self):
         """设置日志级别"""
-        from src.utils.logging_config import configure_module_logging
+        from ..utils.logging_config import configure_module_logging
 
         if self.verbose:
             configure_module_logging("src.optimizers", "INFO")

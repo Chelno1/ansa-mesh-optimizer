@@ -13,12 +13,12 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 
-from src.evaluators.environment import (
+from .environment import (
     check_input_files,
     handle_ansa_returncode,
     run_ansa_batch,
 )
-from src.evaluators.io_utils import parse_ansa_output, simulate_evaluation
+from .io_utils import parse_ansa_output, simulate_evaluation
 
 logger = logging.getLogger(__name__)
 

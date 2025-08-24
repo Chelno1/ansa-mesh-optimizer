@@ -22,8 +22,8 @@ class TestMeshOptimizer(unittest.TestCase):
 
     def setUp(self):
         """测试前准备"""
-        from src.config.config import UnifiedConfigManager
-        from src.core.ansa_mesh_optimizer import ConfigManagerWrapper
+        from ansa_mesh_optimizer.config.config import UnifiedConfigManager
+        from ansa_mesh_optimizer.core.ansa_mesh_optimizer import ConfigManagerWrapper
 
         # 创建配置管理器
         unified_manager = UnifiedConfigManager()
@@ -82,8 +82,8 @@ class TestMeshOptimizer(unittest.TestCase):
         self.config.min_delta = 0.01
 
         # 创建新的配置管理器用于早停测试
-        from src.config.config import UnifiedConfigManager
-        from src.core.ansa_mesh_optimizer import ConfigManagerWrapper
+        from ansa_mesh_optimizer.config.config import UnifiedConfigManager
+        from ansa_mesh_optimizer.core.ansa_mesh_optimizer import ConfigManagerWrapper
 
         unified_manager = UnifiedConfigManager()
         unified_manager.optimization_config.early_stopping = True
@@ -117,8 +117,8 @@ class TestMeshOptimizer(unittest.TestCase):
             bad_config.n_initial_points = -1
 
             # 创建无效配置的配置管理器
-            from src.config.config import UnifiedConfigManager
-            from src.core.ansa_mesh_optimizer import ConfigManagerWrapper
+            from ansa_mesh_optimizer.config.config import UnifiedConfigManager
+            from ansa_mesh_optimizer.core.ansa_mesh_optimizer import ConfigManagerWrapper
 
             unified_manager = UnifiedConfigManager()
             unified_manager.optimization_config = bad_config

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # 安全导入字体配置模块
 try:
-    from src.utils.font_decorator import with_chinese_font
+    from ..utils.font_decorator import with_chinese_font
 
     DECORATOR_AVAILABLE = True
 except ImportError:
@@ -33,7 +33,7 @@ VISUALIZATION_AVAILABLE = False
 try:
     import matplotlib.pyplot as plt
 
-    from src.utils.display_config import DisplayConfig, display_config
+    from ..utils.display_config import DisplayConfig, display_config
 
     VISUALIZATION_AVAILABLE = True
     logger.info("可视化库加载成功")

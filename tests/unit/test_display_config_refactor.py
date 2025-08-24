@@ -81,7 +81,7 @@ class TestBackwardCompatibility:
 
     def test_configure_matplotlib_for_display_compatibility(self):
         """测试configure_matplotlib_for_display函数的向后兼容性"""
-        from src.utils.display_config import configure_matplotlib_for_display
+        from ansa_mesh_optimizer.utils.display_config import configure_matplotlib_for_display
 
         # 应该能够正常调用而不报错
         try:
@@ -94,7 +94,7 @@ class TestBackwardCompatibility:
 
     def test_safe_functions_compatibility(self):
         """测试safe_show和safe_close函数的向后兼容性"""
-        from src.utils.display_config import safe_close, safe_show
+        from ansa_mesh_optimizer.utils.display_config import safe_close, safe_show
 
         # 应该能够正常调用而不报错
         try:
@@ -112,7 +112,7 @@ class TestThreadSafety:
 
     def test_thread_local_storage(self):
         """测试线程本地存储"""
-        from src.utils.display_config import _get_current_no_display_mode, _thread_local
+        from ansa_mesh_optimizer.utils.display_config import _get_current_no_display_mode, _thread_local
 
         # 默认情况下应该是False
         assert not _get_current_no_display_mode()
@@ -130,7 +130,7 @@ class TestEnvironmentDetection:
 
     def test_should_use_headless_mode_no_display(self):
         """测试在没有DISPLAY环境变量时使用无头模式"""
-        from src.utils.display_config import _should_use_headless_mode
+        from ansa_mesh_optimizer.utils.display_config import _should_use_headless_mode
 
         # 在Linux系统中，没有DISPLAY应该使用无头模式
         with patch.dict(os.environ, {}, clear=True):  # 清除所有环境变量
@@ -140,14 +140,14 @@ class TestEnvironmentDetection:
     @patch.dict(os.environ, {"CI": "1"})
     def test_should_use_headless_mode_ci(self):
         """测试在CI环境中使用无头模式"""
-        from src.utils.display_config import _should_use_headless_mode
+        from ansa_mesh_optimizer.utils.display_config import _should_use_headless_mode
 
         assert _should_use_headless_mode()
 
     @patch.dict(os.environ, {"SSH_CLIENT": "192.168.1.100 55842 22"})
     def test_should_use_headless_mode_ssh(self):
         """测试在SSH连接中使用无头模式"""
-        from src.utils.display_config import _should_use_headless_mode
+        from ansa_mesh_optimizer.utils.display_config import _should_use_headless_mode
 
         assert _should_use_headless_mode()
 

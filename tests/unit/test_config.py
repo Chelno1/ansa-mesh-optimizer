@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from src.config.config import (
+from ansa_mesh_optimizer.config.config import (
     AnsaConfig,
     OptimizationConfig,
     OptimizerType,
@@ -22,7 +22,7 @@ from src.config.config import (
     UnifiedConfigManager,
     UnifiedParameterSpace,
 )
-from src.utils.exceptions import ConfigurationError, ValidationError
+from ansa_mesh_optimizer.utils.exceptions import ConfigurationError, ValidationError
 
 
 class TestParameterDefinition(unittest.TestCase):
@@ -115,7 +115,7 @@ class TestOptimizationConfig(unittest.TestCase):
         with self.assertRaises(ConfigurationError):
             self.config.validate()
 
-    @patch("src.utils.dependency_manager.is_available")
+    @patch("ansa_mesh_optimizer.utils.dependency_manager.is_available")
     def test_get_available_optimizers(self, mock_is_available):
         """测试获取可用优化器"""
         # 模拟scikit-optimize不可用
@@ -286,7 +286,7 @@ class TestUnifiedParameterSpace(unittest.TestCase):
         with self.assertRaises(ValidationError):
             self.param_space.validate_parameter_values(equal_values)
 
-    @patch("src.utils.dependency_manager.is_available")
+    @patch("ansa_mesh_optimizer.utils.dependency_manager.is_available")
     def test_to_skopt_space_unavailable(self, mock_is_available):
         """测试scikit-optimize不可用时的空间转换"""
         mock_is_available.return_value = False

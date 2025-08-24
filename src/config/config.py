@@ -621,7 +621,7 @@ class SimpleConfigManager:
     def _setup_logging(self):
         """设置日志配置"""
         try:
-            from src.utils.logging_config import LoggingConfig
+            from ..utils.logging_config import LoggingConfig
 
             # 将配置转换为LoggingConfig可用的格式
             logging_config_dict = self.logging_config.to_logging_config_dict()

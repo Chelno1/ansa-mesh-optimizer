@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 # 导入显示配置
 try:
-    from src.utils.display_config import (
+    from .display_config import (
         configure_matplotlib_for_display,
         safe_close,
         safe_show,

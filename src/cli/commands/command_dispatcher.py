@@ -13,7 +13,7 @@ def check_and_import_modules() -> Tuple[bool, List[Tuple[str, str]], List[str]]:
     """检查并导入必要模块 - 使用新的依赖管理系统"""
     try:
         logger.debug("Importing dependency manager...")
-        from src.utils.dependency_manager import dependency_manager
+        from ...utils.dependency_manager import dependency_manager
 
         logger.info("🔍 使用统一依赖管理系统检查模块...")
 
@@ -75,13 +75,13 @@ def import_core_modules():
     """导入核心模块 - 使用重构后的配置系统"""
     try:
         # 使用新的统一配置管理器类
-        from src.config.config import UnifiedConfigManager
-        from src.core.ansa_mesh_optimizer import (
+        from ...config.config import UnifiedConfigManager
+        from ...core.ansa_mesh_optimizer import (
             MeshOptimizer,
             check_dependencies,
             optimize_mesh_parameters,
         )
-        from src.core.compare_optimizers import compare_optimizers
+        from ...core.compare_optimizers import compare_optimizers
 
         print("✅ 使用重构后的配置系统")
         return True, (

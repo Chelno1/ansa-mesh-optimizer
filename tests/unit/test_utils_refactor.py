@@ -387,7 +387,7 @@ class TestUnifiedInterface:
         """测试向后兼容性"""
         # 确保原有的导入方式仍然可用
         try:
-            from src.utils import (
+            from ansa_mesh_optimizer.utils import (
                 format_execution_time,
                 normalize_params,
                 safe_json_serialize,

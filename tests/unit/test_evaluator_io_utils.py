@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from src.evaluators.io_utils import (
+from ansa_mesh_optimizer.evaluators.io_utils import (
     cleanup_temp_directory,
     cleanup_temp_files,
     copy_mpar_files_to_temp_dir,

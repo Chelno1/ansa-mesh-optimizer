@@ -11,9 +11,9 @@ import logging
 import unittest
 from unittest.mock import patch
 
-from src.batch_mesh import AnsaBatchMeshRunner
-from src.cli.cli_main import create_parser, main_cli
-from src.core.ansa_mesh_optimizer import MeshOptimizer
+from ansa_mesh_optimizer.batch_mesh import AnsaBatchMeshRunner
+from ansa_mesh_optimizer.cli.cli_main import create_parser, main_cli
+from ansa_mesh_optimizer.core.ansa_mesh_optimizer import MeshOptimizer
 
 
 class TestCLIIntegration(unittest.TestCase):
@@ -38,7 +38,7 @@ class TestCLIIntegration(unittest.TestCase):
             parser.parse_args(["--version"])
         self.assertEqual(cm.exception.code, 0)  # 版本显示应该是正常退出
 
-    @patch("src.cli.commands.command_dispatcher.dispatch_command")
+    @patch("ansa_mesh_optimizer.cli.commands.command_dispatcher.dispatch_command")
     def test_optimize_command(self, mock_dispatch):
         """测试优化命令"""
         mock_dispatch.return_value = 0
@@ -58,7 +58,7 @@ class TestCLIIntegration(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             mock_dispatch.assert_called_once()
 
-    @patch("src.cli.commands.command_dispatcher.dispatch_command")
+    @patch("ansa_mesh_optimizer.cli.commands.command_dispatcher.dispatch_command")
     def test_info_command(self, mock_dispatch):
         """测试信息命令"""
         mock_dispatch.return_value = 0
@@ -70,7 +70,7 @@ class TestCLIIntegration(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             mock_dispatch.assert_called_once()
 
-    @patch("src.batch_mesh.AnsaBatchMeshRunner.run_batch_mesh")
+    @patch("ansa_mesh_optimizer.batch_mesh.AnsaBatchMeshRunner.run_batch_mesh")
     def test_batch_mesh_execution(self, mock_run_batch):
         """测试批处理网格执行"""
         mock_run_batch.return_value = True
@@ -82,10 +82,10 @@ class TestCLIIntegration(unittest.TestCase):
         self.assertTrue(success)
         mock_run_batch.assert_called_once()
 
-    @patch("src.core.ansa_mesh_optimizer.MeshOptimizer.optimize")
+    @patch("ansa_mesh_optimizer.core.ansa_mesh_optimizer.MeshOptimizer.optimize")
     def test_mesh_optimization(self, mock_optimize):
         """测试网格优化"""
-        from src.optimizers.optimizer_config import OptimizationResult
+        from ansa_mesh_optimizer.optimizers.optimizer_config import OptimizationResult
 
         expected_result = OptimizationResult(
             best_value=0.5,
@@ -97,8 +97,8 @@ class TestCLIIntegration(unittest.TestCase):
         mock_optimize.return_value = expected_result
 
         # 创建带配置管理器的优化器
-        from src.config.config import UnifiedConfigManager
-        from src.core.ansa_mesh_optimizer import ConfigManagerWrapper
+        from ansa_mesh_optimizer.config.config import UnifiedConfigManager
+        from ansa_mesh_optimizer.core.ansa_mesh_optimizer import ConfigManagerWrapper
 
         unified_manager = UnifiedConfigManager()
         config_manager = ConfigManagerWrapper(unified_manager)
@@ -118,7 +118,7 @@ class TestCLIIntegration(unittest.TestCase):
                 main_cli()
             self.assertEqual(cm.exception.code, 2)  # argparse错误退出码
 
-    @patch("src.cli.commands.command_dispatcher.dispatch_command")
+    @patch("ansa_mesh_optimizer.cli.commands.command_dispatcher.dispatch_command")
     def test_error_handling(self, mock_dispatch):
         """测试错误处理"""
         mock_dispatch.side_effect = Exception("Test error")

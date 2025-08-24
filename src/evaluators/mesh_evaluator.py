@@ -19,20 +19,20 @@ from pathlib import Path
 from typing import Dict
 
 # 导入新的专用模块
-from src.evaluators.ansa_runner import create_ansa_runner
-from src.evaluators.temp_files import create_temp_file_manager
-from src.evaluators.validator import ParameterValidator
+from .ansa_runner import create_ansa_runner
+from .temp_files import create_temp_file_manager
+from .validator import ParameterValidator
 
 # 导入环境验证模块
-from src.evaluators.environment import AnsaEnvironmentValidator
+from .environment import AnsaEnvironmentValidator
 
 # 导入参数替换策略
-from src.evaluators.parameter_replacement_strategies import (
+from .parameter_replacement_strategies import (
     ParameterReplacementManager,
 )
 
 # 导入重构后的工具模块
-from src.evaluators.utils import normalize_params
+from .utils import normalize_params
 
 logger = logging.getLogger(__name__)
 

@@ -52,18 +52,18 @@ except ImportError:
 
 # 本地模块导入
 try:
-    from src.analysis.statistical_analyzer import StatisticalAnalyzer
-    from src.config.config import UnifiedConfigManager
-    from src.core.ansa_mesh_optimizer import MeshOptimizer, optimize_mesh_parameters
-    from src.reports.comparison_reporter import ComparisonReporter
-    from src.utils import (
+    from ..analysis.statistical_analyzer import StatisticalAnalyzer
+    from ..config.config import UnifiedConfigManager
+    from .ansa_mesh_optimizer import MeshOptimizer, optimize_mesh_parameters
+    from ..reports.comparison_reporter import ComparisonReporter
+    from ..utils import (
         calculate_statistics,
         format_execution_time,
         performance_monitor,
     )
 
     # 导入新的模块化组件
-    from src.visualization.comparison_visualizer import ComparisonVisualizer
+    from ..visualization.comparison_visualizer import ComparisonVisualizer
 except ImportError as e:
     logger.error(f"本地模块导入失败: {e}")
     raise
@@ -220,7 +220,7 @@ class OptimizationComparison:
     def _check_optimizers_availability(self) -> List[str]:
         """检查优化器可用性"""
         try:
-            from src.core.ansa_mesh_optimizer import check_dependencies
+            from .ansa_mesh_optimizer import check_dependencies
 
             deps = check_dependencies()
 
@@ -384,7 +384,7 @@ class OptimizationComparison:
         try:
             with performance_monitor(f"{optimizer} 优化 (运行 {run_idx + 1})"):
                 # 创建配置管理器包装器
-                from src.core.ansa_mesh_optimizer import ConfigManagerWrapper
+                from .ansa_mesh_optimizer import ConfigManagerWrapper
 
                 config_wrapper = ConfigManagerWrapper(config_mgr)
 

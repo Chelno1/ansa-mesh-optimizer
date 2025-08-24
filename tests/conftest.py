@@ -50,7 +50,7 @@ def temp_config_file() -> Path:
 @pytest.fixture
 def mock_mesh_evaluator():
     """模拟网格评估器夹具"""
-    from src.evaluators.mesh_evaluator import create_mesh_evaluator
+    from ansa_mesh_optimizer.evaluators.mesh_evaluator import create_mesh_evaluator
 
     return create_mesh_evaluator("mock")
 

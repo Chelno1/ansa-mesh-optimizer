@@ -47,15 +47,15 @@ dev = [
 ]
 
 [project.scripts]
-ansa-mesh-optimizer = "src.main:main"
+ansa-mesh-optimizer = "ansa_mesh_optimizer.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src*"]
+include = ["ansa_mesh_optimizer*"]
 exclude = ["tests*"]
 
 [tool.setuptools.package-dir]
-"" = "."
+"ansa_mesh_optimizer" = "src"
 
 [tool.black]
 line-length = 88
