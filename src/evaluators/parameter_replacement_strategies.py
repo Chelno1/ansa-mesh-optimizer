@@ -6,7 +6,7 @@ import logging
 import os
 import re
 from abc import ABC, abstractmethod
-from typing import Dict
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class SimpleParameterReplacementStrategy(ParameterReplacementStrategy):
     def can_handle(self, params: Dict[str, float]) -> bool:
         """检查是否包含需要简单替换的参数"""
         # 过滤掉需要特殊策略处理的参数
-        special_param_prefixes = ["rule_fillet_width_", "rule_chamfer_width_"]
+        special_param_prefixes = ["rule_fillet_width_", "rule_chamfer_width_", "treatment_hole_2d_"]
         simple_params = {
             k: v
             for k, v in params.items()
@@ -87,7 +87,7 @@ class SimpleParameterReplacementStrategy(ParameterReplacementStrategy):
         updated_count = 0
 
         # 过滤掉需要特殊策略处理的参数
-        special_param_prefixes = ["rule_fillet_width_", "rule_chamfer_width_"]
+        special_param_prefixes = ["rule_fillet_width_", "rule_chamfer_width_", "treatment_hole_2d_"]
         simple_params = {
             k: v
             for k, v in params.items()
@@ -417,6 +417,144 @@ class RuleChamferReplacementStrategy(ParameterReplacementStrategy):
         return os.path.join(dir_name, f"{base_name}{suffix}.ansa_mpar")
 
 
+class TreatmentHole2dReplacementStrategy(ParameterReplacementStrategy):
+    """Treatment Hole 2D参数替换策略"""
+
+    def can_handle(self, params: Dict[str, float]) -> bool:
+        """检查是否包含treatment_hole_2d参数"""
+        return any(key.startswith("treatment_hole_2d_") for key in params.keys())
+
+    def get_strategy_name(self) -> str:
+        return "TreatmentHole2dReplacement"
+
+    def replace_parameters(self, file_path: str, params: Dict[str, float]) -> str:
+        """替换treatment_hole_2d参数"""
+        try:
+            # 读取原始文件
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # 提取参数值
+            treatment_params = self._extract_treatment_params(params)
+            
+            if not treatment_params:
+                logger.warning("未找到有效的 treatment_hole_2d 参数")
+                return file_path
+
+            logger.info(f"应用 treatment_hole_2d 参数: {treatment_params}")
+
+            # 执行替换
+            updated_content = self._perform_treatment_hole_2d_replacements(
+                content, treatment_params
+            )
+
+            # 生成新文件路径
+            updated_file_path = self._generate_output_path(
+                file_path, "_treatment_hole_2d_updated"
+            )
+
+            # 写入更新后的内容
+            with open(updated_file_path, "w", encoding="utf-8") as f:
+                f.write(updated_content)
+
+            logger.info(f"Treatment hole 2d 参数替换完成: {updated_file_path}")
+            return updated_file_path
+
+        except Exception as e:
+            logger.error(f"Treatment hole 2d 参数替换失败: {e}")
+            return file_path
+
+    def _extract_treatment_params(self, params: Dict[str, float]) -> Dict[str, Any]:
+        """提取treatment参数值"""
+        treatment_params = {}
+        
+        # 提取各个参数
+        if "treatment_hole_2d_N1" in params:
+            treatment_params["N1"] = int(params["treatment_hole_2d_N1"])
+        if "treatment_hole_2d_dw1" in params:
+            treatment_params["dw1"] = params["treatment_hole_2d_dw1"]
+        if "treatment_hole_2d_N2" in params:
+            treatment_params["N2"] = int(params["treatment_hole_2d_N2"])
+        if "treatment_hole_2d_dw2" in params:
+            treatment_params["dw2"] = params["treatment_hole_2d_dw2"]
+        if "treatment_hole_2d_dw3" in params:
+            treatment_params["dw3"] = params["treatment_hole_2d_dw3"]
+            
+        return treatment_params
+
+    def _perform_treatment_hole_2d_replacements(
+        self, content: str, treatment_params: Dict[str, Any]
+    ) -> str:
+        """执行treatment_hole_2d具体替换操作"""
+        updated_content = content
+        
+        # 第206行: treatment = 2, 替换 N=6 和 width = 2.5
+        if "N1" in treatment_params or "dw1" in treatment_params:
+            n1_value = treatment_params.get("N1", 6)
+            dw1_value = treatment_params.get("dw1", 2.5)
+            
+            # 匹配treatment_hole_2d = 2行中的N值和width值
+            pattern = r"(treatment_hole_2d\s*=\s*2\s*\|\|.*?number_value\s*=\s*N=)(\d+)(.*?specific_zones\s*=\s*width\s*=\s*)([\d.]+)(.*?)(\r?\n)"
+            
+            def replace_treatment_2(match):
+                prefix = match.group(1)
+                old_n = match.group(2)
+                middle = match.group(3)
+                old_width = match.group(4)
+                suffix = match.group(5)
+                newline = match.group(6)
+                
+                logger.debug(f"替换 treatment=2: N={old_n}->{n1_value}, width={old_width}->{dw1_value}")
+                return f"{prefix}{n1_value}{middle}{dw1_value}{suffix}{newline}"
+            
+            updated_content = re.sub(pattern, replace_treatment_2, updated_content, flags=re.DOTALL)
+        
+        # 第207行: treatment = 3, 替换 N=8 和 width = 2.5
+        if "N2" in treatment_params or "dw2" in treatment_params:
+            n2_value = treatment_params.get("N2", 8)
+            dw2_value = treatment_params.get("dw2", 2.5)
+            
+            pattern = r"(treatment_hole_2d\s*=\s*3\s*\|\|.*?number_value\s*=\s*N=)(\d+)(.*?specific_zones\s*=\s*width\s*=\s*)([\d.]+)(.*?)(\r?\n)"
+            
+            def replace_treatment_3(match):
+                prefix = match.group(1)
+                old_n = match.group(2)
+                middle = match.group(3)
+                old_width = match.group(4)
+                suffix = match.group(5)
+                newline = match.group(6)
+                
+                logger.debug(f"替换 treatment=3: N={old_n}->{n2_value}, width={old_width}->{dw2_value}")
+                return f"{prefix}{n2_value}{middle}{dw2_value}{suffix}{newline}"
+            
+            updated_content = re.sub(pattern, replace_treatment_3, updated_content, flags=re.DOTALL)
+        
+        # 第208行: treatment = 4, 替换 width = 0.667*L
+        if "dw3" in treatment_params:
+            dw3_value = treatment_params["dw3"]
+            
+            pattern = r"(treatment_hole_2d\s*=\s*4\s*\|\|.*?specific_zones\s*=\s*width\s*=\s*)([\d.]+)(\*L.*?)(\r?\n)"
+            
+            def replace_treatment_4(match):
+                prefix = match.group(1)
+                old_width = match.group(2)
+                suffix = match.group(3)
+                newline = match.group(4)
+                
+                logger.debug(f"替换 treatment=4: width={old_width}*L->{dw3_value}*L")
+                return f"{prefix}{dw3_value}{suffix}{newline}"
+                
+            updated_content = re.sub(pattern, replace_treatment_4, updated_content, flags=re.DOTALL)
+
+        return updated_content
+
+    def _generate_output_path(self, file_path: str, suffix: str) -> str:
+        """生成输出文件路径"""
+        base_name = os.path.splitext(os.path.basename(file_path))[0]
+        dir_name = os.path.dirname(file_path)
+        return os.path.join(dir_name, f"{base_name}{suffix}.ansa_mpar")
+
+
 # class DistortionAngleReplacementStrategy(ParameterReplacementStrategy):
 #     """Distortion Angle参数替换策略"""
 
@@ -551,6 +689,7 @@ class ParameterReplacementManager:
             RuleFilletReplacementStrategy(),
             # RecognizeChampersReplacementStrategy(),
             RuleChamferReplacementStrategy(),
+            TreatmentHole2dReplacementStrategy(),
             # DistortionAngleReplacementStrategy(),
             # PerimeterDistanceReplacementStrategy()
         ]
