@@ -9,6 +9,8 @@ import multiprocessing as mp
 from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from skopt import dummy_minimize, forest_minimize, gp_minimize
+from skopt.utils import use_named_args
 
 import numpy as np
 
@@ -22,8 +24,8 @@ logger = logging.getLogger(__name__)
 def safe_import_skopt():
     """安全导入scikit-optimize"""
     # try:
-    #     from skopt import dummy_minimize, forest_minimize, gp_minimize
-    #     from skopt.utils import use_named_args
+    # from skopt import dummy_minimize, forest_minimize, gp_minimize
+    # from skopt.utils import use_named_args
 
     return {
         "available": True,
@@ -42,8 +44,14 @@ def safe_import_skopt():
     #     }
 
 
-SKOPT_MODULES = safe_import_skopt()
-
+# SKOPT_MODULES = safe_import_skopt()
+SKOPT_MODULES = {
+        "available": True,
+        "gp_minimize": gp_minimize,
+        "forest_minimize": forest_minimize,
+        "dummy_minimize": dummy_minimize,
+        "use_named_args": use_named_args,
+    }
 
 class OptimizerStrategy(ABC):
     """优化器策略抽象基类"""
