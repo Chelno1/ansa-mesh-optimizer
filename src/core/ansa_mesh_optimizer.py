@@ -81,12 +81,12 @@ try:
     from ..evaluators.mesh_evaluator import create_mesh_evaluator
 
     # 导入新的优化器策略模块
-    from ..optimizers import (
+    from ..optimizers.optimizer_config import (
         OptimizationResult,
         OptimizerConfig,
-        OptimizerFactory,
         create_default_config,
     )
+    from ..optimizers.optimizer_strategies import OptimizerFactory
     from ..reports.optimization_reporter import OptimizationReporter
     from ..utils import performance_monitor
     from ..utils.optimization_cache import CachedEvaluator, OptimizationCache
