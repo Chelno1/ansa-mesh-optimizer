@@ -468,19 +468,12 @@ class AnsaBatchMeshRunner:
 
             # 特殊处理 "triangles %" 检查
             if check_type == "triangles %":
-                # 统计三角形元素数量
-                num_tria = 0
+                # 使用 CalculateOffElements 函数获取质量统计信息
+                quality_stats = base.CalculateOffElements(elements_list, details=True)
+                
+                # 获取三角形百分比值
+                triangles_percentage = quality_stats.get("TRIANGLES%", 0.0)
                 total_elements = len(elements_list)
-                
-                for elem in elements_list:
-                    elem_type = base.GetEntityCardValues(
-                        constants.LSDYNA, elem, "__type__"
-                    )
-                    if elem_type == "TRIA":
-                        num_tria += 1
-                
-                # 计算三角形百分比
-                triangles_percentage = (num_tria / total_elements * 100) if total_elements > 0 else 0.0
                 
                 # 检查是否超过阈值（百分比超过阈值为失败）
                 is_failed = triangles_percentage >= threshold
@@ -493,8 +486,8 @@ class AnsaBatchMeshRunner:
                     "threshold": threshold,
                     "check_type": check_type,
                     "total_checked": total_elements,
-                    "triangles_count": num_tria,
                     "triangles_percentage": triangles_percentage,
+                    "quality_stats": quality_stats,  # 包含完整的质量统计信息
                 }
                 
                 if is_failed:
@@ -502,9 +495,8 @@ class AnsaBatchMeshRunner:
                     result["avg_failed_value"] = triangles_percentage
                 
                 logger.info(
-                    f"{log_msg}: 三角形元素数={num_tria}, 总元素数={total_elements}, "
-                    f"三角形百分比={triangles_percentage:.2f}%, 阈值={threshold}%, "
-                    f"状态={'超出阈值' if is_failed else '正常'}"
+                    f"{log_msg}: 三角形百分比={triangles_percentage:.2f}%, 阈值={threshold}%, "
+                    f"总元素数={total_elements}, 状态={'超出阈值' if is_failed else '正常'}"
                 )
                 
                 return result
