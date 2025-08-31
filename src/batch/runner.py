@@ -168,7 +168,7 @@ class AnsaBatchMeshRunner:
     def _load_quality_criteria(self) -> bool:
         """加载质量标准"""
         try:
-            qual_file = self.criterion_dir / self.config.qual_file
+            qual_file = self.cwd_dir / self.config.qual_file
             if qual_file.exists():
                 if ANSA_AVAILABLE:
                     mesh.ReadQualityCriteria(str(qual_file))

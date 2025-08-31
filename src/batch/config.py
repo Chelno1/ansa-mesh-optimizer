@@ -22,21 +22,21 @@ class AnsaBatchConfig:
 
     # 默认配置常量
     DEFAULT_THRESHOLDS = {
-        "min_length": 5.0,
-        "max_length": 15.0,
-        "min_angle_quads": 60.0,
-        "max_angle_quads": 120.0,
+        "min_length": 1.5,
+        "max_length": 6.0,
+        "min_angle_quads": 45.0,
+        "max_angle_quads": 135.0,
         "min_angle_trias": 30.0,
         "max_angle_trias": 120.0,
-        "aspect_ratio": 3.0,
-        "skewness": 45.0,
-        "warping": 12.5,
+        "aspect_ratio": 4.0,
+        "skewness": 60.0,
+        "warping": 15.0,
     }
 
     DEFAULT_EXECUTION = {"timeout": 300, "retry_attempts": 3, "retry_delay": 1.0}
 
     DEFAULT_FILES = {
-        "qual_file": "8mm_v23.ansa_qual",
+        # "qual_file": "8mm_v23.ansa_qual",
         "output_model": "output_mesh.ansa",
     }
 
@@ -80,11 +80,12 @@ class AnsaBatchConfig:
         self.retry_delay = self.DEFAULT_EXECUTION["retry_delay"]
 
         # 文件配置
-        self.qual_file = self.DEFAULT_FILES["qual_file"]
+        # self.qual_file = self.DEFAULT_FILES["qual_file"]
         self.output_model = self.DEFAULT_FILES["output_model"]
 
-        # 动态查找mpar文件
+        # 动态查找mpar与qual文件
         self.mpar_file = self._find_mpar_file()
+        self.qual_file = self._find_qual_file()
 
         # 初始化质量检查配置
         self.quality_checks = self.DEFAULT_QUALITY_CHECKS.copy()
@@ -101,6 +102,19 @@ class AnsaBatchConfig:
         except Exception as e:
             logger.warning(f"查找.ansa_mpar文件失败: {e}")
             return "mend.ansa_mpar"
+
+    def _find_qual_file(self) -> str:
+        """在当前工作目录下查找.ansa_qual文件"""
+        try:
+            qual_files = list(self.cwd_dir.glob("*.ansa_qual"))
+            if qual_files:
+                return qual_files[0].name
+            else:
+                # 如果没有找到，返回默认值
+                return "8mm_v23.ansa_qual"
+        except Exception as e:
+            logger.warning(f"查找.ansa_qual文件失败: {e}")
+            return "8mm_v23.ansa_qual"
 
     def load_from_file(self, json_config_file: Path) -> None:
         """
