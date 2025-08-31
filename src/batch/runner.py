@@ -412,13 +412,13 @@ class AnsaBatchMeshRunner:
                 "log_msg": "雅可比检查",
                 "element_filter": None,
             },
-            # "triangles %": {
-            #     "criteria": "TRIANGLES%",
-            #     "compare_func": lambda x, t: x <= t,
-            #     "worst_func": min,
-            #     "log_msg": "三角形比例检查",
-            #     "element_filter": None,
-            # },
+            "triangles %": {
+                "criteria": "TRIANGLES%",
+                "compare_func": lambda x, t: x >= t,
+                "worst_func": max,
+                "log_msg": "三角形比例检查",
+                "element_filter": None,
+            },
             "triangles per node": {
                 "criteria": "TRIANGLES PER NODE",
                 "compare_func": lambda x, t: x >= t,
@@ -466,7 +466,50 @@ class AnsaBatchMeshRunner:
 
             elements_list = list(elements)
 
-            # 统一的元素处理逻辑
+            # 特殊处理 "triangles %" 检查
+            if check_type == "triangles %":
+                # 统计三角形元素数量
+                num_tria = 0
+                total_elements = len(elements_list)
+                
+                for elem in elements_list:
+                    elem_type = base.GetEntityCardValues(
+                        constants.LSDYNA, elem, "__type__"
+                    )
+                    if elem_type == "TRIA":
+                        num_tria += 1
+                
+                # 计算三角形百分比
+                triangles_percentage = (num_tria / total_elements * 100) if total_elements > 0 else 0.0
+                
+                # 检查是否超过阈值（百分比超过阈值为失败）
+                is_failed = triangles_percentage >= threshold
+                
+                result = {
+                    "status": "NOK" if is_failed else "OK",
+                    "failed_count": 1 if is_failed else 0,
+                    "failed_elements": [] if not is_failed else [f"triangles_percentage_{triangles_percentage:.2f}%"],
+                    "failed_values": [] if not is_failed else [triangles_percentage],
+                    "threshold": threshold,
+                    "check_type": check_type,
+                    "total_checked": total_elements,
+                    "triangles_count": num_tria,
+                    "triangles_percentage": triangles_percentage,
+                }
+                
+                if is_failed:
+                    result["worst_value"] = triangles_percentage
+                    result["avg_failed_value"] = triangles_percentage
+                
+                logger.info(
+                    f"{log_msg}: 三角形元素数={num_tria}, 总元素数={total_elements}, "
+                    f"三角形百分比={triangles_percentage:.2f}%, 阈值={threshold}%, "
+                    f"状态={'超出阈值' if is_failed else '正常'}"
+                )
+                
+                return result
+            
+            # 统一的元素处理逻辑（用于其他检查类型）
             for elem in elements_list:
                 # 如果有元素类型过滤器，检查元素类型
                 if element_filter:

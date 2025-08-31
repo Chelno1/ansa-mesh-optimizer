@@ -54,7 +54,7 @@ class AnsaBatchConfig:
         "max_angle_quads": True,
         "min_angle_trias": True,
         "max_angle_trias": True,
-        "triangles %": False,
+        "triangles %": True,
         "triangles per node": True,
     }
 
