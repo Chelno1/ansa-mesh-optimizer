@@ -379,19 +379,23 @@ class MeshOptimizer:
             # 生成敏感性分析图表
             try:
                 if self.best_result:
-                    # 使用当前优化的报告目录
+                    # 使用与优化报告相同的目录结构
+                    from ..config.config import UnifiedConfigManager
+                    config_manager = UnifiedConfigManager(config_file=None, require_config=False)
+                    base_output_dir = config_manager.ansa_config.output_dir
+                    
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     optimizer_name = self.best_result.optimizer_name.replace(" ", "_")
-                    report_dir = Path(
-                        f"optimization_reports/{timestamp}_{optimizer_name}_sensitivity"
-                    )
+                    report_subdir = f"{timestamp}_{optimizer_name}"
+                    
+                    # 使用标准的报告目录路径，不添加 _sensitivity 后缀
+                    report_dir = base_output_dir / "optimization_reports" / report_subdir
                     report_dir.mkdir(parents=True, exist_ok=True)
 
                     visualizer = OptimizationVisualizer(report_dir)
                     visualizer.plot_sensitivity_analysis(
                         sensitivity_results=sensitivity_results,
                         best_params=best_params,
-                        save_path=str(report_dir / "sensitivity_analysis.png"),
                     )
 
             except Exception as e:
