@@ -420,7 +420,7 @@ class AnsaBatchMeshRunner:
             #     "element_filter": None,
             # },
             "triangles per node": {
-                "criteria": "TRIANGLES_PER_NODE",
+                "criteria": "TRIANGLES PER NODE",
                 "compare_func": lambda x, t: x >= t,
                 "worst_func": max,
                 "log_msg": "每个节点的三角形检查",
