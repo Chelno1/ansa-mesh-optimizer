@@ -496,7 +496,8 @@ class AnsaBatchMeshRunner:
                 
                 logger.info(
                     f"{log_msg}: 三角形百分比={triangles_percentage:.2f}%, 阈值={threshold}%, "
-                    f"总元素数={total_elements}, 状态={'超出阈值' if is_failed else '正常'}"
+                    f"总元素数={total_elements}, 状态={'超出阈值' if is_failed else '正常'}, "
+                    f"质量统计={quality_stats}"
                 )
                 
                 return result
