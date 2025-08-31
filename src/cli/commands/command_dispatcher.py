@@ -34,20 +34,20 @@ def check_and_import_modules() -> Tuple[bool, List[Tuple[str, str]], List[str]]:
         print(f"   ○ 缺失依赖: {missing_count}")
         print(f"   ❌ 缺失必需依赖: {required_missing}")
 
-        # 检查关键模块
+        # 检查关键模块 - 使用相对导入路径
         required_modules = [
-            "config.config",
-            "evaluators.mesh_evaluator",
-            "utils.optimization_cache",
-            "core.early_stopping",
-            "optimizers.genetic_optimizer",
-            "utils.utils",
+            "...config.config",
+            "...evaluators.mesh_evaluator",
+            "...utils.optimization_cache",
+            "...core.early_stopping",
+            "...optimizers.genetic_optimizer",
+            "...utils.utils",
         ]
 
         missing_critical = []
         for module_name in required_modules:
             try:
-                __import__(module_name)
+                importlib.import_module(module_name, package=__package__)
             except ImportError as e:
                 missing_critical.append((module_name, str(e)))
 
