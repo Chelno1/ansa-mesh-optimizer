@@ -461,11 +461,11 @@ class SimpleParameterSpace:
             "treatment_hole_2d_dw3": ParameterDefinition(
                 name="treatment_hole_2d_dw3",
                 param_type=ParameterType.FLOAT,
-                bounds=(0.4, 1.0),
+                bounds=(1.6, 3.0),
                 description="孔洞处理规则4的区域宽度系数",
-                unit="*L",
+                unit="mm",
                 ansa_mapping="treatment_hole_2d_dw3",
-                default_value=0.667,
+                default_value=2.5,
             ),
         }
 
