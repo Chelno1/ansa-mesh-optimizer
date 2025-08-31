@@ -16,6 +16,7 @@ from typing import Dict, List, Optional
 from .io_utils import (
     cleanup_temp_files,
     copy_mpar_files_to_temp_dir,
+    copy_qual_files_to_temp_dir,
     create_temp_config_in_dir,
     create_timestamped_temp_dir,
     process_parameter_files_in_temp_dir,
@@ -76,6 +77,15 @@ class TempFileManager:
                 self.temp_dir, self.criterion_dir, self.config.mpar_file_pattern
             )
             logger.debug(f"拷贝MPAR文件: {len(copied_mpar_files)} 个文件")
+
+            # 将*.ansa_qual文件拷贝到临时文件夹
+            copied_qual_files = copy_qual_files_to_temp_dir(
+                self.temp_dir, self.criterion_dir, self.config.qual_file_pattern
+            )
+            if copied_qual_files:
+                logger.debug(f"拷贝QUAL文件: 1 个文件")
+            else:
+                logger.debug("拷贝QUAL文件: 0 个文件")
 
             # 在临时文件夹中创建临时配置文件
             config_file = create_temp_config_in_dir(

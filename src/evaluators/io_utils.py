@@ -90,6 +90,45 @@ def copy_mpar_files_to_temp_dir(
         return ""
 
 
+def copy_qual_files_to_temp_dir(
+    temp_dir: str, criterion_dir: Path, qual_file_pattern: str
+) -> str:
+    """
+    将*.ansa_qual文件拷贝到临时文件夹
+
+    Args:
+        temp_dir: 临时文件夹路径
+        criterion_dir: criterion目录路径
+        qual_file_pattern: qual文件匹配模式
+
+    Returns:
+        拷贝后的文件路径
+    """
+    try:
+        # 查找qual文件
+        qual_files = list(Path(criterion_dir).glob(qual_file_pattern))
+
+        if not qual_files:
+            logger.warning("未找到qual文件，跳过文件拷贝")
+            return ""
+
+        # 只取第一个qual文件
+        qual_file = qual_files[0]
+
+        # 构建目标文件路径
+        dest_file = os.path.join(temp_dir, qual_file.name)
+
+        # 拷贝文件
+        shutil.copy2(str(qual_file), dest_file)
+
+        logger.info(f"拷贝qual文件: {qual_file} -> {dest_file}")
+        return dest_file
+
+    except Exception as e:
+        logger.error(f"拷贝qual文件失败: {e}")
+        return ""
+
+
 def create_temp_config_in_dir(
     temp_dir: str, params: Dict[str, float], format_value_func, criteria_dir: Optional[str] = None
 ) -> str:
