@@ -111,10 +111,10 @@ class AnsaBatchConfig:
                 return qual_files[0].name
             else:
                 # 如果没有找到，返回默认值
-                return "8mm_v23.ansa_qual"
+                return "mend.ansa_qual"
         except Exception as e:
             logger.warning(f"查找.ansa_qual文件失败: {e}")
-            return "8mm_v23.ansa_qual"
+            return "mend.ansa_qual"
 
     def load_from_file(self, json_config_file: Path) -> None:
         """
