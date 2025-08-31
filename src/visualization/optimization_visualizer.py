@@ -71,8 +71,13 @@ class OptimizationVisualizer:
             report_dir: 报告保存目录
         """
         if report_dir is None:
+            # 使用配置的输出目录而不是硬编码路径
+            from ..config.config import UnifiedConfigManager
+            config_manager = UnifiedConfigManager(config_file=None, require_config=False)
+            base_output_dir = config_manager.ansa_config.output_dir
+            
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            report_dir = Path(f"optimization_reports/{timestamp}_visualization")
+            report_dir = base_output_dir / "optimization_reports" / f"{timestamp}_visualization"
 
         self.report_dir = Path(report_dir)
         self.output_dir = self.report_dir  # 兼容属性
