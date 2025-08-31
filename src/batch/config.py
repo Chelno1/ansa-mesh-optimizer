@@ -55,7 +55,7 @@ class AnsaBatchConfig:
         "min_angle_trias": True,
         "max_angle_trias": True,
         "triangles %": False,
-        "triangles per node": False,
+        "triangles per node": True,
     }
 
     def __init__(self, cwd_dir: Optional[Path] = None):

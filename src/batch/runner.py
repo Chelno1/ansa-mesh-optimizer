@@ -412,6 +412,20 @@ class AnsaBatchMeshRunner:
                 "log_msg": "雅可比检查",
                 "element_filter": None,
             },
+            # "triangles %": {
+            #     "criteria": "TRIANGLES%",
+            #     "compare_func": lambda x, t: x <= t,
+            #     "worst_func": min,
+            #     "log_msg": "三角形比例检查",
+            #     "element_filter": None,
+            # },
+            "triangles per node": {
+                "criteria": "TRIANGLES_PER_NODE",
+                "compare_func": lambda x, t: x >= t,
+                "worst_func": max,
+                "log_msg": "每个节点的三角形检查",
+                "element_filter": None,
+            },
         }
 
         if check_type not in config_map:
