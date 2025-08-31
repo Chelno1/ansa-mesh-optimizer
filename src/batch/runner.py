@@ -284,6 +284,9 @@ class AnsaBatchMeshRunner:
                 "max_angle_quads": "max_angle_quads",
                 "min_angle_trias": "min_angle_trias",
                 "max_angle_trias": "max_angle_trias",
+                "jacobian": "jacobian",
+                "triangles %": "triangles %",
+                "triangles per node": "triangles per node",
             }
 
             for check_name, threshold_key in quality_check_mapping.items():
@@ -401,6 +404,13 @@ class AnsaBatchMeshRunner:
                 "worst_func": max,
                 "log_msg": "最大三角形角度检查",
                 "element_filter": "TRIA",
+            },
+            "jacobian": {
+                "criteria": "JACOB.",
+                "compare_func": lambda x, t: x <= t,
+                "worst_func": min,
+                "log_msg": "雅可比检查",
+                "element_filter": None,
             },
         }
 

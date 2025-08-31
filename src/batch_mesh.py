@@ -93,11 +93,6 @@ except ImportError:
         analyze_quality_results,
     )
 
-# 为了向后兼容，重新导出类
-AnsaBatchConfig = AnsaBatchConfig
-AnsaBatchMeshRunner = AnsaBatchMeshRunner
-
-
 def main() -> int:
     """主函数 - 增强版本"""
     try:
@@ -235,66 +230,6 @@ def batch_mesh_with_params(params: Dict[str, float]) -> int:
     except Exception as e:
         logger.error(f"批处理网格异常: {e}")
         return 99999
-
-
-# 向后兼容函数
-def check_shell_min_length(min_len: float) -> str:
-    """
-    检查壳单元最小尺寸（向后兼容）
-
-    Args:
-        min_len: 最小长度阈值
-
-    Returns:
-        检查状态 ('OK' 或 'NOK')
-    """
-    runner = AnsaBatchMeshRunner(
-        script_dir=script_dir,
-        cwd_dir=cwd_dir
-    )
-    result = runner._check_shell_quality(min_len, "min_length")
-
-    # 输出不合格单元数（与原代码兼容）
-    print(f'bad elements: {result["failed_count"]}')
-
-    return str(result["status"])
-
-
-def check_shell_max_length(max_len: float) -> str:
-    """
-    检查壳单元最大尺寸（向后兼容）
-
-    Args:
-        max_len: 最大长度阈值
-
-    Returns:
-        检查状态 ('OK' 或 'NOK')
-    """
-    runner = AnsaBatchMeshRunner(
-        script_dir=script_dir,
-        cwd_dir=cwd_dir
-    )
-    result = runner._check_shell_quality(max_len, "max_length")
-
-    # 输出不合格单元数（与原代码兼容）
-    print(f'bad elements: {result["failed_count"]}')
-
-    return str(result["status"])
-
-
-def run_batch_mesh() -> int:
-    """
-    运行批处理网格（向后兼容）
-
-    Returns:
-        成功返回1，失败返回0
-    """
-    runner = AnsaBatchMeshRunner(
-        script_dir=script_dir,
-        cwd_dir=cwd_dir
-    )
-    success = runner.run_batch_mesh()
-    return 1 if success else 0
 
 
 # 新增的便利函数

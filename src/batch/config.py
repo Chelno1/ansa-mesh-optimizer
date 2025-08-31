@@ -31,6 +31,9 @@ class AnsaBatchConfig:
         "aspect_ratio": 4.0,
         "skewness": 60.0,
         "warping": 15.0,
+        "jacobian": 0.65,
+        "triangles %": 10.0,
+        "triangles per node": 3.0,
     }
 
     DEFAULT_EXECUTION = {"timeout": 300, "retry_attempts": 3, "retry_delay": 1.0}
@@ -45,12 +48,14 @@ class AnsaBatchConfig:
         "max_length": True,
         "aspect_ratio": True,
         "skewness": True,
-        "jacobian": False,
+        "jacobian": True,
         "warping": True,
         "min_angle_quads": True,
         "max_angle_quads": True,
         "min_angle_trias": True,
         "max_angle_trias": True,
+        "triangles %": False,
+        "triangles per node": False,
     }
 
     def __init__(self, cwd_dir: Optional[Path] = None):
@@ -73,6 +78,9 @@ class AnsaBatchConfig:
         self.aspect_ratio = self.DEFAULT_THRESHOLDS["aspect_ratio"]
         self.skewness = self.DEFAULT_THRESHOLDS["skewness"]
         self.warping = self.DEFAULT_THRESHOLDS["warping"]
+        self.jacobian = self.DEFAULT_THRESHOLDS["jacobian"]
+        self.triangles_percent = self.DEFAULT_THRESHOLDS["triangles %"]
+        self.triangles_per_node = self.DEFAULT_THRESHOLDS["triangles per node"]
 
         # 执行配置
         self.timeout = self.DEFAULT_EXECUTION["timeout"]
@@ -223,6 +231,9 @@ class AnsaBatchConfig:
             "max_angle_quads": self.max_angle_quads,
             "min_angle_trias": self.min_angle_trias,
             "max_angle_trias": self.max_angle_trias,
+            "jacobian": self.jacobian,
+            "triangles %": self.triangles_percent,
+            "triangles per node": self.triangles_per_node,
         }
 
         if custom_thresholds:
