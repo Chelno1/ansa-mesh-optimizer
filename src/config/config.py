@@ -190,8 +190,8 @@ class SimpleAnsaConfig:
     execution_timeout: int = 300
     max_retries: int = 3
     retry_delay: float = 1.0
-    min_element_length: float = 2.0
-    max_element_length: float = 8.0
+    # min_element_length: float = 2.0
+    # max_element_length: float = 8.0
     quality_check_enabled: bool = True
     max_memory_usage: float = 8.0
     temp_cleanup: bool = True
@@ -200,10 +200,10 @@ class SimpleAnsaConfig:
         """简化的验证，返回元组以保持兼容性"""
         errors = []
 
-        if self.min_element_length <= 0:
-            errors.append("min_element_length must be positive")
-        if self.max_element_length <= self.min_element_length:
-            errors.append("max_element_length must be greater than min_element_length")
+        # if self.min_element_length <= 0:
+        #     errors.append("min_element_length must be positive")
+        # if self.max_element_length <= self.min_element_length:
+        #     errors.append("max_element_length must be greater than min_element_length")
         if self.execution_timeout <= 0:
             errors.append("execution_timeout must be positive")
         if self.max_retries < 0:
@@ -297,7 +297,7 @@ class SimpleParameterSpace:
             "distortion_distance": ParameterDefinition(
                 name="distortion_distance",
                 param_type=ParameterType.FLOAT,
-                bounds=(10.0, 30.0),
+                bounds=(15.0, 25.0),
                 description="扭曲距离",
                 unit="%",
                 ansa_mapping="distortion-distance",
@@ -387,7 +387,7 @@ class SimpleParameterSpace:
             "perimeter_distance": ParameterDefinition(
                 name="perimeter_distance",
                 param_type=ParameterType.FLOAT,
-                bounds=(0.667, 1.0),
+                bounds=(0.376, 1.0),
                 description="周边距离系数",
                 unit="*Lmin",
                 ansa_mapping="remove_perimeters_with_distance",
@@ -397,7 +397,7 @@ class SimpleParameterSpace:
             "general_curvature_minimum_length": ParameterDefinition(
                 name="general_curvature_minimum_length",
                 param_type=ParameterType.FLOAT,
-                bounds=(1.0, 5.0),
+                bounds=(1.6, 2.5),
                 description="通用曲率最小长度",
                 unit="mm",
                 ansa_mapping="general_curvature_minimum_length",
@@ -406,7 +406,7 @@ class SimpleParameterSpace:
             "recognize_feature_line_bounds_angle": ParameterDefinition(
                 name="recognize_feature_line_bounds_angle",
                 param_type=ParameterType.FLOAT,
-                bounds=(10.0, 30.0),
+                bounds=(15.0, 25.0),
                 description="特征线边界识别角度",
                 unit="degrees",
                 ansa_mapping="recognize_feature_line_bounds_angle",
@@ -415,7 +415,7 @@ class SimpleParameterSpace:
             "recognize_feature_line_bounds_corner_angle": ParameterDefinition(
                 name="recognize_feature_line_bounds_corner_angle",
                 param_type=ParameterType.FLOAT,
-                bounds=(20.0, 60.0),
+                bounds=(30.0, 50.0),
                 description="特征线边界拐角角度",
                 unit="degrees",
                 ansa_mapping="recognize_feature_line_bounds_corner_angle",
@@ -425,7 +425,7 @@ class SimpleParameterSpace:
             "treatment_hole_2d_N1": ParameterDefinition(
                 name="treatment_hole_2d_N1",
                 param_type=ParameterType.INTEGER,
-                bounds=(4, 10),
+                bounds=(6, 8),
                 description="孔洞处理规则2的节点数量",
                 unit="nodes",
                 ansa_mapping="treatment_hole_2d_N1",
@@ -434,7 +434,7 @@ class SimpleParameterSpace:
             "treatment_hole_2d_dw1": ParameterDefinition(
                 name="treatment_hole_2d_dw1",
                 param_type=ParameterType.FLOAT,
-                bounds=(1.0, 4.0),
+                bounds=(1.6, 2.5),
                 description="孔洞处理规则2的区域宽度",
                 unit="mm",
                 ansa_mapping="treatment_hole_2d_dw1",
@@ -443,7 +443,7 @@ class SimpleParameterSpace:
             "treatment_hole_2d_N2": ParameterDefinition(
                 name="treatment_hole_2d_N2",
                 param_type=ParameterType.INTEGER,
-                bounds=(6, 12),
+                bounds=(8, 10),
                 description="孔洞处理规则3的节点数量",
                 unit="nodes",
                 ansa_mapping="treatment_hole_2d_N2",
@@ -452,7 +452,7 @@ class SimpleParameterSpace:
             "treatment_hole_2d_dw2": ParameterDefinition(
                 name="treatment_hole_2d_dw2",
                 param_type=ParameterType.FLOAT,
-                bounds=(1.0, 4.0),
+                bounds=(1.6, 3.0),
                 description="孔洞处理规则3的区域宽度",
                 unit="mm",
                 ansa_mapping="treatment_hole_2d_dw2",

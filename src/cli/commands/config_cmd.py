@@ -14,7 +14,7 @@ def register_config_command(subparsers):
     # 生成默认配置
     generate_parser = config_subparsers.add_parser("generate", help="生成默认配置文件")
     generate_parser.add_argument(
-        "--output", type=str, default="src/default_config.json", help="配置文件输出路径"
+        "--output", type=str, default="default_config.json", help="配置文件输出路径"
     )
     generate_parser.add_argument(
         "--example", action="store_true", help="生成示例配置而非默认配置"

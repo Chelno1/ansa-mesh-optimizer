@@ -529,19 +529,20 @@ class TreatmentHole2dReplacementStrategy(ParameterReplacementStrategy):
             
             updated_content = re.sub(pattern, replace_treatment_3, updated_content, flags=re.DOTALL)
         
-        # 第208行: treatment = 4, 替换 width = 0.667*L
+        # 第208行: treatment = 4, 替换 width = 0.667*L 为纯数值
         if "dw3" in treatment_params:
             dw3_value = treatment_params["dw3"]
             
-            pattern = r"(treatment_hole_2d\s*=\s*4\s*\|\|.*?specific_zones\s*=\s*width\s*=\s*)([\d.]+)(\*L.*?)(\r?\n)"
+            # 修改正则表达式：将整个 "0.667*L" 作为一个整体进行匹配
+            pattern = r"(treatment_hole_2d\s*=\s*4\s*\|\|.*?specific_zones\s*=\s*width\s*=\s*)([\d.]+\*L)(.*?)(\r?\n)"
             
             def replace_treatment_4(match):
                 prefix = match.group(1)
-                old_width = match.group(2)
+                old_width_with_unit = match.group(2)  # 完整的 "0.667*L"
                 suffix = match.group(3)
                 newline = match.group(4)
                 
-                logger.debug(f"替换 treatment=4: width={old_width}*L->{dw3_value}*L")
+                logger.debug(f"替换 treatment=4: width={old_width_with_unit}->{dw3_value}")
                 return f"{prefix}{dw3_value}{suffix}{newline}"
                 
             updated_content = re.sub(pattern, replace_treatment_4, updated_content, flags=re.DOTALL)
