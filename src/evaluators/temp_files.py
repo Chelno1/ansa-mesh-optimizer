@@ -113,13 +113,30 @@ class TempFileManager:
             self.temp_files.append(file_path)
 
     def cleanup(self) -> None:
-        """清理临时文件（但保留临时目录用于调试）"""
+        """清理临时文件（但保留临时目录和JSON文件用于调试）"""
         try:
-            # 清理临时文件
+            # 清理临时文件，但保留JSON文件
             if self.temp_files:
-                cleanup_temp_files(self.temp_files)
-                logger.debug(f"清理了 {len(self.temp_files)} 个临时文件")
-                self.temp_files.clear()
+                # 过滤掉JSON文件，只清理其他类型的临时文件
+                files_to_cleanup = []
+                json_files_kept = []
+                
+                for file_path in self.temp_files:
+                    if file_path and file_path.endswith('.json'):
+                        json_files_kept.append(file_path)
+                        logger.debug(f"保留JSON文件: {file_path}")
+                    else:
+                        files_to_cleanup.append(file_path)
+                
+                if files_to_cleanup:
+                    cleanup_temp_files(files_to_cleanup)
+                    logger.debug(f"清理了 {len(files_to_cleanup)} 个临时文件")
+                
+                if json_files_kept:
+                    logger.debug(f"保留了 {len(json_files_kept)} 个JSON文件用于调试")
+                
+                # 只清除已处理的非JSON文件，保留JSON文件在列表中
+                self.temp_files = json_files_kept
             
             # 注意：我们不清理临时目录，以便进行调试
             # 这与原始代码行为保持一致
