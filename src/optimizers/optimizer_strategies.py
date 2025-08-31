@@ -21,25 +21,25 @@ logger = logging.getLogger(__name__)
 # 安全导入可选依赖
 def safe_import_skopt():
     """安全导入scikit-optimize"""
-    try:
-        from skopt import dummy_minimize, forest_minimize, gp_minimize
-        from skopt.utils import use_named_args
+    # try:
+    #     from skopt import dummy_minimize, forest_minimize, gp_minimize
+    #     from skopt.utils import use_named_args
 
-        return {
-            "available": True,
-            "gp_minimize": gp_minimize,
-            "forest_minimize": forest_minimize,
-            "dummy_minimize": dummy_minimize,
-            "use_named_args": use_named_args,
-        }
-    except ImportError:
-        return {
-            "available": False,
-            "gp_minimize": None,
-            "forest_minimize": None,
-            "dummy_minimize": None,
-            "use_named_args": None,
-        }
+    return {
+        "available": True,
+        "gp_minimize": gp_minimize,
+        "forest_minimize": forest_minimize,
+        "dummy_minimize": dummy_minimize,
+        "use_named_args": use_named_args,
+    }
+    # except ImportError:
+    #     return {
+    #         "available": False,
+    #         "gp_minimize": None,
+    #         "forest_minimize": None,
+    #         "dummy_minimize": None,
+    #         "use_named_args": None,
+    #     }
 
 
 SKOPT_MODULES = safe_import_skopt()
