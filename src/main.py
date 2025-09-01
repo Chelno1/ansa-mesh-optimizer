@@ -16,7 +16,27 @@ import sys
 def main() -> int:
     """主函数 - 改进的错误处理"""
     try:
-        from .cli.cli_main import main_cli
+        # 尝试不同的导入方式以支持PyInstaller
+        try:
+            from src.cli.cli_main import main_cli
+        except ImportError:
+            # 备用导入方式
+            import sys
+            import os
+            from pathlib import Path
+            
+            # 添加src目录到Python路径
+            if hasattr(sys, '_MEIPASS'):
+                # PyInstaller环境
+                src_path = Path(getattr(sys, '_MEIPASS')) / 'src'
+            else:
+                # 开发环境
+                src_path = Path(__file__).parent
+            
+            if str(src_path) not in sys.path:
+                sys.path.insert(0, str(src_path))
+            
+            from cli.cli_main import main_cli
 
         return main_cli()
     except ImportError as e:
