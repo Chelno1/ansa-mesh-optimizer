@@ -282,6 +282,9 @@ class MeshOptimizer:
         # 为可视化器创建完整路径
         report_dir = base_output_dir / "optimization_reports" / report_subdir
         visualizer = OptimizationVisualizer(report_dir)
+        
+        # 保存报告目录路径，供敏感性分析使用
+        self._last_report_dir = str(report_dir)
 
         # 使用报告器生成报告
         reporter.generate_optimization_report(
@@ -379,17 +382,24 @@ class MeshOptimizer:
             # 生成敏感性分析图表
             try:
                 if self.best_result:
-                    # 使用与优化报告相同的目录结构
-                    from ..config.config import UnifiedConfigManager
-                    config_manager = UnifiedConfigManager(config_file=None, require_config=False)
-                    base_output_dir = config_manager.ansa_config.output_dir
+                    # 重用最近生成的报告目录，确保敏感性分析图表与其他报告保存在同一目录
+                    if hasattr(self, '_last_report_dir') and self._last_report_dir:
+                        # 使用已有的报告目录
+                        report_dir = Path(self._last_report_dir)
+                        logger.info(f"重用现有报告目录进行敏感性分析: {report_dir}")
+                    else:
+                        # 如果没有现有目录，创建新的（备用逻辑）
+                        from ..config.config import UnifiedConfigManager
+                        config_manager = UnifiedConfigManager(config_file=None, require_config=False)
+                        base_output_dir = config_manager.ansa_config.output_dir
+                        
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        optimizer_name = self.best_result.optimizer_name.replace(" ", "_")
+                        report_subdir = f"{timestamp}_{optimizer_name}_sensitivity"
+                        
+                        report_dir = base_output_dir / "optimization_reports" / report_subdir
+                        logger.warning(f"创建新的敏感性分析目录（未找到现有报告目录）: {report_dir}")
                     
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    optimizer_name = self.best_result.optimizer_name.replace(" ", "_")
-                    report_subdir = f"{timestamp}_{optimizer_name}"
-                    
-                    # 使用标准的报告目录路径，不添加 _sensitivity 后缀
-                    report_dir = base_output_dir / "optimization_reports" / report_subdir
                     report_dir.mkdir(parents=True, exist_ok=True)
 
                     visualizer = OptimizationVisualizer(report_dir)
