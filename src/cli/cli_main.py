@@ -9,9 +9,9 @@ import importlib
 import logging
 
 # 导入统一的日志配置
-from ..utils.logging_config import setup_cli_logging
+from src.utils.logging_config import setup_cli_logging
 # 导入统一的版本号
-from .. import APP_VERSION, APP_NAME
+from src import APP_VERSION, APP_NAME
 
 logger = logging.getLogger(__name__)
 

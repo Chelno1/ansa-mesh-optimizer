@@ -25,18 +25,18 @@ def main() -> int:
             import os
             from pathlib import Path
             
-            # 添加src目录到Python路径
+            # 添加项目根目录到Python路径
             if hasattr(sys, '_MEIPASS'):
                 # PyInstaller环境
-                src_path = Path(getattr(sys, '_MEIPASS')) / 'src'
+                root_path = Path(getattr(sys, '_MEIPASS'))
             else:
-                # 开发环境
-                src_path = Path(__file__).parent
+                # 开发环境 - 获取项目根目录
+                root_path = Path(__file__).parent.parent
             
-            if str(src_path) not in sys.path:
-                sys.path.insert(0, str(src_path))
+            if str(root_path) not in sys.path:
+                sys.path.insert(0, str(root_path))
             
-            from cli.cli_main import main_cli
+            from src.cli.cli_main import main_cli
 
         return main_cli()
     except ImportError as e:
