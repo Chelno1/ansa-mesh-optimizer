@@ -1,0 +1,16 @@
+# 用于打包的兼容版本依赖
+# NumPy 2.0.x 版本与PyInstaller兼容性更好
+numpy==2.0.2
+scipy==1.13.1
+scikit-optimize==0.10.2
+scikit-learn==1.5.1
+matplotlib==3.8.4
+pandas==2.2.2
+seaborn==0.13.2
+joblib==1.4.2
+psutil==6.0.0
+tqdm==4.66.4
+colorama==0.4.6
+pyinstaller==6.8.0
+pytest==8.3.2
+requests==2.32.3
