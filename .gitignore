@@ -161,3 +161,28 @@ english_labels_test.png
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Java (for platform-api)
+*.class
+*.jar
+*.war
+*.ear
+.mvn/wrapper/maven-wrapper.jar
+
+# Maven
+platform-api/target/
+
+# Docker
+docker-compose.override.yml
+
+# Platform data directories
+data/postgres/
+data/redis/
+data/minio/
+
+# Agent workspace
+agent-worker/workspace/
+
+# Environment
+*.env
+.env.local
